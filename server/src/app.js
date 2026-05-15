@@ -35,8 +35,14 @@ const authLimiter = rateLimit({
 });
 
 import authRoutes from './routes/auth.routes.js';
+import productRoutes from './routes/products.routes.js';
+import categoryRoutes from './routes/categories.routes.js';
+import brandRoutes from './routes/brands.routes.js';
 
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth',       authLimiter, authRoutes);
+app.use('/api/products',   productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/brands',     brandRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });

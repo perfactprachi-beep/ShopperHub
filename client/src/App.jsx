@@ -3,9 +3,13 @@ import { lazy, Suspense } from 'react';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
 import AdminRoute from './components/guards/AdminRoute.jsx';
 
-const Home = lazy(() => import('./pages/Home.jsx'));
-const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const Home          = lazy(() => import('./pages/Home.jsx'));
+const LoginPage     = lazy(() => import('./pages/LoginPage.jsx'));
+const RegisterPage  = lazy(() => import('./pages/RegisterPage.jsx'));
+const CategoryPage  = lazy(() => import('./pages/CategoryPage.jsx'));
+const BrandPage     = lazy(() => import('./pages/BrandPage.jsx'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail.jsx'));
+const SearchPage    = lazy(() => import('./pages/SearchPage.jsx'));
 
 function Spinner() {
   return (
@@ -22,7 +26,11 @@ export default function App() {
         {/* Public */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register"       element={<RegisterPage />} />
+        <Route path="/category/:slug" element={<CategoryPage />} />
+        <Route path="/brand/:slug"    element={<BrandPage />} />
+        <Route path="/product/:slug"  element={<ProductDetail />} />
+        <Route path="/search"         element={<SearchPage />} />
 
         {/* Protected (add pages as phases complete) */}
         {/* <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} /> */}
