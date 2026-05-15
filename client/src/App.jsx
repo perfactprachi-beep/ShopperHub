@@ -9,16 +9,18 @@ import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
 import { useCartSync } from './hooks/useCartSync.js';
 import { useUiStore } from './store/uiStore.js';
 
-const Home          = lazy(() => import('./pages/Home.jsx'));
-const LoginPage     = lazy(() => import('./pages/LoginPage.jsx'));
-const RegisterPage  = lazy(() => import('./pages/RegisterPage.jsx'));
-const CategoryPage  = lazy(() => import('./pages/CategoryPage.jsx'));
-const BrandPage     = lazy(() => import('./pages/BrandPage.jsx'));
-const ProductDetail = lazy(() => import('./pages/ProductDetail.jsx'));
-const SearchPage    = lazy(() => import('./pages/SearchPage.jsx'));
-const OffersPage    = lazy(() => import('./pages/OffersPage.jsx'));
-const CartPage      = lazy(() => import('./pages/CartPage.jsx'));
-const WishlistPage  = lazy(() => import('./pages/WishlistPage.jsx'));
+const Home              = lazy(() => import('./pages/Home.jsx'));
+const LoginPage         = lazy(() => import('./pages/LoginPage.jsx'));
+const RegisterPage      = lazy(() => import('./pages/RegisterPage.jsx'));
+const CategoryPage      = lazy(() => import('./pages/CategoryPage.jsx'));
+const BrandPage         = lazy(() => import('./pages/BrandPage.jsx'));
+const ProductDetail     = lazy(() => import('./pages/ProductDetail.jsx'));
+const SearchPage        = lazy(() => import('./pages/SearchPage.jsx'));
+const OffersPage        = lazy(() => import('./pages/OffersPage.jsx'));
+const CartPage          = lazy(() => import('./pages/CartPage.jsx'));
+const WishlistPage      = lazy(() => import('./pages/WishlistPage.jsx'));
+const CheckoutPage      = lazy(() => import('./pages/CheckoutPage.jsx'));
+const OrderSuccessPage  = lazy(() => import('./pages/OrderSuccessPage.jsx'));
 
 function PageSpinner() {
   return (
@@ -51,11 +53,8 @@ function AppShell() {
             {/* Protected */}
             <Route path="/cart"     element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
             <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
-
-            {/* Future protected routes */}
-            {/* <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} /> */}
-            {/* <Route path="/orders"   element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} /> */}
-            {/* <Route path="/account"  element={<ProtectedRoute><AccountPage /></ProtectedRoute>} /> */}
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+            <Route path="/order-success/:id" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
           </Routes>
         </main>
       </Suspense>
