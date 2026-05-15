@@ -1,0 +1,81 @@
+# ============================================================
+# Shoppers Stop Clone — .gitignore
+# Stack: React/Vite (client) + Node/Express (server) + PostgreSQL
+# ============================================================
+
+# ── Environment & Secrets ────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+*.pem
+*.key
+*.cert
+
+# ── Node ─────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+package-lock.json   # keep if not using yarn/pnpm
+# yarn.lock         # keep if using yarn
+
+# ── Build Outputs ─────────────────────────────────────────────
+dist/
+build/
+.vite/
+client/dist/
+server/dist/
+
+# ── Uploads (local dev only) ──────────────────────────────────
+server/uploads/
+!server/uploads/.gitkeep
+
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+combined.log
+error.log
+
+# ── Database ──────────────────────────────────────────────────
+*.sql.bak
+*.dump
+pgdata/
+postgres-data/
+.pgpass
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*.suo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Testing ───────────────────────────────────────────────────
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# ── Docker ────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ── Misc ──────────────────────────────────────────────────────
+.cache/
+.temp/
+.tmp/
+*.tgz
+*.zip
+.turbo/
+.eslintcache
+.stylelintcache
