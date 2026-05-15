@@ -9,11 +9,14 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// CORS — restrict to client origin only
-app.use(cors({
-  origin: process.env.CLIENT_URL,
-  credentials: true,
-}));
+// CORS — allow configured origin; in dev also allow any localhost port
+const allowedOrigin = (origin, cb) => {
+  if (!origin) return cb(null, true); // server-to-server / curl
+  const isLocal = /^http:\/\/localhost:\d+$/.test(origin);
+  if (isLocal || origin === process.env.CLIENT_URL) return cb(null, true);
+  cb(new Error(`CORS: ${origin} not allowed`));
+};
+app.use(cors({ origin: allowedOrigin, credentials: true }));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -42,6 +45,9 @@ import bannerRoutes from './routes/banners.routes.js';
 import homeRoutes from './routes/home.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
+import accountRoutes from './routes/account.routes.js';
+import couponsRoutes from './routes/coupons.routes.js';
+import paymentsRoutes from './routes/payments.routes.js';
 
 app.use('/api/auth',       authLimiter, authRoutes);
 app.use('/api/products',   productRoutes);
@@ -51,6 +57,9 @@ app.use('/api/banners',    bannerRoutes);
 app.use('/api/home',       homeRoutes);
 app.use('/api/cart',       cartRoutes);
 app.use('/api/wishlist',   wishlistRoutes);
+app.use('/api/account',    accountRoutes);
+app.use('/api/coupons',    couponsRoutes);
+app.use('/api/payments',   paymentsRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });
