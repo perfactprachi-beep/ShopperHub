@@ -1,15 +1,16 @@
 import { pool } from '../pool.js';
 
-export async function getProducts({ category, brand, gender, minPrice, maxPrice, sort, page, limit }) {
+export async function getProducts({ category, brand, gender, minPrice, maxPrice, minDiscount, sort, page, limit }) {
   const conditions = ['p.status = $1'];
   const values = ['active'];
   let idx = 2;
 
-  if (category) { conditions.push(`c.slug = $${idx++}`); values.push(category); }
-  if (brand)    { conditions.push(`b.slug = $${idx++}`); values.push(brand); }
-  if (gender)   { conditions.push(`p.gender = $${idx++}`); values.push(gender); }
-  if (minPrice) { conditions.push(`p.base_price >= $${idx++}`); values.push(minPrice); }
-  if (maxPrice) { conditions.push(`p.base_price <= $${idx++}`); values.push(maxPrice); }
+  if (category)    { conditions.push(`c.slug = $${idx++}`); values.push(category); }
+  if (brand)       { conditions.push(`b.slug = $${idx++}`); values.push(brand); }
+  if (gender)      { conditions.push(`p.gender = $${idx++}`); values.push(gender); }
+  if (minPrice)    { conditions.push(`p.base_price >= $${idx++}`); values.push(minPrice); }
+  if (maxPrice)    { conditions.push(`p.base_price <= $${idx++}`); values.push(maxPrice); }
+  if (minDiscount) { conditions.push(`p.discount_pct >= $${idx++}`); values.push(Number(minDiscount)); }
 
   const orderMap = {
     'price_asc':  'p.base_price ASC',
