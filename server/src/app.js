@@ -34,32 +34,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Route placeholders
-// import authRoutes from './routes/auth.js';
-// import userRoutes from './routes/users.js';
-// import productRoutes from './routes/products.js';
-// import categoryRoutes from './routes/categories.js';
-// import orderRoutes from './routes/orders.js';
-// import cartRoutes from './routes/cart.js';
-// import wishlistRoutes from './routes/wishlist.js';
-// import reviewRoutes from './routes/reviews.js';
-// import couponRoutes from './routes/coupons.js';
-// import bannerRoutes from './routes/banners.js';
-// import adminRoutes from './routes/admin.js';
-// import paymentRoutes from './routes/payments.js';
+import authRoutes from './routes/auth.routes.js';
 
-// app.use('/api/auth', authLimiter, authRoutes);
-// app.use('/api/users', userRoutes);
-// app.use('/api/products', productRoutes);
-// app.use('/api/categories', categoryRoutes);
-// app.use('/api/orders', orderRoutes);
-// app.use('/api/cart', cartRoutes);
-// app.use('/api/wishlist', wishlistRoutes);
-// app.use('/api/reviews', reviewRoutes);
-// app.use('/api/coupons', couponRoutes);
-// app.use('/api/banners', bannerRoutes);
-// app.use('/api/admin', adminRoutes);
-// app.use('/api/payments', paymentRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });
