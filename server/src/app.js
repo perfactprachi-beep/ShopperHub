@@ -48,6 +48,9 @@ import wishlistRoutes from './routes/wishlist.routes.js';
 import accountRoutes from './routes/account.routes.js';
 import couponsRoutes from './routes/coupons.routes.js';
 import paymentsRoutes from './routes/payments.routes.js';
+import ordersRoutes from './routes/orders.routes.js';
+import reviewsRoutes from './routes/reviews.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
 
 app.use('/api/auth',       authLimiter, authRoutes);
 app.use('/api/products',   productRoutes);
@@ -59,7 +62,10 @@ app.use('/api/cart',       cartRoutes);
 app.use('/api/wishlist',   wishlistRoutes);
 app.use('/api/account',    accountRoutes);
 app.use('/api/coupons',    couponsRoutes);
-app.use('/api/payments',   paymentsRoutes);
+app.use('/api/payments',      paymentsRoutes);
+app.use('/api/orders',        ordersRoutes);
+app.use('/api/reviews',       reviewsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useCartStore } from '../../store/cartStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import api from '../../api/axios.js';
+import { getNotifications, markAllRead } from '../../api/notificationsApi.js';
 
 const MEGA_SLUGS = new Set(['men', 'women', 'kids']);
 
@@ -69,6 +70,14 @@ function IconChevronDown({ size = 16 }) {
     </svg>
   );
 }
+function IconBell({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
 
 /* ── Main Component ─────────────────────────────────────────────── */
 export default function Navbar() {
@@ -86,14 +95,42 @@ export default function Navbar() {
   const [mobileSearch, setMobileSearch] = useState(false);
   const [openAccordion, setOpenAccordion] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [notifOpen, setNotifOpen]       = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread]             = useState(0);
 
   const accountRef = useRef(null);
-  const megaTimer = useRef(null);
+  const notifRef   = useRef(null);
+  const megaTimer  = useRef(null);
 
   useEffect(() => {
     api.get('/categories').then(({ data }) => {
       if (data.success) setCategories(data.data);
     }).catch(() => {});
+  }, []);
+
+  const fetchNotifs = useCallback(() => {
+    if (!isLoggedIn) return;
+    getNotifications().then(({ data }) => {
+      if (data.success) {
+        setNotifications(data.data.notifications);
+        setUnread(data.data.unread);
+      }
+    }).catch(() => {});
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    fetchNotifs();
+    const id = setInterval(fetchNotifs, 60000);
+    return () => clearInterval(id);
+  }, [fetchNotifs]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!notifRef.current?.contains(e.target)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // Close account dropdown on outside click
@@ -199,6 +236,60 @@ export default function Navbar() {
               <span className="text-[10px] mt-0.5">Cart</span>
             </button>
 
+            {/* Notifications bell */}
+            {isLoggedIn && (
+              <div ref={notifRef} className="relative">
+                <button
+                  onClick={() => setNotifOpen((v) => !v)}
+                  className="flex flex-col items-center text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors relative"
+                  aria-label="Notifications"
+                >
+                  <span className="relative">
+                    <IconBell size={22} />
+                    {unread > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-[var(--color-error)] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] mt-0.5">Alerts</span>
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-xl overflow-hidden z-50">
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--color-border)]">
+                      <span className="text-sm font-semibold text-[var(--color-text)]">Notifications</span>
+                      {unread > 0 && (
+                        <button
+                          onClick={() => {
+                            markAllRead().then(fetchNotifs).catch(() => {});
+                          }}
+                          className="text-xs text-[var(--color-primary)] hover:underline"
+                        >Mark all read</button>
+                      )}
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="px-4 py-6 text-sm text-[var(--color-muted)] text-center">No notifications</p>
+                      ) : (
+                        notifications.slice(0, 10).map((n) => (
+                          <div
+                            key={n.id}
+                            className={`px-4 py-3 border-b border-[var(--color-border)] last:border-b-0 text-sm ${!n.is_read ? 'bg-blue-50 font-medium' : 'text-[var(--color-muted)]'}`}
+                          >
+                            <p className={!n.is_read ? 'text-[var(--color-text)]' : ''}>{n.message}</p>
+                            <p className="text-[10px] text-[var(--color-muted)] mt-0.5">
+                              {new Date(n.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Account */}
             <div ref={accountRef} className="relative">
               <button
@@ -216,9 +307,9 @@ export default function Navbar() {
                 <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] shadow-lg overflow-hidden z-50">
                   {isLoggedIn ? (
                     <>
-                      <Link to="/account/orders"  onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">My Orders</Link>
-                      <Link to="/wishlist"         onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">Wishlist</Link>
-                      <Link to="/account/profile"  onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">Profile</Link>
+                      <Link to="/orders"   onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">My Orders</Link>
+                      <Link to="/wishlist" onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">Wishlist</Link>
+                      <Link to="/account"  onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-[var(--color-bg)] text-[var(--color-text)]">My Account</Link>
                       <div className="border-t border-[var(--color-border)]" />
                       <button
                         onClick={() => { logout(); setAccountOpen(false); }}
