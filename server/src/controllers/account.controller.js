@@ -4,7 +4,34 @@ import {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
+  findUserById,
+  updateUserProfile,
+  getPointsHistory,
 } from '../db/queries/users.js';
+
+export async function getProfile(req, res, next) {
+  try {
+    const user = await findUserById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: user });
+  } catch (err) { next(err); }
+}
+
+export async function editProfile(req, res, next) {
+  try {
+    const { full_name, phone } = req.body;
+    const user = await updateUserProfile(req.user.id, { full_name, phone });
+    res.json({ success: true, data: user, message: 'Profile updated' });
+  } catch (err) { next(err); }
+}
+
+export async function getFirstCitizen(req, res, next) {
+  try {
+    const user = await findUserById(req.user.id);
+    const history = await getPointsHistory(req.user.id);
+    res.json({ success: true, data: { points: user.first_citizen_points, history } });
+  } catch (err) { next(err); }
+}
 
 export async function listAddresses(req, res, next) {
   try {
