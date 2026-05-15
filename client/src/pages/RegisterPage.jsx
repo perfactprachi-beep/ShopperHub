@@ -50,13 +50,13 @@ export default function RegisterPage() {
               name="fullName"
               value={form.fullName}
               onChange={handleChange}
-              placeholder="Prachi Shah"
+              placeholder="Full Name"
               className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Email</label>
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Email <span className="text-[var(--color-error)]">*</span></label>
             <input
               type="email"
               name="email"
@@ -69,14 +69,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Password</label>
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Password <span className="text-[var(--color-error)]">*</span></label>
             <input
               type="password"
               name="password"
               value={form.password}
               onChange={handleChange}
               required
-              placeholder="Min 8 characters"
+              placeholder="Password"
               className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[var(--radius-sm)] text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
             />
           </div>
