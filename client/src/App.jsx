@@ -3,8 +3,11 @@ import { lazy, Suspense } from 'react';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
 import ToastContainer from './components/ui/Toast.jsx';
+import CartDrawer from './components/cart/CartDrawer.jsx';
 import Spinner from './components/ui/Spinner.jsx';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
+import { useCartSync } from './hooks/useCartSync.js';
+import { useUiStore } from './store/uiStore.js';
 
 const Home          = lazy(() => import('./pages/Home.jsx'));
 const LoginPage     = lazy(() => import('./pages/LoginPage.jsx'));
@@ -14,6 +17,8 @@ const BrandPage     = lazy(() => import('./pages/BrandPage.jsx'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail.jsx'));
 const SearchPage    = lazy(() => import('./pages/SearchPage.jsx'));
 const OffersPage    = lazy(() => import('./pages/OffersPage.jsx'));
+const CartPage      = lazy(() => import('./pages/CartPage.jsx'));
+const WishlistPage  = lazy(() => import('./pages/WishlistPage.jsx'));
 
 function PageSpinner() {
   return (
@@ -23,7 +28,10 @@ function PageSpinner() {
   );
 }
 
-export default function App() {
+function AppShell() {
+  useCartSync();
+  const { cartOpen, closeCart } = useUiStore();
+
   return (
     <>
       <Navbar />
@@ -40,8 +48,11 @@ export default function App() {
             <Route path="/search"         element={<SearchPage />} />
             <Route path="/offers"         element={<OffersPage />} />
 
-            {/* Protected (add as phases complete) */}
-            {/* <Route path="/cart"     element={<ProtectedRoute><CartPage /></ProtectedRoute>} /> */}
+            {/* Protected */}
+            <Route path="/cart"     element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
+            <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+
+            {/* Future protected routes */}
             {/* <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} /> */}
             {/* <Route path="/orders"   element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} /> */}
             {/* <Route path="/account"  element={<ProtectedRoute><AccountPage /></ProtectedRoute>} /> */}
@@ -49,7 +60,12 @@ export default function App() {
         </main>
       </Suspense>
       <Footer />
+      <CartDrawer isOpen={cartOpen} onClose={closeCart} />
       <ToastContainer />
     </>
   );
+}
+
+export default function App() {
+  return <AppShell />;
 }
