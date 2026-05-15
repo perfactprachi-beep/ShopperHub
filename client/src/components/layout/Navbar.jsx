@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useScrollDirection } from '../../hooks/useScrollDirection.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useCartStore } from '../../store/cartStore.js';
+import { useUiStore } from '../../store/uiStore.js';
 import api from '../../api/axios.js';
 
 const MEGA_SLUGS = new Set(['men', 'women', 'kids']);
@@ -76,6 +77,7 @@ export default function Navbar() {
   const scrollDir = useScrollDirection();
   const cartItems = useCartStore((s) => s.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const { openCart } = useUiStore();
 
   const [search, setSearch] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -181,8 +183,8 @@ export default function Navbar() {
             </Link>
 
             {/* Cart */}
-            <Link
-              to="/cart"
+            <button
+              onClick={openCart}
               className="flex flex-col items-center text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors relative"
               aria-label="Cart"
             >
@@ -195,7 +197,7 @@ export default function Navbar() {
                 )}
               </span>
               <span className="text-[10px] mt-0.5">Cart</span>
-            </Link>
+            </button>
 
             {/* Account */}
             <div ref={accountRef} className="relative">
@@ -323,14 +325,14 @@ export default function Navbar() {
             >
               <IconSearch />
             </button>
-            <Link to="/cart" className="relative text-[var(--color-text)] p-1" aria-label="Cart">
+            <button onClick={openCart} className="relative text-[var(--color-text)] p-1" aria-label="Cart">
               <IconCart />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[var(--color-error)] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </Link>
+            </button>
           </div>
         </div>
 
