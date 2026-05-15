@@ -21,6 +21,9 @@ const CartPage          = lazy(() => import('./pages/CartPage.jsx'));
 const WishlistPage      = lazy(() => import('./pages/WishlistPage.jsx'));
 const CheckoutPage      = lazy(() => import('./pages/CheckoutPage.jsx'));
 const OrderSuccessPage  = lazy(() => import('./pages/OrderSuccessPage.jsx'));
+const OrdersPage        = lazy(() => import('./pages/OrdersPage.jsx'));
+const OrderDetailPage   = lazy(() => import('./pages/OrderDetailPage.jsx'));
+const AccountPage       = lazy(() => import('./pages/AccountPage.jsx'));
 
 function PageSpinner() {
   return (
@@ -55,6 +58,10 @@ function AppShell() {
             <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/order-success/:id" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
+            <Route path="/orders"    element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+            <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
+            <Route path="/account"   element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/*" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           </Routes>
         </main>
       </Suspense>

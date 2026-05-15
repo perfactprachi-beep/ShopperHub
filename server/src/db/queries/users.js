@@ -64,6 +64,26 @@ export async function findUserById(id) {
   return rows[0];
 }
 
+export async function updateUserProfile(id, { full_name, phone }) {
+  const { rows } = await pool.query(
+    `UPDATE users SET full_name=$2, phone=$3 WHERE id=$1
+     RETURNING id, email, full_name, phone, role, first_citizen_points, created_at`,
+    [id, full_name || null, phone || null]
+  );
+  return rows[0];
+}
+
+export async function getPointsHistory(userId) {
+  const { rows } = await pool.query(
+    `SELECT id, points_earned AS points, total, created_at
+     FROM orders
+     WHERE user_id = $1 AND points_earned > 0
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
 export async function createUser({ email, passwordHash, fullName, phone }) {
   const { rows } = await pool.query(
     `INSERT INTO users (email, password_hash, full_name, phone)
