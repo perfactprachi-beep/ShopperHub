@@ -4,8 +4,8 @@ import { getBrands, getBrandBySlug } from '../db/queries/brands.js';
 
 export async function listProducts(req, res, next) {
   try {
-    const { category, brand, gender, minPrice, maxPrice, sort, page, limit } = req.query;
-    const rows = await getProducts({ category, brand, gender, minPrice, maxPrice, sort, page, limit });
+    const { category, brand, gender, minPrice, maxPrice, minDiscount, sort, page, limit } = req.query;
+    const rows = await getProducts({ category, brand, gender, minPrice, maxPrice, minDiscount, sort, page, limit });
     const total = rows[0]?.total_count ? Number(rows[0].total_count) : 0;
     res.json({ success: true, data: rows, total, page: Number(page || 1) });
   } catch (err) { next(err); }
