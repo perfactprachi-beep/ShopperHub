@@ -38,11 +38,15 @@ import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/products.routes.js';
 import categoryRoutes from './routes/categories.routes.js';
 import brandRoutes from './routes/brands.routes.js';
+import bannerRoutes from './routes/banners.routes.js';
+import homeRoutes from './routes/home.routes.js';
 
 app.use('/api/auth',       authLimiter, authRoutes);
 app.use('/api/products',   productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands',     brandRoutes);
+app.use('/api/banners',    bannerRoutes);
+app.use('/api/home',       homeRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });
