@@ -40,6 +40,8 @@ import categoryRoutes from './routes/categories.routes.js';
 import brandRoutes from './routes/brands.routes.js';
 import bannerRoutes from './routes/banners.routes.js';
 import homeRoutes from './routes/home.routes.js';
+import cartRoutes from './routes/cart.routes.js';
+import wishlistRoutes from './routes/wishlist.routes.js';
 
 app.use('/api/auth',       authLimiter, authRoutes);
 app.use('/api/products',   productRoutes);
@@ -47,6 +49,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/brands',     brandRoutes);
 app.use('/api/banners',    bannerRoutes);
 app.use('/api/home',       homeRoutes);
+app.use('/api/cart',       cartRoutes);
+app.use('/api/wishlist',   wishlistRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });

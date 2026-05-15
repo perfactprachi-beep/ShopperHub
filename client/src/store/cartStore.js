@@ -5,15 +5,14 @@ export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
+      synced: false,
 
       addItem: (item) => {
-        const match = get().items.find(
-          (i) => i.productId === item.productId && i.variantId === item.variantId
-        );
-        if (match) {
+        const exists = get().items.find((i) => i.variantId === item.variantId);
+        if (exists) {
           set((s) => ({
             items: s.items.map((i) =>
-              i.productId === item.productId && i.variantId === item.variantId
+              i.variantId === item.variantId
                 ? { ...i, quantity: i.quantity + (item.quantity ?? 1) }
                 : i
             ),
@@ -23,33 +22,42 @@ export const useCartStore = create(
         }
       },
 
-      removeItem: (productId, variantId) =>
-        set((s) => ({
-          items: s.items.filter(
-            (i) => !(i.productId === productId && i.variantId === variantId)
-          ),
-        })),
+      removeItem: (variantId) =>
+        set((s) => ({ items: s.items.filter((i) => i.variantId !== variantId) })),
 
-      updateQuantity: (productId, variantId, quantity) =>
+      updateQty: (variantId, quantity) =>
         set((s) => ({
           items:
             quantity <= 0
-              ? s.items.filter(
-                  (i) => !(i.productId === productId && i.variantId === variantId)
-                )
-              : s.items.map((i) =>
-                  i.productId === productId && i.variantId === variantId
-                    ? { ...i, quantity }
-                    : i
-                ),
+              ? s.items.filter((i) => i.variantId !== variantId)
+              : s.items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
         })),
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], synced: false }),
 
-      get totalItems() {
-        return get().items.reduce((sum, i) => sum + i.quantity, 0);
-      },
+      setItems: (serverItems) =>
+        set({
+          synced: true,
+          items: serverItems.map((i) => ({
+            itemId:    i.itemId,
+            variantId: i.variantId,
+            productId: i.productId,
+            title:     i.productTitle,
+            brand:     i.brand,
+            image:     i.image,
+            size:      i.size,
+            color:     i.color,
+            price:     Number(i.unitPrice),
+            quantity:  i.quantity,
+          })),
+        }),
+
+      subtotal: () =>
+        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+
+      itemCount: () =>
+        get().items.reduce((sum, i) => sum + i.quantity, 0),
     }),
-    { name: 'cart' }
+    { name: 'ss_cart' }
   )
 );
