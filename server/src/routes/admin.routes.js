@@ -13,6 +13,7 @@ import { getAllCategories, createCategory, updateCategory, deleteCategory } from
 import { getBrands, createBrand, updateBrand, deleteBrand } from '../db/queries/brands.js';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../db/queries/banners.js';
 import { getAllCoupons, createCoupon, updateCoupon, deleteCoupon } from '../db/queries/coupons.js';
+import { getAllOffers, createOffer, updateOffer, deleteOffer } from '../db/queries/offers.js';
 import {
   adminListOrders, adminUpdateOrderStatus, adminGetDashboardStats,
 } from '../db/queries/orders.js';
@@ -275,6 +276,35 @@ router.delete('/banners/:id', async (req, res, next) => {
   try {
     await deleteBanner(req.params.id);
     res.json({ success: true, message: 'Banner deleted' });
+  } catch (err) { next(err); }
+});
+
+// ── Offers ────────────────────────────────────────────────────────────────────
+router.get('/offers', async (_req, res, next) => {
+  try {
+    const data = await getAllOffers();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/offers', async (req, res, next) => {
+  try {
+    const data = await createOffer(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.put('/offers/:id', async (req, res, next) => {
+  try {
+    const data = await updateOffer(req.params.id, req.body);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/offers/:id', async (req, res, next) => {
+  try {
+    await deleteOffer(req.params.id);
+    res.json({ success: true, message: 'Offer deleted' });
   } catch (err) { next(err); }
 });
 

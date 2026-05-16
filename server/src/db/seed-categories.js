@@ -104,12 +104,56 @@ const TREE = [
       'Skincare', 'Haircare', 'Makeup', 'Fragrances', 'Bath & Body', 'Nail Care',
     ],
   },
+  {
+    name: 'Luxe', slug: 'luxe', children: [
+      { name: 'Watches', slug: 'luxe-watches', children: [
+        { name: 'Tissot',         slug: 'luxe-watches-tissot' },
+        { name: 'Michael Kors',   slug: 'luxe-watches-michael-kors' },
+        { name: 'Coach',          slug: 'luxe-watches-coach' },
+        { name: 'Emporio Armani', slug: 'luxe-watches-emporio-armani' },
+        { name: 'GUESS',          slug: 'luxe-watches-guess' },
+      ]},
+      { name: 'Sunglasses', slug: 'luxe-sunglasses', children: [
+        { name: 'Tom Ford', slug: 'luxe-sunglasses-tom-ford' },
+        { name: 'Rayban',   slug: 'luxe-sunglasses-rayban' },
+        { name: 'GUESS',    slug: 'luxe-sunglasses-guess' },
+        { name: 'CARRERA',  slug: 'luxe-sunglasses-carrera' },
+      ]},
+      { name: 'Handbags', slug: 'luxe-handbags', children: [
+        { name: 'ALDO',        slug: 'luxe-handbags-aldo' },
+        { name: 'STEVE MADDEN',slug: 'luxe-handbags-steve-madden' },
+        { name: 'GUESS',       slug: 'luxe-handbags-guess' },
+        { name: 'HIDESIGN',    slug: 'luxe-handbags-hidesign' },
+      ]},
+      { name: 'Jewellery', slug: 'luxe-jewellery', children: [
+        { name: 'Swarovski',  slug: 'luxe-jewellery-swarovski' },
+        { name: 'Michael Kors', slug: 'luxe-jewellery-michael-kors' },
+      ]},
+      { name: 'Fragrances', slug: 'luxe-fragrances', children: [
+        { name: 'Giorgio Armani', slug: 'luxe-fragrances-giorgio-armani' },
+        { name: 'Versace',        slug: 'luxe-fragrances-versace' },
+        { name: 'Burberry',       slug: 'luxe-fragrances-burberry' },
+      ]},
+      { name: 'Skin Care', slug: 'luxe-skin-care', children: [
+        { name: 'Shiseido',       slug: 'luxe-skin-care-shiseido' },
+        { name: 'Clarins',        slug: 'luxe-skin-care-clarins' },
+        { name: 'Elizabeth Arden',slug: 'luxe-skin-care-elizabeth-arden' },
+      ]},
+      { name: 'Makeup', slug: 'luxe-makeup', children: [
+        { name: 'Estee Lauder', slug: 'luxe-makeup-estee-lauder' },
+        { name: 'Bobbi Brown',  slug: 'luxe-makeup-bobbi-brown' },
+        { name: 'M.A.C',        slug: 'luxe-makeup-mac' },
+        { name: 'Smashbox',     slug: 'luxe-makeup-smashbox' },
+        { name: 'NARS',         slug: 'luxe-makeup-nars' },
+        { name: 'Clinique',     slug: 'luxe-makeup-clinique' },
+      ]},
+    ],
+  },
 ];
 
 // ── Seed ───────────────────────────────────────────────────────────────────────
-async function upsert(name, parentId, sortOrder) {
-  const s = slug(name);
-  // Try insert; on conflict update to keep idempotent
+async function upsert(name, slugOverride, parentId, sortOrder) {
+  const s = slugOverride || slug(name);
   const { rows } = await pool.query(
     `INSERT INTO categories (name, slug, parent_id, sort_order)
      VALUES ($1, $2, $3, $4)
@@ -120,12 +164,17 @@ async function upsert(name, parentId, sortOrder) {
   return rows[0].id;
 }
 
-async function seedNode(node, parentId, sort) {
-  const name = typeof node === 'string' ? node : node.name;
-  const id   = await upsert(name, parentId, sort);
+async function seedNode(node, parentId, sort, slugPrefix) {
+  const name     = typeof node === 'string' ? node : node.name;
+  const nodeSlug = typeof node === 'object' && node.slug
+    ? node.slug
+    : slugPrefix
+      ? `${slugPrefix}-${slug(name)}`
+      : slug(name);
+  const id = await upsert(name, nodeSlug, parentId, sort);
   if (typeof node === 'object' && node.children) {
     for (let i = 0; i < node.children.length; i++) {
-      await seedNode(node.children[i], id, i);
+      await seedNode(node.children[i], id, i, slugPrefix ? nodeSlug : null);
     }
   }
   return id;
@@ -135,7 +184,7 @@ const client = await pool.connect();
 try {
   await client.query('BEGIN');
   for (let i = 0; i < TREE.length; i++) {
-    await seedNode(TREE[i], null, i);
+    await seedNode(TREE[i], null, i, null);
     console.log(`✓ ${TREE[i].name}`);
   }
   await client.query('COMMIT');

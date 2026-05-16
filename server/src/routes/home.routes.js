@@ -12,7 +12,7 @@ const PRODUCT_FIELDS = `
 
 router.get('/', async (_req, res, next) => {
   try {
-    const [banners, catResult, brandResult, newArrivalsResult, dealsResult] = await Promise.all([
+    const [banners, catResult, trendingResult, brandResult, newArrivalsResult, dealsResult, luxeResult] = await Promise.all([
       getActiveBanners(),
       pool.query(`
         SELECT id, name, slug, image_url
@@ -22,10 +22,23 @@ router.get('/', async (_req, res, next) => {
         LIMIT 6
       `),
       pool.query(`
+        SELECT DISTINCT ON (name) id, name, slug, image_url
+        FROM categories
+        WHERE name = ANY(ARRAY[
+          'T-Shirts','Jeans','Dresses & Jumpsuits','Watches',
+          'Handbags & Accessories','Kurtas & Kurtis','Skincare','Fragrances',
+          'Western Wear','Footwear'
+        ])
+        AND image_url IS NOT NULL
+        ORDER BY name, sort_order
+        LIMIT 8
+      `),
+      pool.query(`
         SELECT id, name, slug, logo_url
         FROM brands
+        WHERE logo_url IS NOT NULL
         ORDER BY name
-        LIMIT 8
+        LIMIT 12
       `),
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
@@ -33,15 +46,27 @@ router.get('/', async (_req, res, next) => {
         LEFT JOIN brands b ON b.id = p.brand_id
         WHERE p.status = 'active'
         ORDER BY p.created_at DESC
-        LIMIT 8
+        LIMIT 12
       `),
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.discount_pct >= 30
+        WHERE p.status = 'active' AND p.discount_pct >= 20
         ORDER BY p.discount_pct DESC
-        LIMIT 8
+        LIMIT 12
+      `),
+      pool.query(`
+        SELECT ${PRODUCT_FIELDS}
+        FROM products p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        WHERE p.status = 'active'
+          AND (
+            p.category_id IN (SELECT id FROM categories WHERE slug LIKE 'luxe%')
+            OR p.base_price >= 2000
+          )
+        ORDER BY p.base_price DESC
+        LIMIT 12
       `),
     ]);
 
@@ -50,9 +75,11 @@ router.get('/', async (_req, res, next) => {
       data: {
         banners,
         featuredCategories: catResult.rows,
+        trendingCategories: trendingResult.rows,
         brands: brandResult.rows,
         newArrivals: newArrivalsResult.rows,
         deals: dealsResult.rows,
+        luxeProducts: luxeResult.rows,
       },
     });
   } catch (err) { next(err); }

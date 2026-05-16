@@ -158,7 +158,7 @@ function ParentRow({ node, onEdit, onDelete, onAddChild, expanded, onToggle }) {
       <td className="px-4 py-3 text-right text-xs text-gray-400">{node.sort_order ?? '—'}</td>
       <td className="px-4 py-3">
         {node.image_url
-          ? <img src={node.image_url} alt={node.name} className="w-10 h-10 object-cover rounded" />
+          ? <img src={node.image_url} alt={node.name} className="w-10 h-10 object-cover rounded" onError={e => { e.currentTarget.style.display='none'; }} />
           : <span className="text-gray-300 text-xs">—</span>}
       </td>
       <td className="px-4 py-3">
