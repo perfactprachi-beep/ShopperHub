@@ -42,6 +42,7 @@ export async function getProducts({ category, brand, gender, minPrice, maxPrice,
     'price_desc': 'p.base_price DESC',
     'newest':     'p.created_at DESC',
     'discount':   'p.discount_pct DESC',
+    'random':     'RANDOM()',
   };
   const order = orderMap[sort] || 'p.created_at DESC';
 
@@ -73,10 +74,12 @@ export async function getProductBySlug(slug) {
     SELECT
       p.*,
       b.name AS brand_name, b.slug AS brand_slug,
-      c.name AS category_name, c.slug AS category_slug
+      c.name AS category_name, c.slug AS category_slug,
+      pc.name AS parent_category_name, pc.slug AS parent_category_slug
     FROM products p
     LEFT JOIN brands b ON b.id = p.brand_id
     LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_id
     WHERE p.slug = $1 AND p.status = 'active'
   `, [slug]);
 

@@ -8,6 +8,10 @@ import ProductCarousel from '../components/home/ProductCarousel.jsx';
 import TrendingGrid from '../components/home/TrendingGrid.jsx';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
 import { fetchHomeData } from '../api/homeApi.js';
+import { useCartStore } from '../store/cartStore.js';
+import { useToastStore } from '../store/toastStore.js';
+import { calcFinalPrice } from '../utils/calcDiscount.js';
+import { assetUrl } from '../utils/assetUrl.js';
 
 /* ── Shared heading ─────────────────────────────────────────────────────── */
 function SectionHead({ title, viewAllTo, viewAllLabel = 'View All' }) {
@@ -46,7 +50,7 @@ function Divider() {
 }
 
 /* ── Luxe highlight section ─────────────────────────────────────────────── */
-function LuxeSection({ products, loading }) {
+function LuxeSection({ products, loading, onAddToBag }) {
   return (
     <div className="w-full bg-[#1A1A1A] py-14 my-6">
       <div className="max-w-7xl mx-auto px-4">
@@ -88,7 +92,7 @@ function LuxeSection({ products, loading }) {
 
         {/* Product carousel — dark-themed */}
         <div className="[&_.product-card]:bg-[#2A2A2A] [&_.product-card]:border-[#333]">
-          <ProductCarousel products={products} loading={loading} dark />
+          <ProductCarousel products={products} loading={loading} dark onAddToBag={onAddToBag} />
         </div>
       </div>
     </div>
@@ -132,7 +136,7 @@ function LoyaltySection() {
 }
 
 /* ── Recently Viewed ────────────────────────────────────────────────────── */
-function RecentlyViewed() {
+function RecentlyViewed({ onAddToBag }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -147,7 +151,7 @@ function RecentlyViewed() {
   return (
     <section className="max-w-7xl mx-auto px-4 py-8">
       <SectionHead title="Recently Viewed" />
-      <ProductCarousel products={items} loading={false} />
+      <ProductCarousel products={items} loading={false} onAddToBag={onAddToBag} />
     </section>
   );
 }
@@ -156,6 +160,24 @@ function RecentlyViewed() {
 export default function Home() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const addItem = useCartStore((s) => s.addItem);
+  const { addToast } = useToastStore();
+  const handleAddToBag = (product) => {
+    const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
+    addItem({
+      variantId:  product.id,
+      productId:  product.id,
+      title:      product.title,
+      brand:      product.brand_name,
+      image:      assetUrl(product.image_url || ''),
+      size:       null,
+      color:      null,
+      price:      finalPrice,
+      quantity:   1,
+    });
+    addToast('Added to bag!', 'success');
+  };
 
   useEffect(() => {
     fetchHomeData()
@@ -200,7 +222,7 @@ export default function Home() {
       {/* 4 ── New Arrivals carousel */}
       <section className="max-w-7xl mx-auto px-4 py-8">
         <SectionHead title="New Arrivals" viewAllTo="/search?sort=newest" />
-        <ProductCarousel products={data?.newArrivals} loading={loading} showNew />
+        <ProductCarousel products={data?.newArrivals} loading={loading} showNew onAddToBag={handleAddToBag} />
       </section>
 
       <Divider />
@@ -256,17 +278,27 @@ export default function Home() {
       {/* 8 ── Top Deals carousel */}
       <section className="max-w-7xl mx-auto px-4 py-8">
         <SectionHead title="Top Deals" viewAllTo="/offers" viewAllLabel="All Offers" />
-        <ProductCarousel products={data?.deals} loading={loading} />
+        <ProductCarousel products={data?.deals} loading={loading} onAddToBag={handleAddToBag} />
       </section>
 
       {/* 9 ── Luxe Collection */}
-      <LuxeSection products={data?.luxeProducts} loading={loading} />
+      <LuxeSection products={data?.luxeProducts} loading={loading} onAddToBag={handleAddToBag} />
 
       {/* 10 ── First Citizen Loyalty */}
       <LoyaltySection />
 
-      {/* 11 ── Recently Viewed */}
-      <RecentlyViewed />
+      {/* 11 ── Recommended for You */}
+      {(loading || data?.recommended?.length > 0) && (
+        <section className="max-w-7xl mx-auto px-4 py-8">
+          <SectionHead title="Recommended for You" viewAllTo="/search?sort=discount" viewAllLabel="View All" />
+          <ProductCarousel products={data?.recommended} loading={loading} onAddToBag={handleAddToBag} />
+        </section>
+      )}
+
+      <Divider />
+
+      {/* 12 ── Recently Viewed */}
+      <RecentlyViewed onAddToBag={handleAddToBag} />
     </div>
   );
 }
