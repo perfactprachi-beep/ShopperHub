@@ -1,34 +1,183 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import BannerCarousel from '../components/home/BannerCarousel.jsx';
 import CategoryCard from '../components/home/CategoryCard.jsx';
 import BrandStrip from '../components/home/BrandStrip.jsx';
-import ProductGrid from '../components/product/ProductGrid.jsx';
+import PromoOfferBar from '../components/home/PromoOfferBar.jsx';
+import ProductCarousel from '../components/home/ProductCarousel.jsx';
+import TrendingGrid from '../components/home/TrendingGrid.jsx';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
-import { Link } from 'react-router-dom';
 import { fetchHomeData } from '../api/homeApi.js';
 
-function SectionHeading({ children }) {
+/* ── Shared heading ─────────────────────────────────────────────────────── */
+function SectionHead({ title, viewAllTo, viewAllLabel = 'View All' }) {
   return (
-    <h2
-      className="text-2xl font-bold text-[var(--color-text)] mb-6"
-      style={{ fontFamily: 'var(--font-heading)' }}
-    >
-      {children}
-    </h2>
+    <div className="flex items-center justify-between mb-5">
+      <h2
+        className="text-xl font-bold text-gray-900 uppercase tracking-wide"
+        style={{ fontFamily: 'var(--font-heading)' }}
+      >
+        {title}
+      </h2>
+      {viewAllTo && (
+        <Link
+          to={viewAllTo}
+          className="text-xs font-semibold text-[#8B1A2F] border border-[#8B1A2F] px-3 py-1.5 rounded hover:bg-[#8B1A2F] hover:text-white transition-colors uppercase tracking-wider"
+        >
+          {viewAllLabel} →
+        </Link>
+      )}
+    </div>
   );
 }
 
 function CategorySkeleton() {
   return (
-    <div className="flex flex-col items-center gap-2 shrink-0">
-      <Skeleton className="w-20 h-20 lg:w-24 lg:h-24 rounded-full" />
-      <Skeleton className="h-3 w-14" />
+    <div className="flex flex-col items-center gap-3 shrink-0">
+      <Skeleton className="w-32 h-32 lg:w-36 lg:h-36 rounded-full" />
+      <Skeleton className="h-3 w-20" />
     </div>
   );
 }
 
+/* ── Divider ────────────────────────────────────────────────────────────── */
+function Divider() {
+  return <div className="border-t border-gray-100 my-2" />;
+}
+
+/* ── Luxe highlight section ─────────────────────────────────────────────── */
+function LuxeSection({ products, loading }) {
+  return (
+    <div className="w-full bg-[#1A1A1A] py-14 my-6">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Header row */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+          <div>
+            <p className="text-[#C9A84C] text-xs uppercase tracking-[0.3em] font-semibold mb-2">
+              Exclusive
+            </p>
+            <h2
+              className="text-4xl lg:text-5xl font-bold text-white mb-3"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              LUXE Collection
+            </h2>
+            <p className="text-gray-400 max-w-md text-sm leading-relaxed">
+              Discover the world's finest watches, handbags, fragrances and jewellery.
+              Premium brands. Curated just for you.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {['Watches', 'Handbags', 'Fragrances', 'Jewellery'].map((cat) => (
+                <Link
+                  key={cat}
+                  to={`/category/luxe-${cat.toLowerCase()}`}
+                  className="text-[11px] text-[#C9A84C] border border-[#C9A84C]/40 px-3 py-1 rounded-full hover:bg-[#C9A84C]/10 transition-colors"
+                >
+                  {cat}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <Link
+            to="/category/luxe"
+            className="shrink-0 px-10 py-3.5 border border-[#C9A84C] text-[#C9A84C] font-semibold text-sm uppercase tracking-widest hover:bg-[#C9A84C] hover:text-black transition-all"
+          >
+            Shop Luxe
+          </Link>
+        </div>
+
+        {/* Product carousel — dark-themed */}
+        <div className="[&_.product-card]:bg-[#2A2A2A] [&_.product-card]:border-[#333]">
+          <ProductCarousel products={products} loading={loading} dark />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── First Citizen loyalty ──────────────────────────────────────────────── */
+function LoyaltySection() {
+  return (
+    <div className="w-full bg-[#8B1A2F] py-12">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-6">
+        <div className="text-center lg:text-left">
+          <p className="text-white/70 text-xs uppercase tracking-[0.25em] mb-2">
+            Loyalty Programme
+          </p>
+          <h2
+            className="text-3xl font-bold text-white"
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
+            Become a First Citizen
+          </h2>
+          <p className="text-white/80 mt-2 max-w-md text-sm leading-relaxed">
+            Earn points on every purchase. Unlock exclusive rewards, early access
+            and member-only deals.
+          </p>
+          <div className="flex flex-wrap gap-4 mt-4 justify-center lg:justify-start text-xs text-white/70">
+            <span>✓ Earn points on every buy</span>
+            <span>✓ Exclusive member offers</span>
+            <span>✓ Early sale access</span>
+          </div>
+        </div>
+        <Link
+          to="/register"
+          className="shrink-0 px-8 py-3 bg-white text-[#8B1A2F] font-bold rounded-sm hover:bg-gray-100 transition-colors text-sm uppercase tracking-wider"
+        >
+          Join Now — It's Free
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ── App download banner ────────────────────────────────────────────────── */
+function AppBanner() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-10">
+      <div className="bg-gradient-to-r from-[#1A1A2E] to-[#16213E] rounded-2xl px-8 py-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+        <div className="text-center lg:text-left">
+          <p className="text-[#C9A84C] text-xs uppercase tracking-widest mb-2">
+            Shop Smarter
+          </p>
+          <h3
+            className="text-2xl font-bold text-white mb-2"
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
+            Get the ShoppersHub App
+          </h3>
+          <p className="text-gray-400 text-sm max-w-sm">
+            Exclusive app-only deals, faster checkout, order tracking and more.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+          <div className="flex items-center gap-2 bg-black border border-white/10 rounded-xl px-4 py-3 cursor-pointer hover:border-white/30 transition-colors">
+            <svg width="20" height="24" viewBox="0 0 20 24" fill="white">
+              <path d="M16.318 13.714v5.484h-2.44v-5.2c0-1.307-.468-2.198-1.64-2.198-.895 0-1.427.602-1.661 1.184-.085.208-.106.497-.106.788v5.426H8.03s.032-8.804 0-9.714h2.44v1.377a2.42 2.42 0 0 1 2.198-1.211c1.604 0 2.807 1.048 2.807 3.302l-.157-.238zm-11.61-8.764c-.835 0-1.38.549-1.38 1.27 0 .707.529 1.271 1.348 1.271h.016c.851 0 1.38-.564 1.38-1.271-.016-.721-.529-1.27-1.364-1.27zm-1.22 14.248h2.44V9.484h-2.44v9.714z"/>
+            </svg>
+            <div>
+              <p className="text-[9px] text-gray-400 leading-none">Download on the</p>
+              <p className="text-white text-sm font-semibold">App Store</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-black border border-white/10 rounded-xl px-4 py-3 cursor-pointer hover:border-white/30 transition-colors">
+            <svg width="20" height="22" viewBox="0 0 20 22" fill="white">
+              <path d="M1.22 0C.955.03.74.24.74.56v20.88c0 .32.215.53.48.56l.04.01 11.7-11.7v-.24L1.26 0l-.04.01zm15.84 12.26l-3.12-3.12 1.78-1.78 3.12 3.12c.9.9.9 2.36 0 3.26l-.06.04-1.72-1.52zm-3.12 3.12L1.22 27H1.8l12.92-10.5-.04-.04 3.12-3.12-3.16-3.16-1.56 1.56zm-12.72 9.16l12.72-12.72-12.72 12.72z"/>
+            </svg>
+            <div>
+              <p className="text-[9px] text-gray-400 leading-none">Get it on</p>
+              <p className="text-white text-sm font-semibold">Google Play</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main page ──────────────────────────────────────────────────────────── */
 export default function Home() {
-  const [data, setData] = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,20 +188,21 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      {/* 1. Banner Carousel — full width */}
+    <div className="min-h-screen bg-white">
+
+      {/* 1 ── Hero Banner Carousel */}
       <BannerCarousel banners={data?.banners ?? []} />
 
-      {/* 2. Category strip */}
-      <section className="max-w-7xl mx-auto px-4 py-10">
-        <h2
-          className="text-xl font-semibold text-[var(--color-text)] mb-5"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
-          Shop by Category
-        </h2>
+      {/* 2 ── Promo Offer Codes */}
+      <PromoOfferBar />
+
+      <Divider />
+
+      {/* 3 ── Shop by Category */}
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <SectionHead title="Shop by Category" viewAllTo="/category/men" viewAllLabel="All Categories" />
         <div
-          className="flex gap-6 overflow-x-auto pb-2"
+          className="flex gap-5 overflow-x-auto pb-2"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {loading
@@ -68,90 +218,78 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3. New Arrivals */}
-      <section className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <SectionHeading>New Arrivals</SectionHeading>
-          <Link
-            to="/category/all"
-            className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-          >
-            View all →
-          </Link>
-        </div>
-        <ProductGrid products={data?.newArrivals} loading={loading} cols={4} />
+      <Divider />
+
+      {/* 4 ── New Arrivals carousel */}
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <SectionHead title="New Arrivals" viewAllTo="/search?sort=newest" />
+        <ProductCarousel products={data?.newArrivals} loading={loading} />
       </section>
 
-      {/* 4. Promo banner — full width CTA */}
-      <div className="w-full my-6 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] py-14">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-6">
+      <Divider />
+
+      {/* 5 ── Trending Now grid */}
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <SectionHead title="Trending Now" />
+        <TrendingGrid categories={data?.trendingCategories} loading={loading} />
+      </section>
+
+      {/* 6 ── Full-width editorial banner */}
+      <div className="w-full my-6 bg-gradient-to-r from-[#0F3460] to-[#1A1A2E] py-16">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-8">
           <div className="text-center lg:text-left">
-            <p className="text-white/70 text-sm uppercase tracking-widest mb-2">Exclusive Collection</p>
+            <p className="text-[#C9A84C] text-xs uppercase tracking-[0.3em] font-semibold mb-2">
+              Curated for You
+            </p>
             <h2
-              className="text-3xl lg:text-4xl font-bold text-white"
+              className="text-4xl lg:text-5xl font-bold text-white leading-tight"
               style={{ fontFamily: 'var(--font-heading)' }}
             >
-              Summer Edit 2024
+              Festive Season<br />Edit 2025
             </h2>
-            <p className="text-white/80 mt-2">Curated looks for every occasion</p>
+            <p className="text-white/70 mt-3 text-sm max-w-md">
+              From ethnic wear to western chic — every look for every celebration.
+            </p>
           </div>
-          <Link
-            to="/category/women"
-            className="shrink-0 px-8 py-3 bg-white text-[var(--color-primary)] font-semibold rounded-[var(--radius-sm)] hover:bg-[var(--color-primary-light)] transition-colors text-sm"
-          >
-            Shop Now
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+            <Link
+              to="/category/women"
+              className="px-8 py-3 bg-white text-[#0F3460] font-semibold text-sm rounded hover:bg-gray-100 transition-colors text-center"
+            >
+              Shop Women
+            </Link>
+            <Link
+              to="/category/men"
+              className="px-8 py-3 border border-white text-white font-semibold text-sm rounded hover:bg-white/10 transition-colors text-center"
+            >
+              Shop Men
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* 5. Brand Strip */}
+      {/* 7 ── Top Brands */}
       <section className="max-w-7xl mx-auto px-4 py-8">
-        <h2
-          className="text-xl font-semibold text-[var(--color-text)] mb-5"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
-          Top Brands
-        </h2>
+        <SectionHead title="Top Brands" viewAllTo="/brands" viewAllLabel="All Brands" />
         <BrandStrip brands={data?.brands ?? []} />
       </section>
 
-      {/* 6. Top Deals */}
-      <section className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <SectionHeading>Top Deals</SectionHeading>
-          <Link
-            to="/offers"
-            className="text-sm font-medium text-[var(--color-primary)] hover:underline"
-          >
-            View all offers →
-          </Link>
-        </div>
-        <ProductGrid products={data?.deals} loading={loading} cols={4} />
+      <Divider />
+
+      {/* 8 ── Top Deals carousel */}
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <SectionHead title="Top Deals" viewAllTo="/offers" viewAllLabel="All Offers" />
+        <ProductCarousel products={data?.deals} loading={loading} />
       </section>
 
-      {/* 7. First Citizen promo */}
-      <section className="w-full bg-[var(--color-accent)] my-6 py-12">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="text-center lg:text-left">
-            <p className="text-white/80 text-xs uppercase tracking-widest mb-1">Loyalty Programme</p>
-            <h2
-              className="text-3xl font-bold text-white"
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              Become a First Citizen
-            </h2>
-            <p className="text-white/80 mt-2 max-w-md">
-              Earn points on every purchase. Unlock exclusive rewards, early access and member-only deals.
-            </p>
-          </div>
-          <Link
-            to="/register"
-            className="shrink-0 px-8 py-3 bg-white text-[var(--color-accent)] font-bold rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity text-sm"
-          >
-            Join Now — It's Free
-          </Link>
-        </div>
-      </section>
+      {/* 9 ── Luxe Collection */}
+      <LuxeSection products={data?.luxeProducts} loading={loading} />
+
+      {/* 10 ── First Citizen Loyalty */}
+      <LoyaltySection />
+
+      {/* 11 ── Get the App */}
+      <AppBanner />
     </div>
   );
 }

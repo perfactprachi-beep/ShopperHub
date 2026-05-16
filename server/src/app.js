@@ -79,6 +79,7 @@ import paymentsRoutes from './routes/payments.routes.js';
 import ordersRoutes from './routes/orders.routes.js';
 import reviewsRoutes from './routes/reviews.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import offersRoutes from './routes/offers.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
 app.use('/api/auth',          authLimiter, authRoutes);
@@ -95,6 +96,7 @@ app.use('/api/payments',      paymentsRoutes);
 app.use('/api/orders',        ordersRoutes);
 app.use('/api/reviews',       reviewsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/offers',        offersRoutes);
 app.use('/api/admin',         adminRoutes);
 
 // Liveness

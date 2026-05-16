@@ -18,12 +18,15 @@ export default function BrandStrip({ brands = [] }) {
               alt={b.name}
               className="max-h-9 max-w-[88px] object-contain grayscale group-hover:grayscale-0 transition-all"
               loading="lazy"
+              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }}
             />
-          ) : (
-            <span className="text-xs font-semibold text-[var(--color-muted)] group-hover:text-[var(--color-primary)] text-center px-2 leading-tight">
-              {b.name}
-            </span>
-          )}
+          ) : null}
+          <span
+            className="text-xs font-semibold text-[var(--color-muted)] group-hover:text-[var(--color-primary)] text-center px-2 leading-tight"
+            style={{ display: b.logo_url ? 'none' : 'block' }}
+          >
+            {b.name}
+          </span>
         </Link>
       ))}
 

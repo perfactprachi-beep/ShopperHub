@@ -66,6 +66,17 @@ function IconBanners() {
   );
 }
 
+function IconOffers() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="16" x2="13" y2="16"/>
+    </svg>
+  );
+}
+
 function IconUsers() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -103,6 +114,7 @@ const NAV_ITEMS = [
   { to: '/admin/brands',     label: 'Brands',     Icon: IconBrands },
   { to: '/admin/orders',     label: 'Orders',     Icon: IconOrders },
   { to: '/admin/coupons',    label: 'Coupons',    Icon: IconCoupons },
+  { to: '/admin/offers',     label: 'Offers',     Icon: IconOffers },
   { to: '/admin/banners',    label: 'Banners',    Icon: IconBanners },
   { to: '/admin/users',      label: 'Users',      Icon: IconUsers },
 ];
@@ -114,6 +126,7 @@ const PAGE_TITLES = {
   '/admin/brands':     'Brands',
   '/admin/orders':     'Orders',
   '/admin/coupons':    'Coupons',
+  '/admin/offers':     'Offers',
   '/admin/banners':    'Banners',
   '/admin/users':      'Users',
 };
@@ -125,6 +138,7 @@ const PAGE_SUBTITLES = {
   '/admin/brands':     'Manage brand listings',
   '/admin/orders':     'Track and fulfill orders',
   '/admin/coupons':    'Discount codes & promotions',
+  '/admin/offers':     'Manage product page offer messages',
   '/admin/banners':    'Homepage & promotional banners',
   '/admin/users':      'Customer accounts',
 };

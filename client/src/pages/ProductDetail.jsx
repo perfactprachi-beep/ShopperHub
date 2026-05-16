@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
 import ImageGallery from '../components/product/ImageGallery.jsx';
 import VariantPicker from '../components/product/VariantPicker.jsx';
+import ProductCarousel from '../components/home/ProductCarousel.jsx';
 import { formatPrice } from '../utils/formatPrice.js';
 import { calcFinalPrice } from '../utils/calcDiscount.js';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
 import { getReviews, checkPurchased, addReview } from '../api/reviewsApi.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useToastStore } from '../store/toastStore.js';
+import { useCartStore } from '../store/cartStore.js';
+import { useWishlistStore } from '../store/wishlistStore.js';
+import { toggleWishlist } from '../api/wishlistApi.js';
+import { assetUrl } from '../utils/assetUrl.js';
+import { getActiveOffers } from '../api/offersApi.js';
 
-/* ── Star helpers ────────────────────────────────────────────────── */
+/* ── Star helpers ──────────────────────────────────────────────────────── */
 function StarFilled({ size = 16, color = '#f59e0b' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1">
@@ -27,7 +33,6 @@ function StarEmpty({ size = 16 }) {
     </svg>
   );
 }
-
 function StarRating({ value, onChange, size = 24 }) {
   const [hover, setHover] = useState(0);
   return (
@@ -39,7 +44,6 @@ function StarRating({ value, onChange, size = 24 }) {
           onClick={() => onChange?.(n)}
           onMouseEnter={() => setHover(n)}
           onMouseLeave={() => setHover(0)}
-          className="p-0 leading-none"
         >
           {(hover || value) >= n ? <StarFilled size={size} /> : <StarEmpty size={size} />}
         </button>
@@ -50,14 +54,165 @@ function StarRating({ value, onChange, size = 24 }) {
 
 function maskName(name) {
   if (!name) return 'Anonymous';
-  const parts = name.trim().split(' ');
-  return parts.map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(p.length - 1))).join(' ');
+  return name.trim().split(' ').map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(p.length - 1))).join(' ');
 }
 
-/* ── Reviews Section ─────────────────────────────────────────────── */
+/* ── Offers accordion — fetched dynamically from admin panel ───────────── */
+function OffersSection() {
+  const [open, setOpen]     = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const handleToggle = () => {
+    if (!loaded) {
+      getActiveOffers()
+        .then(setOffers)
+        .catch(() => {})
+        .finally(() => setLoaded(true));
+    }
+    setOpen((o) => !o);
+  };
+
+  return (
+    <div className="border border-gray-200 rounded overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-800 bg-white"
+        onClick={handleToggle}
+      >
+        <span className="flex items-center gap-2">
+          <svg width="16" height="16" fill="none" stroke="#8B1A2F" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/>
+          </svg>
+          Best Offers
+        </span>
+        <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50">
+          {!loaded ? (
+            <p className="text-xs text-gray-400">Loading offers…</p>
+          ) : offers.length === 0 ? (
+            <p className="text-xs text-gray-400">No offers available right now.</p>
+          ) : (
+            offers.map((o) => (
+              <div key={o.id} className="flex items-start gap-3">
+                <span className="shrink-0 mt-0.5">
+                  <svg width="14" height="14" fill="none" stroke="#8B1A2F" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-gray-800 leading-snug">{o.title}</p>
+                  {o.description && (
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{o.description}</p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Pincode checker ───────────────────────────────────────────────────── */
+function PincodeCheck() {
+  const [pin, setPin] = useState('');
+  const [result, setResult] = useState(null);
+
+  const check = () => {
+    if (pin.length === 6) setResult({ ok: true });
+  };
+
+  return (
+    <div className="border border-gray-200 rounded p-4">
+      <p className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Check Delivery
+      </p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          maxLength={6}
+          value={pin}
+          onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setResult(null); }}
+          placeholder="Enter Pincode"
+          className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
+        />
+        <button
+          onClick={check}
+          className="px-4 py-2 border border-[#8B1A2F] text-[#8B1A2F] text-sm font-semibold hover:bg-[#8B1A2F] hover:text-white transition-colors"
+        >
+          Check
+        </button>
+      </div>
+      {result && (
+        <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+          Delivery available in 2–4 business days
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Product details accordion ─────────────────────────────────────────── */
+function ProductDetailsAccordion({ description }) {
+  const [open, setOpen] = useState(true);
+  if (!description) return null;
+  return (
+    <div className="border border-gray-200 rounded overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-800"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>Product Details</span>
+        <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 px-4 py-4">
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{description}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Similar products ──────────────────────────────────────────────────── */
+function SimilarProducts({ gender, currentId }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!gender) { setLoading(false); return; }
+    productsApi
+      .list({ gender, limit: 10 })
+      .then(({ data }) => setProducts((data.data || []).filter((p) => p.id !== currentId)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [gender, currentId]);
+
+  if (!loading && !products.length) return null;
+
+  return (
+    <div className="mt-16 border-t border-gray-100 pt-10">
+      <h2
+        className="text-xl font-bold text-gray-900 uppercase tracking-wide mb-6"
+        style={{ fontFamily: 'var(--font-heading)' }}
+      >
+        You May Also Like
+      </h2>
+      <ProductCarousel products={products} loading={loading} />
+    </div>
+  );
+}
+
+/* ── Reviews section ───────────────────────────────────────────────────── */
 function ReviewsSection({ productId }) {
   const { isLoggedIn } = useAuth();
-  const addToast = useToastStore((s) => s.addToast);
+  const { addToast } = useToastStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [reviews, setReviews]       = useState([]);
@@ -82,7 +237,6 @@ function ReviewsSection({ productId }) {
     }
   }, [productId, isLoggedIn]);
 
-  // Auto-open modal if coming from order detail with ?review=1
   useEffect(() => {
     if (searchParams.get('review') === '1' && purchased) {
       setModalOpen(true);
@@ -93,20 +247,19 @@ function ReviewsSection({ productId }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!rating) return addToast({ type: 'error', message: 'Please select a rating' });
+    if (!rating) return addToast('Please select a rating', 'error');
     setSubmitting(true);
     try {
       const { data } = await addReview({ productId, rating, body });
       if (data.success) {
-        addToast({ type: 'success', message: 'Review submitted!' });
+        addToast('Review submitted!', 'success');
         setModalOpen(false);
         setRating(0);
         setBody('');
         loadReviews();
       }
     } catch (err) {
-      const msg = err.response?.data?.message ?? 'Failed to submit review';
-      addToast({ type: 'error', message: msg });
+      addToast(err.response?.data?.message ?? 'Failed to submit review', 'error');
     } finally { setSubmitting(false); }
   }
 
@@ -114,15 +267,15 @@ function ReviewsSection({ productId }) {
   const avg = parseFloat(stats?.average ?? 0);
 
   return (
-    <div className="mt-12 border-t border-[var(--color-border)] pt-8">
+    <div className="mt-12 border-t border-gray-100 pt-10">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-[var(--color-text)]" style={{ fontFamily: 'var(--font-heading)' }}>
+        <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
           Ratings & Reviews
         </h2>
         {isLoggedIn && purchased && (
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-1.5 border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium rounded-[var(--radius-sm)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+            className="px-4 py-2 border border-[#8B1A2F] text-[#8B1A2F] text-sm font-semibold hover:bg-[#8B1A2F] hover:text-white transition-colors"
           >
             Write a Review
           </button>
@@ -130,21 +283,16 @@ function ReviewsSection({ productId }) {
       </div>
 
       {totalCount === 0 ? (
-        <p className="text-sm text-[var(--color-muted)]">No reviews yet. Be the first!</p>
+        <p className="text-sm text-gray-400">No reviews yet. Be the first to review!</p>
       ) : (
         <div className="flex flex-col lg:flex-row gap-8 mb-8">
-          {/* Average */}
           <div className="flex flex-col items-center justify-center min-w-[120px]">
-            <span className="text-5xl font-bold text-[var(--color-text)]">{avg.toFixed(1)}</span>
+            <span className="text-5xl font-bold text-gray-900">{avg.toFixed(1)}</span>
             <div className="flex mt-1">
-              {[1,2,3,4,5].map((n) => (
-                avg >= n ? <StarFilled key={n} size={14} /> : <StarEmpty key={n} size={14} />
-              ))}
+              {[1,2,3,4,5].map((n) => avg >= n ? <StarFilled key={n} size={14} /> : <StarEmpty key={n} size={14} />)}
             </div>
-            <span className="text-xs text-[var(--color-muted)] mt-1">{totalCount} rating{totalCount !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-gray-400 mt-1">{totalCount} rating{totalCount !== 1 ? 's' : ''}</span>
           </div>
-
-          {/* Breakdown */}
           <div className="flex-1 flex flex-col gap-1.5">
             {[5,4,3,2,1].map((star) => {
               const key = ['five','four','three','two','one'][5 - star];
@@ -152,12 +300,12 @@ function ReviewsSection({ productId }) {
               const pct = totalCount ? Math.round((count / totalCount) * 100) : 0;
               return (
                 <div key={star} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 text-right text-[var(--color-muted)]">{star}</span>
+                  <span className="w-3 text-right text-gray-400">{star}</span>
                   <StarFilled size={10} />
-                  <div className="flex-1 h-2 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="w-6 text-[var(--color-muted)]">{count}</span>
+                  <span className="w-5 text-gray-400">{count}</span>
                 </div>
               );
             })}
@@ -165,55 +313,51 @@ function ReviewsSection({ productId }) {
         </div>
       )}
 
-      {/* Review list */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {reviews.map((r) => (
-          <div key={r.id} className="border-b border-[var(--color-border)] pb-4 last:border-b-0">
+          <div key={r.id} className="border-b border-gray-100 pb-5 last:border-0">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex">{[1,2,3,4,5].map((n) => r.rating >= n ? <StarFilled key={n} size={12} /> : <StarEmpty key={n} size={12} />)}</div>
-              <span className="text-xs font-medium text-[var(--color-text)]">{maskName(r.full_name)}</span>
-              <span className="text-xs text-[var(--color-muted)]">·</span>
-              <span className="text-xs text-[var(--color-muted)]">
+              <span className="text-xs font-semibold text-gray-800">{maskName(r.full_name)}</span>
+              <span className="text-xs text-gray-300">·</span>
+              <span className="text-xs text-gray-400">
                 {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
             </div>
-            {r.body && <p className="text-sm text-[var(--color-muted)]">{r.body}</p>}
+            {r.body && <p className="text-sm text-gray-500">{r.body}</p>}
           </div>
         ))}
       </div>
 
-      {/* Review Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[var(--color-surface)] rounded-[var(--radius-md)] shadow-xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-[var(--color-text)] mb-4">Write a Review</h3>
+          <div className="bg-white rounded shadow-xl w-full max-w-md p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-4">Write a Review</h3>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--color-muted)] mb-2">Your Rating</label>
+                <label className="block text-xs font-medium text-gray-500 mb-2">Your Rating</label>
                 <StarRating value={rating} onChange={setRating} size={28} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">Your Review (optional)</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Your Review (optional)</label>
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={4}
-                  placeholder="Share your experience with this product…"
-                  className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-[var(--radius-sm)] bg-[var(--color-bg)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+                  placeholder="Share your experience…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:border-[#8B1A2F] resize-none"
                 />
               </div>
               <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-sm text-[var(--color-muted)] hover:text-[var(--color-text)]"
-                >Cancel</button>
+                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-700">
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={submitting || !rating}
-                  className="px-5 py-2 bg-[var(--color-primary)] text-white text-sm font-medium rounded-[var(--radius-sm)] hover:opacity-90 disabled:opacity-50"
+                  className="px-5 py-2 bg-[#8B1A2F] text-white text-sm font-semibold hover:bg-[#6d1424] disabled:opacity-50 transition-colors"
                 >
-                  {submitting ? 'Submitting…' : 'Submit Review'}
+                  {submitting ? 'Submitting…' : 'Submit'}
                 </button>
               </div>
             </form>
@@ -224,91 +368,231 @@ function ReviewsSection({ productId }) {
   );
 }
 
+/* ── Loading skeleton ──────────────────────────────────────────────────── */
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <Skeleton className="h-3 w-64 mb-6" />
+      <div className="flex flex-col lg:flex-row gap-10">
+        <div className="flex-1 flex gap-3">
+          <div className="flex flex-col gap-2 shrink-0">
+            {[1,2,3,4].map((i) => <Skeleton key={i} className="w-[72px] h-[88px]" />)}
+          </div>
+          <Skeleton className="flex-1 aspect-[3/4]" />
+        </div>
+        <div className="w-full lg:w-[45%] space-y-4">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-7 w-3/4" />
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Icon: Heart ───────────────────────────────────────────────────────── */
+function IconHeart({ filled }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? '#8B1A2F' : 'none'} stroke={filled ? '#8B1A2F' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+/* ── Main page ─────────────────────────────────────────────────────────── */
 export default function ProductDetail() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState({});
-  const [searchParams] = useSearchParams();
   const { data, loading } = useFetch(() => productsApi.detail(slug), [slug]);
   const product = data?.data;
 
-  if (loading) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-8 flex gap-8">
-        <div className="flex-1"><Skeleton className="w-full h-[480px]" /></div>
-        <div className="w-80 space-y-4">
-          <Skeleton className="h-6 w-2/3" />
-          <Skeleton className="h-8 w-1/2" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
-    );
-  }
+  const { isLoggedIn } = useAuth();
+  const { addToast } = useToastStore();
+  const addItem = useCartStore((s) => s.addItem);
+  const { has, toggle } = useWishlistStore();
 
+  if (loading) return <LoadingSkeleton />;
   if (!product) {
-    return <div className="py-32 text-center text-[var(--color-muted)]">Product not found.</div>;
+    return <div className="py-32 text-center text-gray-400">Product not found.</div>;
   }
 
   const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
   const hasDiscount = product.discount_pct > 0;
+  const primaryImage = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '';
+  const wished = has(product.id);
 
-  const primaryImage = product.images?.find(i => i.is_primary)?.url || product.images?.[0]?.url || '';
+  const sizes  = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))];
+  const selectedVariant = product.variants?.find((v) => {
+    if (selected.size && selected.color) return v.size === selected.size && v.color === selected.color;
+    if (selected.size)  return v.size === selected.size  && v.stock > 0;
+    if (selected.color) return v.color === selected.color && v.stock > 0;
+    return v.stock > 0;
+  }) || product.variants?.[0];
+
+  const handleAddToBag = () => {
+    if (sizes.length > 0 && !selected.size) {
+      addToast('Please select a size', 'error');
+      return;
+    }
+    if (!selectedVariant) {
+      addToast('No variant available', 'error');
+      return;
+    }
+    addItem({
+      variantId: selectedVariant.id,
+      productId: product.id,
+      title:     product.title,
+      brand:     product.brand_name,
+      image:     assetUrl(primaryImage),
+      size:      selectedVariant.size,
+      color:     selectedVariant.color,
+      price:     finalPrice,
+      quantity:  1,
+    });
+    addToast('Added to bag!', 'success');
+  };
+
+  const handleWishlist = async () => {
+    if (!isLoggedIn) {
+      addToast('Please login to save items', 'info');
+      navigate('/login');
+      return;
+    }
+    toggle(product.id);
+    try {
+      await toggleWishlist(product.id);
+      addToast(wished ? 'Removed from wishlist' : 'Added to wishlist', 'success');
+    } catch {
+      toggle(product.id);
+      addToast('Something went wrong', 'error');
+    }
+  };
+
+  const breadcrumb = [
+    { label: 'Home', to: '/' },
+    product.gender && { label: product.gender.charAt(0).toUpperCase() + product.gender.slice(1), to: `/category/${product.gender}` },
+    product.brand_name && { label: product.brand_name, to: `/brand/${product.brand_slug}` },
+    { label: product.title, to: null },
+  ].filter(Boolean);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="bg-white min-h-screen">
       <Helmet>
-        <title>{product.title} – {product.brand_name}</title>
+        <title>{product.title} – {product.brand_name} | ShoppersHub</title>
         <meta name="description" content={(product.description || '').slice(0, 155)} />
-        <meta property="og:title" content={`${product.title} | ShoppersHub`} />
-        <meta property="og:description" content={(product.description || '').slice(0, 155)} />
         <meta property="og:image" content={primaryImage} />
-        <meta property="og:type" content="product" />
         <link rel="canonical" href={`${window.location.origin}/product/${product.slug}`} />
       </Helmet>
-      <div className="flex flex-col lg:flex-row gap-10">
-        {/* Gallery */}
-        <div className="flex-1">
-          <ImageGallery images={product.images} />
-        </div>
 
-        {/* Info */}
-        <div className="w-full lg:w-80 space-y-4">
-          <p className="text-sm text-[var(--color-muted)]">{product.brand_name}</p>
-          <h1 className="text-xl font-bold text-[var(--color-text)]" style={{ fontFamily: 'var(--font-heading)' }}>
-            {product.title}
-          </h1>
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap items-center gap-1 text-xs text-gray-400 mb-6">
+          {breadcrumb.map((crumb, i) => (
+            <span key={i} className="flex items-center gap-1">
+              {i > 0 && <span className="text-gray-200">/</span>}
+              {crumb.to ? (
+                <Link to={crumb.to} className="hover:text-[#8B1A2F] transition-colors">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className="text-gray-600 line-clamp-1 max-w-[200px]">{crumb.label}</span>
+              )}
+            </span>
+          ))}
+        </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold text-[var(--color-text)]">{formatPrice(finalPrice)}</span>
-            {hasDiscount && (
-              <>
-                <span className="text-sm text-[var(--color-muted)] line-through">{formatPrice(product.base_price)}</span>
-                <span className="text-sm font-semibold text-[var(--color-error)]">{product.discount_pct}% OFF</span>
-              </>
-            )}
+        {/* Two-column layout */}
+        <div className="flex flex-col lg:flex-row gap-12">
+          {/* Left: Image gallery */}
+          <div className="w-full lg:w-[55%]">
+            <ImageGallery images={product.images} />
           </div>
 
-          {product.variants?.length > 0 && (
-            <VariantPicker variants={product.variants} selected={selected} onSelect={setSelected} />
-          )}
+          {/* Right: Product info */}
+          <div className="w-full lg:w-[45%] space-y-5">
+            {/* Brand + title */}
+            <div>
+              {product.brand_name && (
+                <Link
+                  to={`/brand/${product.brand_slug}`}
+                  className="text-xs font-bold text-[#8B1A2F] uppercase tracking-widest hover:underline"
+                >
+                  {product.brand_name}
+                </Link>
+              )}
+              <h1
+                className="text-xl lg:text-2xl font-semibold text-gray-900 mt-1 leading-snug"
+                style={{ fontFamily: 'var(--font-heading)' }}
+              >
+                {product.title}
+              </h1>
+            </div>
 
-          {product.description && (
-            <p className="text-sm text-[var(--color-muted)] leading-relaxed border-t border-[var(--color-border)] pt-4">
-              {product.description}
-            </p>
-          )}
+            {/* Price block */}
+            <div>
+              <div className="flex items-baseline flex-wrap gap-3">
+                <span className="text-2xl font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+                {hasDiscount && (
+                  <>
+                    <span className="text-sm text-gray-400 line-through">{formatPrice(product.base_price)}</span>
+                    <span className="text-sm font-bold text-[#8B1A2F] bg-red-50 px-2 py-0.5 rounded">
+                      {product.discount_pct}% OFF
+                    </span>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Inclusive of all taxes</p>
+            </div>
 
-          <button
-            disabled={product.stock === 0}
-            className="w-full py-3 bg-[var(--color-primary)] text-white font-medium rounded-[var(--radius-sm)] hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}
-          </button>
+            {/* Offers */}
+            <OffersSection />
+
+            {/* Variants */}
+            {product.variants?.length > 0 && (
+              <VariantPicker variants={product.variants} selected={selected} onSelect={setSelected} />
+            )}
+
+            {/* Delivery check */}
+            <PincodeCheck />
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col gap-3 pt-1">
+              <button
+                onClick={handleAddToBag}
+                disabled={product.stock === 0}
+                className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}
+              </button>
+              <button
+                onClick={handleWishlist}
+                className={`w-full py-4 border-2 font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                  wished
+                    ? 'border-[#8B1A2F] bg-red-50 text-[#8B1A2F]'
+                    : 'border-gray-200 text-gray-600 hover:border-[#8B1A2F] hover:text-[#8B1A2F]'
+                }`}
+              >
+                <IconHeart filled={wished} />
+                {wished ? 'Wishlisted' : 'Add to Wishlist'}
+              </button>
+            </div>
+
+            {/* Product details accordion */}
+            <ProductDetailsAccordion description={product.description} />
+          </div>
         </div>
-      </div>
 
-      {/* Reviews */}
-      <ReviewsSection productId={product.id} />
+        {/* Similar Products */}
+        <SimilarProducts gender={product.gender} currentId={product.id} />
+
+        {/* Reviews */}
+        <ReviewsSection productId={product.id} />
+      </div>
     </div>
   );
 }
