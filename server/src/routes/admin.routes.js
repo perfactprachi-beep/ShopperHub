@@ -169,16 +169,20 @@ router.get('/brands', async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/brands', async (req, res, next) => {
+router.post('/brands', uploadSingle, async (req, res, next) => {
   try {
-    const data = await createBrand(req.body);
+    const body = { ...req.body };
+    if (req.file) body.logo_url = `/uploads/${req.file.filename}`;
+    const data = await createBrand(body);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 });
 
-router.put('/brands/:id', async (req, res, next) => {
+router.put('/brands/:id', uploadSingle, async (req, res, next) => {
   try {
-    const data = await updateBrand(req.params.id, req.body);
+    const body = { ...req.body };
+    if (req.file) body.logo_url = `/uploads/${req.file.filename}`;
+    const data = await updateBrand(req.params.id, body);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 });
@@ -204,7 +208,12 @@ router.put('/orders/:id/status', async (req, res, next) => {
     const { status } = req.body;
     const order = await adminUpdateOrderStatus(req.params.id, status);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    createNotification(order.user_id, `Your order #ORD-${order.id} status has been updated to ${status}.`).catch(() => {});
+    const msgs = {
+      confirmed: `Your order #ORD-${order.id} has been confirmed and is being prepared.`,
+      shipped:   `Great news! Your order #ORD-${order.id} has been shipped and is on its way.`,
+      delivered: `Your order #ORD-${order.id} has been delivered. Enjoy your purchase!`,
+    };
+    createNotification(order.user_id, msgs[status] ?? `Your order #ORD-${order.id} has been updated to ${status}.`).catch(() => {});
     res.json({ success: true, data: order });
   } catch (err) { next(err); }
 });

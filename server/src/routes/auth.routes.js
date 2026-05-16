@@ -13,9 +13,10 @@ const registerSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email(),
+  phone: Joi.string().max(15),
   password: Joi.string().required(),
-});
+}).or('email', 'phone');
 
 router.post('/register', validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);

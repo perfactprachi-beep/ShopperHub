@@ -83,20 +83,22 @@ function CategoryModal({ category, categories, showParentField, onClose, onSaved
           {showParentField && (
             <div>
               <label className="label">Parent Category</label>
-              <select
-                name="parent_id"
-                value={form.parent_id || ''}
-                onChange={handleChange}
-                disabled={!category?.id && !!form.parent_id}
-                className="input disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-              >
-                <option value="">— None (top-level) —</option>
-                {groupedParents.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.parent_id ? `    ↳ ${c.name}` : c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="select-wrap">
+                <select
+                  name="parent_id"
+                  value={form.parent_id || ''}
+                  onChange={handleChange}
+                  disabled={!category?.id && !!form.parent_id}
+                  className="disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                >
+                  <option value="">— None (top-level) —</option>
+                  {groupedParents.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.parent_id ? `    ↳ ${c.name}` : c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
           <div>
@@ -161,9 +163,15 @@ function ParentRow({ node, onEdit, onDelete, onAddChild, expanded, onToggle }) {
       </td>
       <td className="px-4 py-3">
         <div className="flex gap-3">
-          <button onClick={() => onAddChild(node)} className="text-green-600 text-xs hover:underline">+ Sub</button>
-          <button onClick={() => onEdit(node)} className="text-blue-600 text-xs hover:underline">Edit</button>
-          <button onClick={() => onDelete(node.id)} className="text-red-500 text-xs hover:underline">Delete</button>
+          <button onClick={() => onAddChild(node)} title="Add subcategory" className="p-1.5 rounded-md text-green-600 hover:bg-green-50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button onClick={() => onEdit(node)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button onClick={() => onDelete(node.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
         </div>
       </td>
     </tr>
@@ -199,8 +207,12 @@ function ChildRow({ node, onEdit, onDelete, onAddChild, depth = 1 }) {
             {depth < 2 && (
               <button onClick={() => onAddChild(node)} className="text-green-600 text-xs hover:underline">+ Sub</button>
             )}
-            <button onClick={() => onEdit(node)} className="text-blue-600 text-xs hover:underline">Edit</button>
-            <button onClick={() => onDelete(node.id)} className="text-red-500 text-xs hover:underline">Delete</button>
+            <button onClick={() => onEdit(node)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button onClick={() => onDelete(node.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
           </div>
         </td>
       </tr>
@@ -267,12 +279,17 @@ export default function AdminCategories() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-800">{totalTop}</span> parent categories ·{' '}
-          <span className="font-medium text-gray-800">{totalSub}</span> subcategories
-        </p>
-        <button onClick={() => openNew()} className="btn-primary px-4 py-2 text-sm">
-          + Add Category
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+            <span className="font-bold text-gray-800">{totalTop}</span> categories
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+            <span className="font-bold text-gray-800">{totalSub}</span> subcategories
+          </span>
+        </div>
+        <button onClick={() => openNew()} className="btn-primary px-4 py-2 text-sm flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Category
         </button>
       </div>
 
@@ -285,13 +302,13 @@ export default function AdminCategories() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[#1A1A1A] text-xs text-gray-300 uppercase">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-left">Category / Subcategory</th>
-                  <th className="px-4 py-3 text-left">Slug</th>
-                  <th className="px-4 py-3 text-right">Sort</th>
-                  <th className="px-4 py-3 text-left">Image URL</th>
-                  <th className="px-4 py-3 text-left">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Category / Subcategory</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Slug</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Image</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   getAdminProducts, createProduct, updateProduct, deleteProduct,
   getProductVariants, addVariant, updateVariant, deleteVariant,
@@ -102,8 +102,13 @@ function ProductFormModal({ product, onClose, onSaved }) {
   };
 
   const handleDeleteImage = async (id) => {
-    await deleteImage(id);
-    setImages(imgs => imgs.filter(i => i.id !== id));
+    if (!confirm('Delete this image?')) return;
+    try {
+      await deleteImage(id);
+      setImages(imgs => imgs.filter(i => i.id !== id));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Delete failed');
+    }
   };
 
   const handleSetPrimary = async (id) => {
@@ -155,31 +160,39 @@ function ProductFormModal({ product, onClose, onSaved }) {
               </div>
               <div>
                 <label className="label">Brand</label>
-                <select name="brand_id" value={form.brand_id || ''} onChange={handleChange} className="input">
-                  <option value="">— Select Brand —</option>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <div className="select-wrap">
+                  <select name="brand_id" value={form.brand_id || ''} onChange={handleChange}>
+                    <option value="">— Select Brand —</option>
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="label">Category</label>
-                <select name="category_id" value={form.category_id || ''} onChange={handleChange} className="input">
-                  <option value="">— Select Category —</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="select-wrap">
+                  <select name="category_id" value={form.category_id || ''} onChange={handleChange}>
+                    <option value="">— Select Category —</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="label">Gender</label>
-                <select name="gender" value={form.gender || ''} onChange={handleChange} className="input">
-                  <option value="">— None —</option>
-                  {['men','women','kids','unisex'].map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+                <div className="select-wrap">
+                  <select name="gender" value={form.gender || ''} onChange={handleChange}>
+                    <option value="">— None —</option>
+                    {['men','women','kids','unisex'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="label">Status</label>
-                <select name="status" value={form.status} onChange={handleChange} className="input">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                <div className="select-wrap">
+                  <select name="status" value={form.status} onChange={handleChange}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="label">Base Price (₹)</label>
@@ -237,8 +250,12 @@ function ProductFormModal({ product, onClose, onSaved }) {
                           <td className="px-3 py-2 text-right">{v.stock}</td>
                           <td className="px-3 py-2 text-right">+₹{v.extra_price}</td>
                           <td className="px-3 py-2 flex gap-2">
-                            <button onClick={() => setVariantForm({...v})} className="text-blue-600 text-xs hover:underline">Edit</button>
-                            <button onClick={() => handleDeleteVariant(v.id)} className="text-red-500 text-xs hover:underline">Del</button>
+                            <button onClick={() => setVariantForm({...v})} title="Edit" className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button onClick={() => handleDeleteVariant(v.id)} title="Delete" className="p-1 rounded text-red-500 hover:bg-red-50 transition-colors">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            </button>
                           </td>
                         </>
                       )}
@@ -268,47 +285,145 @@ function ProductFormModal({ product, onClose, onSaved }) {
           {/* Images */}
           {tab === 'images' && (
             <div>
+              {/* Image grid */}
               <div className="flex flex-wrap gap-3 mb-4">
                 {images.map(img => (
-                  <div key={img.id} className="relative group w-24 h-24">
-                    <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover rounded-lg border border-gray-200" />
+                  <div key={img.id} className="relative w-24 h-24 group">
+                    <img
+                      src={assetUrl(img.url)}
+                      alt=""
+                      className="w-full h-full object-cover rounded-lg border border-gray-200"
+                    />
+                    {/* Primary badge */}
                     {img.is_primary && (
-                      <span className="absolute top-1 left-1 bg-yellow-400 text-xs px-1 rounded">★</span>
+                      <span className="absolute top-1 left-1 bg-yellow-400 text-[10px] font-bold px-1.5 py-0.5 rounded shadow">★</span>
                     )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center gap-2 transition-opacity">
-                      {!img.is_primary && (
-                        <button onClick={() => handleSetPrimary(img.id)} title="Set primary" className="text-yellow-300 text-sm">★</button>
-                      )}
-                      <button onClick={() => handleDeleteImage(img.id)} title="Delete" className="text-red-400 text-sm">🗑</button>
-                    </div>
+                    {/* Delete button — always visible */}
+                    <button
+                      onClick={() => handleDeleteImage(img.id)}
+                      title="Delete image"
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow transition-colors"
+                    >
+                      ✕
+                    </button>
+                    {/* Set primary on hover */}
+                    {!img.is_primary && (
+                      <button
+                        onClick={() => handleSetPrimary(img.id)}
+                        title="Set as primary"
+                        className="absolute bottom-1 left-1 right-1 bg-black/60 hover:bg-black/80 text-yellow-300 text-[10px] font-medium py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Set Primary
+                      </button>
+                    )}
                   </div>
                 ))}
+
+                {/* Upload slot */}
                 {images.length < 6 && (
                   <button
                     onClick={() => fileRef.current?.click()}
                     disabled={uploadingImages}
-                    className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors text-2xl"
+                    className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {uploadingImages ? '…' : '+'}
+                    {uploadingImages
+                      ? <><span className="text-lg animate-spin">↻</span><span className="text-[10px]">Uploading</span></>
+                      : <><span className="text-2xl leading-none">+</span><span className="text-[10px]">Add Image</span></>
+                    }
                   </button>
                 )}
               </div>
+
               <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
-              <p className="text-xs text-gray-400">Up to 6 images · 5 MB each · ★ = primary</p>
+
+              <p className="text-xs text-gray-400">{images.length}/6 images · 5 MB each · ★ = primary</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        {tab === 'basic' && (
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+          {tab === 'basic' && (
             <button onClick={handleBasicSave} disabled={saving} className="btn-primary px-5 py-2 text-sm">
               {saving ? 'Saving…' : product?.id ? 'Update' : 'Create'}
             </button>
-          </div>
-        )}
+          )}
+          {tab === 'variants' && (
+            <button onClick={onClose} className="btn-primary px-5 py-2 text-sm">Done</button>
+          )}
+          {tab === 'images' && (
+            <button onClick={onClose} className="btn-primary px-5 py-2 text-sm">Submit</button>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ── FilterDropdown ─────────────────────────────────────────────────────────────
+function FilterDropdown({ value, onChange, onClear, placeholder, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const active = Boolean(value);
+  const label = active ? options.find(o => String(o.value) === String(value))?.label : null;
+
+  useEffect(() => {
+    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      {active ? (
+        /* Active: compact pill with label + ✕ */
+        <div className="flex items-center gap-0 rounded-md border border-[#8B1A2F]/40 bg-[#8B1A2F]/5 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 text-xs font-medium text-[#8B1A2F] max-w-[110px]"
+          >
+            <span className="truncate">{label}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="pr-2 pl-0.5 py-1.5 text-[#8B1A2F]/60 hover:text-[#8B1A2F] transition-colors border-l border-[#8B1A2F]/20"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      ) : (
+        /* Idle: compact ghost button */
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300 text-xs font-medium text-gray-500 transition-all"
+        >
+          <span>{placeholder}</span>
+          <svg className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute top-full mt-1.5 left-0 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px] overflow-hidden">
+          {options.slice(1).map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                String(value) === String(opt.value)
+                  ? 'bg-[#8B1A2F]/8 text-[#8B1A2F] font-medium'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -320,21 +435,37 @@ export default function AdminProducts() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalProduct, setModalProduct] = useState(undefined); // undefined=closed, null=new, obj=edit
 
   const limit = 20;
 
+  useEffect(() => {
+    Promise.all([getAdminBrands(), getAdminCategories()])
+      .then(([brs, cats]) => { setBrands(brs); setCategories(cats); })
+      .catch(() => {});
+  }, []);
+
   const load = async () => {
     setLoading(true);
     try {
-      const data = await getAdminProducts({ page, limit, search: search || undefined, status });
+      const data = await getAdminProducts({
+        page, limit,
+        search: search || undefined,
+        status,
+        brand_id: brandFilter || undefined,
+        category_id: categoryFilter || undefined,
+      });
       setProducts(data.products);
       setTotal(data.total);
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [page, status]);
+  useEffect(() => { load(); }, [page, status, brandFilter, categoryFilter]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -363,23 +494,75 @@ export default function AdminProducts() {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-0">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search products…"
-            className="input flex-1 max-w-xs"
-          />
-          <button type="submit" className="btn-primary px-4 py-2 text-sm">Search</button>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex flex-wrap items-center gap-3">
+
+        {/* Search */}
+        <form onSubmit={handleSearch} className="flex flex-1 min-w-[220px] max-w-sm">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search products…"
+              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-l-lg outline-none focus:border-[#8B1A2F] focus:ring-2 focus:ring-[#8B1A2F]/10 bg-gray-50 transition-colors"
+            />
+          </div>
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-[#8B1A2F] text-white rounded-r-lg hover:bg-[#6B1223] transition-colors">
+            Search
+          </button>
         </form>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="input w-36">
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <button onClick={() => setModalProduct(null)} className="btn-primary px-4 py-2 text-sm whitespace-nowrap">
-          + Add Product
+
+        {/* Divider */}
+        <div className="h-7 w-px bg-gray-200 hidden sm:block" />
+
+        {/* Brand filter */}
+        <FilterDropdown
+          value={brandFilter}
+          onChange={v => { setBrandFilter(v); setPage(1); }}
+          onClear={() => { setBrandFilter(''); setPage(1); }}
+          placeholder="Brand"
+          options={[{ value: '', label: 'All Brands' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
+        />
+
+        {/* Category filter */}
+        <FilterDropdown
+          value={categoryFilter}
+          onChange={v => { setCategoryFilter(v); setPage(1); }}
+          onClear={() => { setCategoryFilter(''); setPage(1); }}
+          placeholder="Category"
+          options={[{ value: '', label: 'All Categories' }, ...categories.map(c => ({ value: c.id, label: c.name }))]}
+        />
+
+        {/* Status filter */}
+        <FilterDropdown
+          value={status === 'all' ? '' : status}
+          onChange={v => { setStatus(v || 'all'); setPage(1); }}
+          onClear={() => { setStatus('all'); setPage(1); }}
+          placeholder="Status"
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+        />
+
+        {/* Clear all */}
+        {(brandFilter || categoryFilter || status !== 'all') && (
+          <button
+            onClick={() => { setBrandFilter(''); setCategoryFilter(''); setStatus('all'); setPage(1); }}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Clear all
+          </button>
+        )}
+
+        {/* Add button — right edge */}
+        <button onClick={() => setModalProduct(null)} className="btn-primary px-4 py-2 text-sm whitespace-nowrap flex items-center gap-1.5 ml-auto">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Product
         </button>
       </div>
 
@@ -387,16 +570,16 @@ export default function AdminProducts() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left">Image</th>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-4 py-3 text-left">Brand</th>
-                <th className="px-4 py-3 text-left">Category</th>
-                <th className="px-4 py-3 text-right">Price</th>
-                <th className="px-4 py-3 text-right">Stock</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Image</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Brand</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -429,12 +612,19 @@ export default function AdminProducts() {
                     }`}>{p.status}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setModalProduct(p)} className="text-blue-600 text-xs hover:underline">Edit</button>
-                      <button onClick={() => handleToggleStatus(p)} className="text-amber-600 text-xs hover:underline">
-                        {p.status === 'active' ? 'Deactivate' : 'Activate'}
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setModalProduct(p)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button onClick={() => handleDelete(p.id)} className="text-red-500 text-xs hover:underline">Delete</button>
+                      <button onClick={() => handleToggleStatus(p)} title={p.status === 'active' ? 'Deactivate' : 'Activate'} className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 transition-colors">
+                        {p.status === 'active'
+                          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        }
+                      </button>
+                      <button onClick={() => handleDelete(p.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -448,9 +638,13 @@ export default function AdminProducts() {
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
             <span>{total} products</span>
             <div className="flex gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 rounded border disabled:opacity-40">←</button>
-              <span className="px-3 py-1">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 rounded border disabled:opacity-40">→</button>
+              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="p-1.5 rounded border disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15,18 9,12 15,6"/></svg>
+              </button>
+              <span className="px-3 py-1 text-xs font-medium">{page} / {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="p-1.5 rounded border disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9,18 15,12 9,6"/></svg>
+              </button>
             </div>
           </div>
         )}

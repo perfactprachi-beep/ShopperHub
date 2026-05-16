@@ -59,10 +59,10 @@ export const getAdminBrands = () =>
   api.get('/admin/brands').then(r => r.data.data);
 
 export const createBrand = (data) =>
-  api.post('/admin/brands', data).then(r => r.data.data);
+  api.post('/admin/brands', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}).then(r => r.data.data);
 
 export const updateBrand = (id, data) =>
-  api.put(`/admin/brands/${id}`, data).then(r => r.data.data);
+  api.put(`/admin/brands/${id}`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}).then(r => r.data.data);
 
 export const deleteBrand = (id) =>
   api.delete(`/admin/brands/${id}`).then(r => r.data);

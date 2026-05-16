@@ -46,36 +46,43 @@ export default function AdminOrders() {
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex gap-1 flex-wrap">
-        {STATUSES.map(s => (
-          <button
-            key={s}
-            onClick={() => { setActiveTab(s); setPage(1); }}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-              activeTab === s ? 'bg-[#8B1A2F] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1 flex-wrap">
+          {STATUSES.map(s => (
+            <button
+              key={s}
+              onClick={() => { setActiveTab(s); setPage(1); }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${
+                activeTab === s
+                  ? 'bg-[#8B1A2F] text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              {s === 'all' ? 'All Orders' : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+        {!loading && (
+          <span className="text-xs text-gray-400">{total} {activeTab === 'all' ? 'total' : activeTab} orders</span>
+        )}
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left">Order ID</th>
-                <th className="px-4 py-3 text-left">Customer</th>
-                <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-right">Items</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order ID</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Items</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Update</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
@@ -85,9 +92,14 @@ export default function AdminOrders() {
                   </tr>
                 ))
               ) : orders.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No orders found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-300">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    <p className="text-sm text-gray-400">No orders found</p>
+                  </div>
+                </td></tr>
               ) : orders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50">
+                <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">#{order.id}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{order.customer_name || '—'}</div>
@@ -106,16 +118,18 @@ export default function AdminOrders() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={order.status}
-                      disabled={updating === order.id || order.status === 'cancelled' || order.status === 'delivered'}
-                      onChange={e => handleStatusChange(order.id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-2 py-1 bg-white disabled:opacity-50 cursor-pointer"
-                    >
-                      {['pending','confirmed','shipped','delivered','cancelled'].map(s => (
-                        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                      ))}
-                    </select>
+                    <div className="select-wrap w-32">
+                      <select
+                        value={order.status}
+                        disabled={updating === order.id || order.status === 'cancelled' || order.status === 'delivered'}
+                        onChange={e => handleStatusChange(order.id, e.target.value)}
+                        className="disabled:opacity-50 text-xs"
+                      >
+                        {['pending','confirmed','shipped','delivered','cancelled'].map(s => (
+                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -127,9 +141,13 @@ export default function AdminOrders() {
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
             <span>{total} orders</span>
             <div className="flex gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="px-3 py-1 rounded border disabled:opacity-40">←</button>
-              <span className="px-3 py-1">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 rounded border disabled:opacity-40">→</button>
+              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="p-1.5 rounded border disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15,18 9,12 15,6"/></svg>
+              </button>
+              <span className="px-3 py-1 text-xs font-medium">{page} / {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="p-1.5 rounded border disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9,18 15,12 9,6"/></svg>
+              </button>
             </div>
           </div>
         )}

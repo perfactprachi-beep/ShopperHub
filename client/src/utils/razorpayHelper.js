@@ -21,7 +21,7 @@ export async function openRazorpayModal({ orderId, amount, currency, keyId, user
     amount,
     currency,
     order_id:    orderId,
-    name:        'Shoppers Stop',
+    name:        'ShoppersHub',
     description: 'Order Payment',
     prefill: {
       name:  user?.full_name || '',

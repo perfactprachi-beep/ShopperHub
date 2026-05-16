@@ -2,20 +2,39 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { pool } from './db/pool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
-// Security headers
-app.use(helmet());
+// Security headers with CSP for Google Fonts + Razorpay
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:     ["'self'"],
+      scriptSrc:      ["'self'", "https://checkout.razorpay.com"],
+      styleSrc:       ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc:        ["'self'", "https://fonts.gstatic.com"],
+      imgSrc:         ["'self'", "data:", "https:"],
+      connectSrc:     ["'self'", "https://api.razorpay.com", "https://lumberjack.razorpay.com"],
+      frameSrc:       ["'self'", "https://api.razorpay.com"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
-// CORS — allow configured origin; in dev also allow any localhost port
+// Gzip all responses
+app.use(compression());
+
+// CORS — allow configured CLIENT_URL; in dev also allow any localhost port
 const allowedOrigin = (origin, cb) => {
-  if (!origin) return cb(null, true); // server-to-server / curl
+  if (!origin) return cb(null, true);
   const isLocal = /^http:\/\/localhost:\d+$/.test(origin);
   if (isLocal || origin === process.env.CLIENT_URL) return cb(null, true);
   cb(new Error(`CORS: ${origin} not allowed`));
@@ -24,13 +43,13 @@ app.use(cors({ origin: allowedOrigin, credentials: true }));
 
 app.use(express.json());
 app.use(cookieParser());
-// Cross-origin needed: Vite (5173) loads images served by Express (5000)
+
 app.use('/uploads', (_req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(path.join(__dirname, '../uploads')));
 
-// Global rate limit — raised for development (many tabs / admin usage)
+// Global rate limit
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -38,10 +57,10 @@ app.use(rateLimit({
   legacyHeaders: false,
 }));
 
-// Auth-specific rate limit: 30 req / 1 min
+// Auth-specific rate limit: 10 req / 1 min
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -62,24 +81,35 @@ import reviewsRoutes from './routes/reviews.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
-app.use('/api/auth',       authLimiter, authRoutes);
-app.use('/api/products',   productRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/brands',     brandRoutes);
-app.use('/api/banners',    bannerRoutes);
-app.use('/api/home',       homeRoutes);
-app.use('/api/cart',       cartRoutes);
-app.use('/api/wishlist',   wishlistRoutes);
-app.use('/api/account',    accountRoutes);
-app.use('/api/coupons',    couponsRoutes);
+app.use('/api/auth',          authLimiter, authRoutes);
+app.use('/api/products',      productRoutes);
+app.use('/api/categories',    categoryRoutes);
+app.use('/api/brands',        brandRoutes);
+app.use('/api/banners',       bannerRoutes);
+app.use('/api/home',          homeRoutes);
+app.use('/api/cart',          cartRoutes);
+app.use('/api/wishlist',      wishlistRoutes);
+app.use('/api/account',       accountRoutes);
+app.use('/api/coupons',       couponsRoutes);
 app.use('/api/payments',      paymentsRoutes);
 app.use('/api/orders',        ordersRoutes);
 app.use('/api/reviews',       reviewsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin',         adminRoutes);
 
+// Liveness
 app.get('/api/health', (_req, res) => {
-  res.json({ success: true, message: 'Server is running' });
+  res.json({ success: true, uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+// Readiness — verify DB is reachable
+app.get('/api/ready', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ success: true, db: 'ok', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ success: false, db: 'unavailable' });
+  }
 });
 
 // Central error handler
