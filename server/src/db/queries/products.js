@@ -1,5 +1,21 @@
 import { pool } from '../pool.js';
 
+pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_deal BOOLEAN DEFAULT false`).catch(console.error);
+pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_returnable BOOLEAN DEFAULT true`).catch(console.error);
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS product_attributes (
+    id         SERIAL PRIMARY KEY,
+    product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    label      VARCHAR(100) NOT NULL,
+    value      VARCHAR(255) NOT NULL,
+    sort_order INT DEFAULT 0,
+    section    VARCHAR(20) DEFAULT 'highlights'
+  )
+`).then(() => pool.query(`
+  ALTER TABLE product_attributes ADD COLUMN IF NOT EXISTS section VARCHAR(20) DEFAULT 'highlights'
+`)).catch(console.error);
+
 export async function getProducts({ category, brand, gender, minPrice, maxPrice, minDiscount, sort, page, limit }) {
   const conditions = ['p.status = $1'];
   const values = ['active'];
@@ -67,12 +83,42 @@ export async function getProductBySlug(slug) {
   if (!rows[0]) return null;
   const product = rows[0];
 
-  const [{ rows: images }, { rows: variants }] = await Promise.all([
+  const [{ rows: images }, { rows: variants }, { rows: attributes }] = await Promise.all([
     pool.query('SELECT * FROM product_images WHERE product_id = $1 ORDER BY sort_order', [product.id]),
     pool.query('SELECT * FROM product_variants WHERE product_id = $1', [product.id]),
+    pool.query('SELECT * FROM product_attributes WHERE product_id = $1 ORDER BY sort_order, id', [product.id]),
   ]);
 
-  return { ...product, images, variants };
+  return { ...product, images, variants, attributes };
+}
+
+// ── Product Attributes CRUD ───────────────────────────────────────────────────
+export async function getProductAttributes(productId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM product_attributes WHERE product_id = $1 ORDER BY sort_order, id',
+    [productId]
+  );
+  return rows;
+}
+
+export async function addProductAttribute(productId, { label, value, sort_order = 0, section = 'highlights' }) {
+  const { rows } = await pool.query(
+    'INSERT INTO product_attributes (product_id, label, value, sort_order, section) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+    [productId, label, value, Number(sort_order) || 0, section]
+  );
+  return rows[0];
+}
+
+export async function updateProductAttribute(id, { label, value, sort_order, section }) {
+  const { rows } = await pool.query(
+    'UPDATE product_attributes SET label=$2, value=$3, sort_order=$4, section=$5 WHERE id=$1 RETURNING *',
+    [id, label, value, Number(sort_order) || 0, section || 'highlights']
+  );
+  return rows[0];
+}
+
+export async function deleteProductAttribute(id) {
+  await pool.query('DELETE FROM product_attributes WHERE id=$1', [id]);
 }
 
 export async function searchProducts(q, limit = 20) {
@@ -96,7 +142,7 @@ export async function searchProducts(q, limit = 20) {
 
 // ── Admin queries ─────────────────────────────────────────────────────────────
 
-export async function adminListProducts({ page = 1, limit = 20, search, status, brand_id, category_id }) {
+export async function adminListProducts({ page = 1, limit = 20, search, status, brand_id, category_id, is_deal }) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -104,6 +150,7 @@ export async function adminListProducts({ page = 1, limit = 20, search, status, 
   if (status && status !== 'all') { conditions.push(`p.status = $${idx++}`); values.push(status); }
   if (brand_id)    { conditions.push(`p.brand_id = $${idx++}`);    values.push(brand_id); }
   if (category_id) { conditions.push(`p.category_id = $${idx++}`); values.push(category_id); }
+  if (is_deal === 'true') { conditions.push(`p.is_deal = true`); }
   if (search) {
     conditions.push(`(p.title ILIKE $${idx} OR b.name ILIKE $${idx})`);
     values.push(`%${search}%`);
@@ -115,7 +162,8 @@ export async function adminListProducts({ page = 1, limit = 20, search, status, 
 
   const sql = `
     SELECT
-      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock, p.status, p.created_at,
+      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock, p.status,
+      p.is_deal, p.is_returnable, p.created_at,
       b.name AS brand_name, b.id AS brand_id,
       c.name AS category_name, c.id AS category_id,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
@@ -133,25 +181,29 @@ export async function adminListProducts({ page = 1, limit = 20, search, status, 
   return rows;
 }
 
-export async function createProduct({ title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status }) {
+export async function createProduct({ title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
   const { rows } = await pool.query(
-    `INSERT INTO products (title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `INSERT INTO products (title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      RETURNING *`,
     [title, slug, brand_id || null, category_id || null, description || null, gender || null,
-     base_price, discount_pct || 0, stock || 0, status || 'active']
+     base_price, discount_pct || 0, stock || 0, status || 'active',
+     is_deal === true || is_deal === 'true',
+     is_returnable !== false && is_returnable !== 'false']
   );
   return rows[0];
 }
 
-export async function updateProduct(id, { title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status }) {
+export async function updateProduct(id, { title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
   const { rows } = await pool.query(
     `UPDATE products
      SET title=$2, slug=$3, brand_id=$4, category_id=$5, description=$6,
-         gender=$7, base_price=$8, discount_pct=$9, stock=$10, status=$11
+         gender=$7, base_price=$8, discount_pct=$9, stock=$10, status=$11, is_deal=$12, is_returnable=$13
      WHERE id=$1 RETURNING *`,
     [id, title, slug, brand_id || null, category_id || null, description || null,
-     gender || null, base_price, discount_pct || 0, stock || 0, status || 'active']
+     gender || null, base_price, discount_pct || 0, stock || 0, status || 'active',
+     is_deal === true || is_deal === 'true',
+     is_returnable !== false && is_returnable !== 'false']
   );
   return rows[0];
 }

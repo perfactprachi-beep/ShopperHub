@@ -52,8 +52,8 @@ router.get('/', async (_req, res, next) => {
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.discount_pct >= 20
-        ORDER BY p.discount_pct DESC
+        WHERE p.status = 'active' AND p.is_deal = true
+        ORDER BY p.discount_pct DESC, p.created_at DESC
         LIMIT 12
       `),
       pool.query(`

@@ -8,6 +8,7 @@ import {
   addVariant, updateVariant, deleteVariant,
   addImage, deleteImage, setPrimaryImage,
   getProductVariants, getProductImages,
+  getProductAttributes, addProductAttribute, updateProductAttribute, deleteProductAttribute,
 } from '../db/queries/products.js';
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from '../db/queries/categories.js';
 import { getBrands, createBrand, updateBrand, deleteBrand } from '../db/queries/brands.js';
@@ -93,6 +94,35 @@ router.delete('/products/variants/:id', async (req, res, next) => {
   try {
     await deleteVariant(req.params.id);
     res.json({ success: true, message: 'Variant deleted' });
+  } catch (err) { next(err); }
+});
+
+// ── Product Attributes ────────────────────────────────────────────────────────
+router.get('/products/:id/attributes', async (req, res, next) => {
+  try {
+    const data = await getProductAttributes(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/products/:id/attributes', async (req, res, next) => {
+  try {
+    const data = await addProductAttribute(req.params.id, req.body);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.put('/products/attributes/:id', async (req, res, next) => {
+  try {
+    const data = await updateProductAttribute(req.params.id, req.body);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/products/attributes/:id', async (req, res, next) => {
+  try {
+    await deleteProductAttribute(req.params.id);
+    res.json({ success: true, message: 'Attribute deleted' });
   } catch (err) { next(err); }
 });
 

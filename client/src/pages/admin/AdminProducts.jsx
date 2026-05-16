@@ -3,6 +3,7 @@ import {
   getAdminProducts, createProduct, updateProduct, deleteProduct,
   getProductVariants, addVariant, updateVariant, deleteVariant,
   getProductImages, uploadImages, deleteImage, setPrimaryImage,
+  getProductAttributes, addProductAttribute, updateProductAttribute, deleteProductAttribute,
 } from '../../api/adminApi.js';
 import { getAdminCategories } from '../../api/adminApi.js';
 import { getAdminBrands } from '../../api/adminApi.js';
@@ -10,10 +11,12 @@ import { assetUrl } from '../../utils/assetUrl.js';
 
 const EMPTY_PRODUCT = {
   title: '', slug: '', brand_id: '', category_id: '', gender: '',
-  base_price: '', discount_pct: 0, description: '', status: 'active', stock: 0,
+  base_price: '', discount_pct: 10, description: '', status: 'active', stock: 0,
+  is_deal: false, is_returnable: true,
 };
 
-const EMPTY_VARIANT = { size: '', color: '', sku: '', stock: 0, extra_price: 0 };
+const EMPTY_VARIANT   = { size: '', color: '', sku: '', stock: 0, extra_price: 0 };
+const EMPTY_ATTRIBUTE = { label: '', value: '', sort_order: 0, section: 'highlights' };
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -30,22 +33,28 @@ function ProductFormModal({ product, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [variantForm, setVariantForm] = useState(null);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [attributes, setAttributes] = useState([]);
+  const [attrForm, setAttrForm] = useState(null);   // null | EMPTY_ATTRIBUTE | existing attr
+  const [attrEditing, setAttrEditing] = useState(null); // id being edited
   const fileRef = useRef();
 
   useEffect(() => {
     Promise.all([getAdminCategories(), getAdminBrands()])
       .then(([cats, brs]) => { setCategories(cats); setBrands(brs); });
     if (product?.id) {
-      Promise.all([getProductVariants(product.id), getProductImages(product.id)])
-        .then(([v, imgs]) => { setVariants(v); setImages(imgs); });
+      Promise.all([
+        getProductVariants(product.id),
+        getProductImages(product.id),
+        getProductAttributes(product.id),
+      ]).then(([v, imgs, attrs]) => { setVariants(v); setImages(imgs); setAttributes(attrs); });
     }
   }, [product?.id]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setForm(f => ({
       ...f,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
       ...(name === 'title' && !product ? { slug: slugify(value) } : {}),
     }));
   };
@@ -117,7 +126,32 @@ function ProductFormModal({ product, onClose, onSaved }) {
     setImages(imgs => imgs.map(i => ({ ...i, is_primary: i.id === id })));
   };
 
-  const TABS = ['basic', 'variants', 'images'];
+  // ── Attribute handlers ────────────────────────────────────────────────
+  const handleAddAttribute = async () => {
+    if (!product?.id) { alert('Save the product first'); return; }
+    if (!attrForm?.label?.trim() || !attrForm?.value?.trim()) { alert('Label and value are required'); return; }
+    try {
+      const saved = await addProductAttribute(product.id, attrForm);
+      setAttributes(a => [...a, saved]);
+      setAttrForm(null);
+    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+  };
+
+  const handleUpdateAttribute = async () => {
+    try {
+      const updated = await updateProductAttribute(attrEditing, attrForm);
+      setAttributes(a => a.map(x => x.id === attrEditing ? updated : x));
+      setAttrForm(null); setAttrEditing(null);
+    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+  };
+
+  const handleDeleteAttribute = async (id) => {
+    if (!confirm('Delete this attribute?')) return;
+    await deleteProductAttribute(id);
+    setAttributes(a => a.filter(x => x.id !== id));
+  };
+
+  const TABS = ['basic', 'variants', 'images', 'attributes'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -209,6 +243,43 @@ function ProductFormModal({ product, onClose, onSaved }) {
               <div className="col-span-2">
                 <label className="label">Description</label>
                 <textarea name="description" value={form.description || ''} onChange={handleChange} rows={4} className="input resize-none" />
+              </div>
+
+              {/* Top Deals toggle */}
+              <div className="col-span-2">
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  form.is_deal ? 'border-[#8B1A2F] bg-[#8B1A2F]/5' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input type="checkbox" name="is_deal" checked={!!form.is_deal} onChange={handleChange} className="w-4 h-4 accent-[#8B1A2F] shrink-0" />
+                  <div>
+                    <p className={`text-sm font-semibold ${form.is_deal ? 'text-[#8B1A2F]' : 'text-gray-700'}`}>Feature in Top Deals</p>
+                    <p className="text-xs text-gray-400 mt-0.5">This product will appear in the "Top Deals" section on the homepage</p>
+                  </div>
+                  {form.is_deal && (
+                    <span className="ml-auto shrink-0 inline-flex items-center gap-1 bg-[#8B1A2F] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      Deal
+                    </span>
+                  )}
+                </label>
+              </div>
+
+              {/* Returnable toggle */}
+              <div className="col-span-2">
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  form.is_returnable ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input type="checkbox" name="is_returnable" checked={form.is_returnable !== false} onChange={handleChange} className="w-4 h-4 accent-green-600 shrink-0" />
+                  <div>
+                    <p className={`text-sm font-semibold ${form.is_returnable ? 'text-green-700' : 'text-gray-500'}`}>Easy Return Eligible</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Shows "Easy Return" trust badge on the product page. Uncheck for non-returnable items.</p>
+                  </div>
+                  <span className={`ml-auto shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    form.is_returnable !== false ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {form.is_returnable !== false ? '14-Day Return' : 'No Return'}
+                  </span>
+                </label>
               </div>
             </div>
           )}
@@ -339,6 +410,121 @@ function ProductFormModal({ product, onClose, onSaved }) {
               <p className="text-xs text-gray-400">{images.length}/6 images · 5 MB each · ★ = primary</p>
             </div>
           )}
+
+          {/* Attributes */}
+          {tab === 'attributes' && (
+            <div className="space-y-5">
+              {!product?.id && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Save the product first (Basic Info) to add attributes.
+                </p>
+              )}
+
+              {[
+                {
+                  section: 'highlights',
+                  title: 'Product Highlights',
+                  subtitle: 'Shown in the highlights table (Pattern, Neckline, Fit, Fabric…)',
+                  suggestions: ['Pattern','Neckline','Fit','Fabric','Sleeve','Occasion','Pack Of'],
+                },
+                {
+                  section: 'details',
+                  title: 'Additional Details',
+                  subtitle: 'Shown in the details accordion (Origin, Manufacturer, Care, Net Qty…)',
+                  suggestions: ['Country of Origin','Manufacturer','Care Instructions','Net Quantity','Product Code','Material','Warranty'],
+                },
+              ].map(({ section, title, subtitle, suggestions }) => {
+                const sectionAttrs = attributes.filter(a => (a.section || 'highlights') === section);
+                const isAddingHere = attrForm && !attrEditing && attrForm.section === section;
+
+                return (
+                  <div key={section} className="border border-gray-200 rounded-xl overflow-hidden">
+                    {/* Section header */}
+                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                      <p className="text-xs font-bold text-gray-800">{title}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
+                    </div>
+
+                    <div className="p-3 space-y-2">
+                      {/* Existing rows */}
+                      {sectionAttrs.length > 0 && (
+                        <table className="w-full text-xs">
+                          <tbody className="divide-y divide-gray-50">
+                            {sectionAttrs.map(attr => (
+                              <tr key={attr.id} className="group">
+                                {attrEditing === attr.id ? (
+                                  <>
+                                    <td className="py-1.5 pr-2 w-1/3">
+                                      <input value={attrForm.label} onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#8B1A2F]" />
+                                    </td>
+                                    <td className="py-1.5 pr-2">
+                                      <input value={attrForm.value} onChange={e => setAttrForm(f => ({ ...f, value: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#8B1A2F]" />
+                                    </td>
+                                    <td className="py-1.5 w-20">
+                                      <div className="flex gap-1">
+                                        <button onClick={handleUpdateAttribute} className="px-2 py-1 bg-[#8B1A2F] text-white rounded text-[10px] hover:bg-[#6d1424]">Save</button>
+                                        <button onClick={() => { setAttrEditing(null); setAttrForm(null); }} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px]">✕</button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-2 pr-3 font-medium text-gray-700 w-1/3">{attr.label}</td>
+                                    <td className="py-2 text-gray-500 capitalize">{attr.value}</td>
+                                    <td className="py-2 w-16 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="flex gap-2">
+                                        <button onClick={() => { setAttrEditing(attr.id); setAttrForm({ label: attr.label, value: attr.value, sort_order: attr.sort_order, section: attr.section }); }} className="text-[#8B1A2F] hover:underline text-[10px]">Edit</button>
+                                        <button onClick={() => handleDeleteAttribute(attr.id)} className="text-red-400 hover:text-red-600 text-[10px]">Del</button>
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* Inline add form */}
+                      {product?.id && isAddingHere && (
+                        <div className="flex gap-2 items-end pt-1">
+                          <div className="flex-1">
+                            <input placeholder="Label" value={attrForm.label} onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#8B1A2F] mb-1" />
+                            <input placeholder="Value" value={attrForm.value} onChange={e => setAttrForm(f => ({ ...f, value: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#8B1A2F]" />
+                          </div>
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button onClick={handleAddAttribute} className="px-3 py-1.5 bg-[#8B1A2F] text-white rounded text-xs hover:bg-[#6d1424]">Add</button>
+                            <button onClick={() => setAttrForm(null)} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-xs">✕</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick-add suggestions */}
+                      {product?.id && !isAddingHere && !attrEditing && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {suggestions.map(s => (
+                            <button
+                              key={s}
+                              onClick={() => setAttrForm({ label: s, value: '', sort_order: sectionAttrs.length, section })}
+                              className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full hover:bg-[#8B1A2F]/10 hover:text-[#8B1A2F] transition-colors"
+                            >
+                              + {s}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setAttrForm({ label: '', value: '', sort_order: sectionAttrs.length, section })}
+                            className="text-[10px] px-2 py-0.5 border border-dashed border-gray-300 text-gray-400 rounded-full hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors"
+                          >
+                            + Custom
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -439,6 +625,7 @@ export default function AdminProducts() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [brands, setBrands] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [dealFilter, setDealFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalProduct, setModalProduct] = useState(undefined); // undefined=closed, null=new, obj=edit
 
@@ -459,13 +646,14 @@ export default function AdminProducts() {
         status,
         brand_id: brandFilter || undefined,
         category_id: categoryFilter || undefined,
+        is_deal: dealFilter || undefined,
       });
       setProducts(data.products);
       setTotal(data.total);
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [page, status, brandFilter, categoryFilter]);
+  useEffect(() => { load(); }, [page, status, brandFilter, categoryFilter, dealFilter]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -548,10 +736,23 @@ export default function AdminProducts() {
           ]}
         />
 
+        {/* Top Deals filter */}
+        <button
+          onClick={() => { setDealFilter(d => d ? '' : 'true'); setPage(1); }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${
+            dealFilter
+              ? 'border-[#8B1A2F] bg-[#8B1A2F] text-white'
+              : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-white hover:border-gray-300'
+          }`}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Top Deals
+        </button>
+
         {/* Clear all */}
-        {(brandFilter || categoryFilter || status !== 'all') && (
+        {(brandFilter || categoryFilter || status !== 'all' || dealFilter) && (
           <button
-            onClick={() => { setBrandFilter(''); setCategoryFilter(''); setStatus('all'); setPage(1); }}
+            onClick={() => { setBrandFilter(''); setCategoryFilter(''); setStatus('all'); setDealFilter(''); setPage(1); }}
             className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -579,6 +780,7 @@ export default function AdminProducts() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Deal</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
@@ -586,13 +788,13 @@ export default function AdminProducts() {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(8)].map((_, j) => (
+                    {[...Array(9)].map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No products found.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No products found.</td></tr>
               ) : products.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
@@ -610,6 +812,23 @@ export default function AdminProducts() {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                     }`}>{p.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={async () => {
+                        await updateProduct(p.id, { ...p, is_deal: !p.is_deal });
+                        setProducts(ps => ps.map(x => x.id === p.id ? { ...x, is_deal: !x.is_deal } : x));
+                      }}
+                      title={p.is_deal ? 'Remove from Top Deals' : 'Add to Top Deals'}
+                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                        p.is_deal
+                          ? 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+                          : 'bg-gray-100 text-gray-400 hover:bg-[#8B1A2F]/10 hover:text-[#8B1A2F]'
+                      }`}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      {p.is_deal ? 'Deal' : 'Add'}
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
