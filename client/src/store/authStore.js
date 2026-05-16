@@ -6,14 +6,20 @@ export const useAuthStore = create(
     (set) => ({
       user: null,
       accessToken: null,
+      _hydrated: false,
 
       login: (user, accessToken) => set({ user, accessToken }),
       logout: () => set({ user: null, accessToken: null }),
       setToken: (accessToken) => set({ accessToken }),
+      _setHydrated: () => set({ _hydrated: true }),
     }),
     {
       name: 'auth',
-      partialize: (s) => ({ user: s.user }),
+      // persist both user and accessToken so page-refresh doesn't lose the token
+      partialize: (s) => ({ user: s.user, accessToken: s.accessToken }),
+      onRehydrateStorage: () => (state) => {
+        state?._setHydrated();
+      },
     }
   )
 );

@@ -152,6 +152,77 @@ export async function cancelOrder(orderId, userId) {
   }
 }
 
+// ── Admin queries ─────────────────────────────────────────────────────────────
+
+export async function adminListOrders({ page = 1, limit = 20, status }) {
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (status && status !== 'all') { conditions.push(`o.status = $${idx++}`); values.push(status); }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (Number(page) - 1) * Number(limit);
+
+  const sql = `
+    SELECT
+      o.id, o.status, o.total, o.subtotal, o.discount, o.payment_method,
+      o.payment_status, o.created_at, o.points_earned,
+      u.full_name AS customer_name, u.email AS customer_email,
+      COUNT(oi.id) AS item_count,
+      COUNT(*) OVER() AS total_count
+    FROM orders o
+    JOIN users u ON u.id = o.user_id
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    ${where}
+    GROUP BY o.id, u.full_name, u.email
+    ORDER BY o.created_at DESC
+    LIMIT $${idx++} OFFSET $${idx++}
+  `;
+  values.push(Number(limit), offset);
+
+  const { rows } = await pool.query(sql, values);
+  return rows;
+}
+
+export async function adminUpdateOrderStatus(orderId, status) {
+  const { rows } = await pool.query(
+    `UPDATE orders SET status=$2 WHERE id=$1 RETURNING *`,
+    [orderId, status]
+  );
+  return rows[0];
+}
+
+export async function adminGetDashboardStats() {
+  const [orders, revenue, users, products, recentOrders, salesByDay] = await Promise.all([
+    pool.query('SELECT COUNT(*) FROM orders'),
+    pool.query(`SELECT COALESCE(SUM(total), 0) AS revenue FROM orders WHERE payment_status = 'paid'`),
+    pool.query('SELECT COUNT(*) FROM users'),
+    pool.query(`SELECT COUNT(*) FROM products WHERE status = 'active'`),
+    pool.query(`
+      SELECT o.id, o.status, o.total, o.created_at,
+             u.full_name AS customer_name
+      FROM orders o JOIN users u ON u.id = o.user_id
+      ORDER BY o.created_at DESC LIMIT 5
+    `),
+    pool.query(`
+      SELECT DATE(created_at) AS day, COALESCE(SUM(total), 0) AS revenue
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '30 days' AND payment_status = 'paid'
+      GROUP BY day ORDER BY day
+    `),
+  ]);
+
+  return {
+    totalOrders:    parseInt(orders.rows[0].count, 10),
+    revenue:        parseFloat(revenue.rows[0].revenue),
+    totalUsers:     parseInt(users.rows[0].count, 10),
+    totalProducts:  parseInt(products.rows[0].count, 10),
+    recentOrders:   recentOrders.rows,
+    salesByDay:     salesByDay.rows,
+  };
+}
+
 export async function hasPurchasedProduct(userId, productId) {
   const { rows } = await pool.query(
     `SELECT 1 FROM orders o

@@ -22,7 +22,8 @@ export default function LoginPage() {
     try {
       const { data } = await authApi.login(form);
       login(data.user, data.accessToken);
-      navigate(from, { replace: true });
+      const dest = data.user.role === 'admin' ? '/admin' : from;
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

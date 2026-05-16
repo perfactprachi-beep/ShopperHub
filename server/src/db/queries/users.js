@@ -84,6 +84,38 @@ export async function getPointsHistory(userId) {
   return rows;
 }
 
+export async function adminListUsers({ page = 1, limit = 20, search }) {
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (search) {
+    conditions.push(`(u.full_name ILIKE $${idx} OR u.email ILIKE $${idx})`);
+    values.push(`%${search}%`);
+    idx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (Number(page) - 1) * Number(limit);
+
+  const sql = `
+    SELECT
+      u.id, u.email, u.full_name, u.phone, u.role, u.first_citizen_points, u.created_at,
+      COUNT(o.id) AS order_count,
+      COUNT(*) OVER() AS total_count
+    FROM users u
+    LEFT JOIN orders o ON o.user_id = u.id
+    ${where}
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+    LIMIT $${idx++} OFFSET $${idx++}
+  `;
+  values.push(Number(limit), offset);
+
+  const { rows } = await pool.query(sql, values);
+  return rows;
+}
+
 export async function createUser({ email, passwordHash, fullName, phone }) {
   const { rows } = await pool.query(
     `INSERT INTO users (email, password_hash, full_name, phone)

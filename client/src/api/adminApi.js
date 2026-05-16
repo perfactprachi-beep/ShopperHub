@@ -1,0 +1,105 @@
+import api from './axios.js';
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+export const getDashboardStats = () =>
+  api.get('/admin/dashboard/stats').then(r => r.data.data);
+
+// ── Products ──────────────────────────────────────────────────────────────────
+export const getAdminProducts = (params) =>
+  api.get('/admin/products', { params }).then(r => r.data.data);
+
+export const createProduct = (formData) =>
+  api.post('/admin/products', formData).then(r => r.data.data);
+
+export const updateProduct = (id, data) =>
+  api.put(`/admin/products/${id}`, data).then(r => r.data.data);
+
+export const deleteProduct = (id) =>
+  api.delete(`/admin/products/${id}`).then(r => r.data);
+
+export const getProductVariants = (id) =>
+  api.get(`/admin/products/${id}/variants`).then(r => r.data.data);
+
+export const addVariant = (productId, data) =>
+  api.post(`/admin/products/${productId}/variants`, data).then(r => r.data.data);
+
+export const updateVariant = (id, data) =>
+  api.put(`/admin/products/variants/${id}`, data).then(r => r.data.data);
+
+export const deleteVariant = (id) =>
+  api.delete(`/admin/products/variants/${id}`).then(r => r.data);
+
+export const getProductImages = (id) =>
+  api.get(`/admin/products/${id}/images`).then(r => r.data.data);
+
+export const uploadImages = (productId, formData) =>
+  api.post(`/admin/products/${productId}/images`, formData).then(r => r.data.data);
+
+export const deleteImage = (id) =>
+  api.delete(`/admin/products/images/${id}`).then(r => r.data);
+
+export const setPrimaryImage = (id, productId) =>
+  api.put(`/admin/products/images/${id}/primary`, { productId }).then(r => r.data.data);
+
+// ── Categories ────────────────────────────────────────────────────────────────
+export const getAdminCategories = () =>
+  api.get('/admin/categories').then(r => r.data.data);
+
+export const createCategory = (data) =>
+  api.post('/admin/categories', data).then(r => r.data.data);
+
+export const updateCategory = (id, data) =>
+  api.put(`/admin/categories/${id}`, data).then(r => r.data.data);
+
+export const deleteCategory = (id) =>
+  api.delete(`/admin/categories/${id}`).then(r => r.data);
+
+// ── Brands ────────────────────────────────────────────────────────────────────
+export const getAdminBrands = () =>
+  api.get('/admin/brands').then(r => r.data.data);
+
+export const createBrand = (data) =>
+  api.post('/admin/brands', data).then(r => r.data.data);
+
+export const updateBrand = (id, data) =>
+  api.put(`/admin/brands/${id}`, data).then(r => r.data.data);
+
+export const deleteBrand = (id) =>
+  api.delete(`/admin/brands/${id}`).then(r => r.data);
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+export const getAdminOrders = (params) =>
+  api.get('/admin/orders', { params }).then(r => r.data.data);
+
+export const updateOrderStatus = (id, status) =>
+  api.put(`/admin/orders/${id}/status`, { status }).then(r => r.data.data);
+
+// ── Coupons ───────────────────────────────────────────────────────────────────
+export const getAdminCoupons = () =>
+  api.get('/admin/coupons').then(r => r.data.data);
+
+export const createCoupon = (data) =>
+  api.post('/admin/coupons', data).then(r => r.data.data);
+
+export const updateCoupon = (id, data) =>
+  api.put(`/admin/coupons/${id}`, data).then(r => r.data.data);
+
+export const deleteCoupon = (id) =>
+  api.delete(`/admin/coupons/${id}`).then(r => r.data);
+
+// ── Banners ───────────────────────────────────────────────────────────────────
+export const getAdminBanners = () =>
+  api.get('/admin/banners').then(r => r.data.data);
+
+export const createBanner = (formData) =>
+  api.post('/admin/banners', formData).then(r => r.data.data);
+
+export const updateBanner = (id, data) =>
+  api.put(`/admin/banners/${id}`, data).then(r => r.data.data);
+
+export const deleteBanner = (id) =>
+  api.delete(`/admin/banners/${id}`).then(r => r.data);
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+export const getAdminUsers = (params) =>
+  api.get('/admin/users', { params }).then(r => r.data.data);

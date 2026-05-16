@@ -6,6 +6,8 @@ import ToastContainer from './components/ui/Toast.jsx';
 import CartDrawer from './components/cart/CartDrawer.jsx';
 import Spinner from './components/ui/Spinner.jsx';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
+import AdminRoute from './components/guards/AdminRoute.jsx';
+import AdminLayout from './components/layout/AdminLayout.jsx';
 import { useCartSync } from './hooks/useCartSync.js';
 import { useUiStore } from './store/uiStore.js';
 
@@ -25,9 +27,28 @@ const OrdersPage        = lazy(() => import('./pages/OrdersPage.jsx'));
 const OrderDetailPage   = lazy(() => import('./pages/OrderDetailPage.jsx'));
 const AccountPage       = lazy(() => import('./pages/AccountPage.jsx'));
 
+// Admin pages
+const AdminLoginPage  = lazy(() => import('./pages/admin/AdminLoginPage.jsx'));
+const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
+const AdminProducts   = lazy(() => import('./pages/admin/AdminProducts.jsx'));
+const AdminCategories = lazy(() => import('./pages/admin/AdminCategories.jsx'));
+const AdminBrands     = lazy(() => import('./pages/admin/AdminBrands.jsx'));
+const AdminOrders     = lazy(() => import('./pages/admin/AdminOrders.jsx'));
+const AdminCoupons    = lazy(() => import('./pages/admin/AdminCoupons.jsx'));
+const AdminBanners    = lazy(() => import('./pages/admin/AdminBanners.jsx'));
+const AdminUsers      = lazy(() => import('./pages/admin/AdminUsers.jsx'));
+
 function PageSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
+      <Spinner size="lg" />
+    </div>
+  );
+}
+
+function AdminSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
       <Spinner size="lg" />
     </div>
   );
@@ -72,6 +93,33 @@ function AppShell() {
   );
 }
 
+function AdminShell() {
+  return (
+    <AdminRoute>
+      <Suspense fallback={<AdminSpinner />}>
+        <Routes>
+          <Route element={<AdminLayout />}>
+            <Route index          element={<AdminDashboard />} />
+            <Route path="products"   element={<AdminProducts />} />
+            <Route path="categories" element={<AdminCategories />} />
+            <Route path="brands"     element={<AdminBrands />} />
+            <Route path="orders"     element={<AdminOrders />} />
+            <Route path="coupons"    element={<AdminCoupons />} />
+            <Route path="banners"    element={<AdminBanners />} />
+            <Route path="users"      element={<AdminUsers />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </AdminRoute>
+  );
+}
+
 export default function App() {
-  return <AppShell />;
+  return (
+    <Routes>
+      <Route path="/admin/login" element={<Suspense fallback={<AdminSpinner />}><AdminLoginPage /></Suspense>} />
+      <Route path="/admin/*"     element={<AdminShell />} />
+      <Route path="/*"           element={<AppShell />} />
+    </Routes>
+  );
 }

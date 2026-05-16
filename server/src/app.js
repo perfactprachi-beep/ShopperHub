@@ -3,6 +3,10 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
@@ -20,19 +24,24 @@ app.use(cors({ origin: allowedOrigin, credentials: true }));
 
 app.use(express.json());
 app.use(cookieParser());
+// Cross-origin needed: Vite (5173) loads images served by Express (5000)
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
-// Global rate limit: 100 req / 15 min
+// Global rate limit — raised for development (many tabs / admin usage)
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 }));
 
-// Auth-specific rate limit: 10 req / 1 min
+// Auth-specific rate limit: 30 req / 1 min
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -51,6 +60,7 @@ import paymentsRoutes from './routes/payments.routes.js';
 import ordersRoutes from './routes/orders.routes.js';
 import reviewsRoutes from './routes/reviews.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 app.use('/api/auth',       authLimiter, authRoutes);
 app.use('/api/products',   productRoutes);
@@ -66,6 +76,7 @@ app.use('/api/payments',      paymentsRoutes);
 app.use('/api/orders',        ordersRoutes);
 app.use('/api/reviews',       reviewsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/admin',         adminRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Server is running' });
