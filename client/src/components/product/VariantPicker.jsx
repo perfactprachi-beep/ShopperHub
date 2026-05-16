@@ -6,7 +6,7 @@ const COLOR_MAP = {
   orange: '#F97316', purple:'#7C3AED',cream:  '#F5F0E8',
 };
 
-export default function VariantPicker({ variants = [], selected, onSelect }) {
+export default function VariantPicker({ variants = [], selected, onSelect, onSizeChart }) {
   const sizes  = [...new Set(variants.map((v) => v.size).filter(Boolean))];
   const colors = [...new Set(variants.map((v) => v.color).filter(Boolean))];
 
@@ -55,9 +55,15 @@ export default function VariantPicker({ variants = [], selected, onSelect }) {
               Size:{' '}
               <span className="font-normal text-gray-600">{selected?.size || 'Select'}</span>
             </p>
-            <button className="text-xs text-[#8B1A2F] underline underline-offset-2 hover:no-underline">
-              Size Guide
-            </button>
+            {onSizeChart && (
+              <button
+                onClick={onSizeChart}
+                className="flex items-center gap-1 text-xs text-[#8B1A2F] underline underline-offset-2 hover:no-underline"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10H3M21 6H3M21 14H3M21 18H3"/></svg>
+                Size Chart
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {sizes.map((size) => {

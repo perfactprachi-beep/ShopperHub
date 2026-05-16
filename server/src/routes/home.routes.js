@@ -12,7 +12,7 @@ const PRODUCT_FIELDS = `
 
 router.get('/', async (_req, res, next) => {
   try {
-    const [banners, catResult, trendingResult, brandResult, newArrivalsResult, dealsResult, luxeResult] = await Promise.all([
+    const [banners, catResult, trendingResult, brandResult, newArrivalsResult, dealsResult, luxeResult, recommendedResult] = await Promise.all([
       getActiveBanners(),
       pool.query(`
         SELECT id, name, slug, image_url
@@ -68,6 +68,14 @@ router.get('/', async (_req, res, next) => {
         ORDER BY p.base_price DESC
         LIMIT 12
       `),
+      pool.query(`
+        SELECT ${PRODUCT_FIELDS}
+        FROM products p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        WHERE p.status = 'active' AND p.discount_pct >= 10
+        ORDER BY p.discount_pct DESC, p.id % 17
+        LIMIT 12
+      `),
     ]);
 
     res.json({
@@ -80,6 +88,7 @@ router.get('/', async (_req, res, next) => {
         newArrivals: newArrivalsResult.rows,
         deals: dealsResult.rows,
         luxeProducts: luxeResult.rows,
+        recommended: recommendedResult.rows,
       },
     });
   } catch (err) { next(err); }
