@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
 import ImageGallery from '../components/product/ImageGallery.jsx';
@@ -251,8 +252,19 @@ export default function ProductDetail() {
   const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
   const hasDiscount = product.discount_pct > 0;
 
+  const primaryImage = product.images?.find(i => i.is_primary)?.url || product.images?.[0]?.url || '';
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <Helmet>
+        <title>{product.title} – {product.brand_name}</title>
+        <meta name="description" content={(product.description || '').slice(0, 155)} />
+        <meta property="og:title" content={`${product.title} | ShoppersHub`} />
+        <meta property="og:description" content={(product.description || '').slice(0, 155)} />
+        <meta property="og:image" content={primaryImage} />
+        <meta property="og:type" content="product" />
+        <link rel="canonical" href={`${window.location.origin}/product/${product.slug}`} />
+      </Helmet>
       <div className="flex flex-col lg:flex-row gap-10">
         {/* Gallery */}
         <div className="flex-1">

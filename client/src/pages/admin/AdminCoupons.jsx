@@ -51,10 +51,12 @@ function CouponModal({ coupon, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Type</label>
-              <select name="type" value={form.type} onChange={handleChange} className="input">
-                <option value="flat">Flat (₹)</option>
-                <option value="percent">Percent (%)</option>
-              </select>
+              <div className="select-wrap">
+                <select name="type" value={form.type} onChange={handleChange}>
+                  <option value="flat">Flat (₹)</option>
+                  <option value="percent">Percent (%)</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="label">Value</label>
@@ -122,34 +124,47 @@ export default function AdminCoupons() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button onClick={() => setModal(null)} className="btn-primary px-4 py-2 text-sm">+ Add Coupon</button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+            <span className="font-bold text-gray-800">{coupons.length}</span> coupons
+          </span>
+        </div>
+        <button onClick={() => setModal(null)} className="btn-primary px-4 py-2 text-sm flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Coupon
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left">Code</th>
-                <th className="px-4 py-3 text-left">Type</th>
-                <th className="px-4 py-3 text-right">Value</th>
-                <th className="px-4 py-3 text-right">Min Order</th>
-                <th className="px-4 py-3 text-right">Usage</th>
-                <th className="px-4 py-3 text-left">Expiry</th>
-                <th className="px-4 py-3 text-left">Active</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Code</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Value</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Min Order</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Usage</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Expiry</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Active</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 [...Array(4)].map((_, i) => (
                   <tr key={i}>{[...Array(8)].map((_, j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>
                 ))
               ) : coupons.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No coupons yet.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-300">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    <p className="text-sm text-gray-400">No coupons yet</p>
+                  </div>
+                </td></tr>
               ) : coupons.map(c => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3 font-mono font-bold text-[#8B1A2F]">{c.code}</td>
                   <td className="px-4 py-3 capitalize">{c.type}</td>
                   <td className="px-4 py-3 text-right">{c.type === 'flat' ? `₹${c.value}` : `${c.value}%`}</td>
@@ -164,9 +179,13 @@ export default function AdminCoupons() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-3">
-                      <button onClick={() => setModal(c)} className="text-blue-600 text-xs hover:underline">Edit</button>
-                      <button onClick={() => handleDelete(c.id)} className="text-red-500 text-xs hover:underline">Delete</button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setModal(c)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button onClick={() => handleDelete(c.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>

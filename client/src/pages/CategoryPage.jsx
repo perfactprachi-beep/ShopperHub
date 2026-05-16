@@ -8,7 +8,7 @@ import ProductGrid from '../components/product/ProductGrid.jsx';
 
 export default function CategoryPage() {
   const { slug } = useParams();
-  const [filters, setFilters] = useState({ gender: '', minPrice: '', maxPrice: '' });
+  const [filters, setFilters] = useState({ gender: '', minPrice: '', maxPrice: '', brand: '' });
   const [sort, setSort] = useState('newest');
 
   const { data, loading } = useFetch(
@@ -16,15 +16,24 @@ export default function CategoryPage() {
     [slug, filters, sort]
   );
 
+  const { data: brandsData } = useFetch(() => productsApi.brands(), []);
+  const brands = brandsData?.data ?? [];
+
+  const categoryName = data?.category?.name || slug?.replace(/-/g, ' ');
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-[var(--color-text)] mb-6 capitalize" style={{ fontFamily: 'var(--font-heading)' }}>
-        {data?.category?.name || slug}
-      </h1>
       <div className="flex gap-8">
-        <FilterSidebar filters={filters} onChange={setFilters} />
-        <div className="flex-1">
-          <SortBar value={sort} onChange={setSort} total={data?.total} />
+        <FilterSidebar filters={filters} onChange={setFilters} brands={brands} />
+        <div className="flex-1 min-w-0">
+          <SortBar
+            value={sort}
+            onChange={setSort}
+            total={data?.total}
+            categoryName={categoryName}
+            filters={filters}
+            onFilterChange={setFilters}
+          />
           <ProductGrid products={data?.data} loading={loading} />
         </div>
       </div>

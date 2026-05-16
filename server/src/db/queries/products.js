@@ -5,7 +5,16 @@ export async function getProducts({ category, brand, gender, minPrice, maxPrice,
   const values = ['active'];
   let idx = 2;
 
-  if (category)    { conditions.push(`c.slug = $${idx++}`); values.push(category); }
+  // Use recursive CTE so browsing /category/men includes all subcategory products
+  const categoryWith = category ? `
+    WITH RECURSIVE cat_tree AS (
+      SELECT id FROM categories WHERE slug = $${idx}
+      UNION ALL
+      SELECT c.id FROM categories c JOIN cat_tree ct ON c.parent_id = ct.id
+    )
+  ` : '';
+  if (category) { conditions.push(`p.category_id IN (SELECT id FROM cat_tree)`); values.push(category); idx++; }
+
   if (brand)       { conditions.push(`b.slug = $${idx++}`); values.push(brand); }
   if (gender)      { conditions.push(`p.gender = $${idx++}`); values.push(gender); }
   if (minPrice)    { conditions.push(`p.base_price >= $${idx++}`); values.push(minPrice); }
@@ -23,6 +32,7 @@ export async function getProducts({ category, brand, gender, minPrice, maxPrice,
   const offset = (Number(page || 1) - 1) * Number(limit || 20);
 
   const sql = `
+    ${categoryWith}
     SELECT
       p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock,
       b.name AS brand_name, b.slug AS brand_slug,
@@ -72,11 +82,11 @@ export async function searchProducts(q, limit = 20) {
       b.name AS brand_name,
       c.name AS category_name,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
-      ts_rank(to_tsvector('english', p.title), plainto_tsquery('english', $1)) AS rank
+      ts_rank(p.search_vector, plainto_tsquery('english', $1)) AS rank
     FROM products p
     LEFT JOIN brands b ON b.id = p.brand_id
     LEFT JOIN categories c ON c.id = p.category_id
-    WHERE to_tsvector('english', p.title) @@ plainto_tsquery('english', $1)
+    WHERE p.search_vector @@ plainto_tsquery('english', $1)
       AND p.status = 'active'
     ORDER BY rank DESC
     LIMIT $2
@@ -86,12 +96,14 @@ export async function searchProducts(q, limit = 20) {
 
 // ── Admin queries ─────────────────────────────────────────────────────────────
 
-export async function adminListProducts({ page = 1, limit = 20, search, status }) {
+export async function adminListProducts({ page = 1, limit = 20, search, status, brand_id, category_id }) {
   const conditions = [];
   const values = [];
   let idx = 1;
 
   if (status && status !== 'all') { conditions.push(`p.status = $${idx++}`); values.push(status); }
+  if (brand_id)    { conditions.push(`p.brand_id = $${idx++}`);    values.push(brand_id); }
+  if (category_id) { conditions.push(`p.category_id = $${idx++}`); values.push(category_id); }
   if (search) {
     conditions.push(`(p.title ILIKE $${idx} OR b.name ILIKE $${idx})`);
     values.push(`%${search}%`);

@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
 import ToastContainer from './components/ui/Toast.jsx';
@@ -8,6 +9,7 @@ import Spinner from './components/ui/Spinner.jsx';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
 import AdminRoute from './components/guards/AdminRoute.jsx';
 import AdminLayout from './components/layout/AdminLayout.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 import { useCartSync } from './hooks/useCartSync.js';
 import { useUiStore } from './store/uiStore.js';
 
@@ -16,6 +18,7 @@ const LoginPage         = lazy(() => import('./pages/LoginPage.jsx'));
 const RegisterPage      = lazy(() => import('./pages/RegisterPage.jsx'));
 const CategoryPage      = lazy(() => import('./pages/CategoryPage.jsx'));
 const BrandPage         = lazy(() => import('./pages/BrandPage.jsx'));
+const BrandsPage        = lazy(() => import('./pages/BrandsPage.jsx'));
 const ProductDetail     = lazy(() => import('./pages/ProductDetail.jsx'));
 const SearchPage        = lazy(() => import('./pages/SearchPage.jsx'));
 const OffersPage        = lazy(() => import('./pages/OffersPage.jsx'));
@@ -37,6 +40,7 @@ const AdminOrders     = lazy(() => import('./pages/admin/AdminOrders.jsx'));
 const AdminCoupons    = lazy(() => import('./pages/admin/AdminCoupons.jsx'));
 const AdminBanners    = lazy(() => import('./pages/admin/AdminBanners.jsx'));
 const AdminUsers      = lazy(() => import('./pages/admin/AdminUsers.jsx'));
+const NotFoundPage    = lazy(() => import('./pages/NotFoundPage.jsx'));
 
 function PageSpinner() {
   return (
@@ -69,6 +73,7 @@ function AppShell() {
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/register"       element={<RegisterPage />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
+            <Route path="/brands"         element={<BrandsPage />} />
             <Route path="/brand/:slug"    element={<BrandPage />} />
             <Route path="/product/:slug"  element={<ProductDetail />} />
             <Route path="/search"         element={<SearchPage />} />
@@ -83,6 +88,7 @@ function AppShell() {
             <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
             <Route path="/account"   element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/account/*" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
       </Suspense>
@@ -116,10 +122,18 @@ function AdminShell() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/admin/login" element={<Suspense fallback={<AdminSpinner />}><AdminLoginPage /></Suspense>} />
-      <Route path="/admin/*"     element={<AdminShell />} />
-      <Route path="/*"           element={<AppShell />} />
-    </Routes>
+    <HelmetProvider>
+      <Helmet
+        defaultTitle="ShoppersHub — India's Fashion Destination"
+        titleTemplate="%s | ShoppersHub"
+      />
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/admin/login" element={<Suspense fallback={<AdminSpinner />}><AdminLoginPage /></Suspense>} />
+          <Route path="/admin/*"     element={<AdminShell />} />
+          <Route path="/*"           element={<AppShell />} />
+        </Routes>
+      </ErrorBoundary>
+    </HelmetProvider>
   );
 }
