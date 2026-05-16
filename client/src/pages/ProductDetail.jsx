@@ -57,61 +57,102 @@ function maskName(name) {
   return name.trim().split(' ').map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(p.length - 1))).join(' ');
 }
 
-/* ── Offers accordion — fetched dynamically from admin panel ───────────── */
-function OffersSection() {
-  const [open, setOpen]     = useState(false);
-  const [offers, setOffers] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+/* ── Offers section — Shoppers Stop style ──────────────────────────────── */
+/* Percent SVG — fallback when no image_url (mirrors SS percentIcon.svg) */
+function PercentIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2.2" strokeLinecap="round">
+      <line x1="19" y1="5" x2="5" y2="19" />
+      <circle cx="6.5" cy="6.5" r="2.5" />
+      <circle cx="17.5" cy="17.5" r="2.5" />
+    </svg>
+  );
+}
 
-  const handleToggle = () => {
-    if (!loaded) {
-      getActiveOffers()
-        .then(setOffers)
-        .catch(() => {})
-        .finally(() => setLoaded(true));
-    }
-    setOpen((o) => !o);
-  };
+function OfferRow({ offer }) {
+  const [imgErr, setImgErr] = useState(false);
 
   return (
-    <div className="border border-gray-200 rounded overflow-hidden">
-      <button
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-800 bg-white"
-        onClick={handleToggle}
-      >
-        <span className="flex items-center gap-2">
-          <svg width="16" height="16" fill="none" stroke="#8B1A2F" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/>
-          </svg>
-          Best Offers
-        </span>
-        <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
-      </button>
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50">
+      {/* Image / percent-icon */}
+      <div className="shrink-0 w-10 h-10 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden">
+        {offer.image_url && !imgErr ? (
+          <img
+            src={offer.image_url}
+            alt=""
+            onError={() => setImgErr(true)}
+            className="w-full h-full object-contain p-1.5"
+          />
+        ) : (
+          <PercentIcon />
+        )}
+      </div>
 
-      {open && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50">
-          {!loaded ? (
-            <p className="text-xs text-gray-400">Loading offers…</p>
-          ) : offers.length === 0 ? (
-            <p className="text-xs text-gray-400">No offers available right now.</p>
-          ) : (
-            offers.map((o) => (
-              <div key={o.id} className="flex items-start gap-3">
-                <span className="shrink-0 mt-0.5">
-                  <svg width="14" height="14" fill="none" stroke="#8B1A2F" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M20 6L9 17l-5-5"/>
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-xs font-semibold text-gray-800 leading-snug">{o.title}</p>
-                  {o.description && (
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{o.description}</p>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
+      {/* Offer title — single line banner */}
+      <p className="text-[13px] font-medium text-gray-800 leading-snug">{offer.title}</p>
+    </div>
+  );
+}
+
+function OffersSection({ categoryId }) {
+  const [offers, setOffers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    getActiveOffers(categoryId)
+      .then(setOffers)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [categoryId]);
+
+  if (loading) return (
+    <div className="border border-gray-200 rounded-xl p-4 space-y-1">
+      <div className="h-3.5 w-20 bg-gray-100 rounded animate-pulse mb-3" />
+      {[1, 2].map(i => (
+        <div key={i} className="flex items-center gap-3 py-2">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 animate-pulse shrink-0" />
+          <div className="h-3 w-48 bg-gray-100 rounded animate-pulse" />
         </div>
+      ))}
+    </div>
+  );
+
+  if (!offers.length) return null;
+
+  const visible = showAll ? offers : offers.slice(0, 3);
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        <span className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">Best Offers</span>
+      </div>
+
+      {/* Offer list */}
+      <div className="px-3 py-2 space-y-1.5">
+        {visible.map((o) => <OfferRow key={o.id} offer={o} />)}
+      </div>
+
+      {/* View all toggle */}
+      {offers.length > 3 && (
+        <button
+          onClick={() => setShowAll(s => !s)}
+          className="w-full flex items-center justify-center gap-1 py-2.5 text-[12px] font-semibold text-[#8B1A2F] bg-gray-50 border-t border-gray-200 hover:bg-gray-100 transition-colors"
+        >
+          {showAll ? 'Show Less' : `View All ${offers.length} Offers`}
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round"
+            className={`transition-transform ${showAll ? 'rotate-180' : ''}`}
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
       )}
     </div>
   );
@@ -158,6 +199,25 @@ function PincodeCheck() {
   );
 }
 
+/* ── Reusable accordion ────────────────────────────────────────────────── */
+function Accordion({ title, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-800 bg-white hover:bg-gray-50 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>{title}</span>
+        <span className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      {open && <div className="border-t border-gray-100">{children}</div>}
+    </div>
+  );
+}
+
 /* ── Product details accordion ─────────────────────────────────────────── */
 function ProductDetailsAccordion({ description }) {
   const [open, setOpen] = useState(true);
@@ -181,30 +241,48 @@ function ProductDetailsAccordion({ description }) {
 }
 
 /* ── Similar products ──────────────────────────────────────────────────── */
-function SimilarProducts({ gender, currentId }) {
+function SimilarProductsSection({ categorySlug, gender, currentId }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { addToast } = useToastStore();
+  const addItem = useCartStore((s) => s.addItem);
 
   useEffect(() => {
-    if (!gender) { setLoading(false); return; }
+    if (!categorySlug && !gender) { setLoading(false); return; }
+    const params = categorySlug ? { category: categorySlug, limit: 12 } : { gender, limit: 12 };
     productsApi
-      .list({ gender, limit: 10 })
-      .then(({ data }) => setProducts((data.data || []).filter((p) => p.id !== currentId)))
+      .list(params)
+      .then(({ data }) => setProducts((data.data || []).filter((p) => p.id !== currentId).slice(0, 10)))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [gender, currentId]);
+  }, [categorySlug, gender, currentId]);
+
+  const handleAddToBag = (product) => {
+    const variant = product.variants?.[0];
+    const variantId = variant?.id ?? product.id;
+    const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
+    addItem({
+      variantId,
+      productId: product.id,
+      title: product.title,
+      brand: product.brand_name,
+      image: assetUrl(product.image_url || ''),
+      size: variant?.size || null,
+      color: variant?.color || null,
+      price: finalPrice,
+      quantity: 1,
+    });
+    addToast('Added to bag!', 'success');
+  };
 
   if (!loading && !products.length) return null;
 
   return (
-    <div className="mt-16 border-t border-gray-100 pt-10">
-      <h2
-        className="text-xl font-bold text-gray-900 uppercase tracking-wide mb-6"
-        style={{ fontFamily: 'var(--font-heading)' }}
-      >
+    <div className="mt-14 border-t border-gray-100 pt-10">
+      <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide mb-6" style={{ fontFamily: 'var(--font-heading)' }}>
         You May Also Like
       </h2>
-      <ProductCarousel products={products} loading={loading} />
+      <ProductCarousel products={products} loading={loading} onAddToBag={handleAddToBag} />
     </div>
   );
 }
@@ -416,6 +494,25 @@ export default function ProductDetail() {
   const addItem = useCartStore((s) => s.addItem);
   const { has, toggle } = useWishlistStore();
 
+  useEffect(() => {
+    if (!product) return;
+    const item = {
+      id: product.id,
+      title: product.name,
+      slug: product.slug || slug,
+      base_price: product.base_price,
+      discount_pct: product.discount_pct,
+      brand_name: product.brand_name,
+      image_url: product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '',
+      stock: product.variants?.some((v) => v.stock > 0) ? 1 : 0,
+    };
+    try {
+      const stored = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+      const deduped = stored.filter((p) => p.id !== item.id);
+      localStorage.setItem('recentlyViewed', JSON.stringify([item, ...deduped].slice(0, 10)));
+    } catch {}
+  }, [product, slug]);
+
   if (loading) return <LoadingSkeleton />;
   if (!product) {
     return <div className="py-32 text-center text-gray-400">Product not found.</div>;
@@ -507,91 +604,217 @@ export default function ProductDetail() {
         </nav>
 
         {/* Two-column layout */}
-        <div className="flex flex-col lg:flex-row gap-12">
-          {/* Left: Image gallery */}
-          <div className="w-full lg:w-[55%]">
+        <div className="flex flex-col lg:flex-row gap-10">
+
+          {/* ── Left: Image gallery ── */}
+          <div className="w-full lg:w-[52%]">
             <ImageGallery images={product.images} />
           </div>
 
-          {/* Right: Product info */}
-          <div className="w-full lg:w-[45%] space-y-5">
-            {/* Brand + title */}
+          {/* ── Right: Product info ── */}
+          <div className="w-full lg:w-[48%] space-y-4">
+
+            {/* 1. Brand + title + share */}
             <div>
-              {product.brand_name && (
-                <Link
-                  to={`/brand/${product.brand_slug}`}
-                  className="text-xs font-bold text-[#8B1A2F] uppercase tracking-widest hover:underline"
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  {product.brand_name && (
+                    <Link
+                      to={`/brand/${product.brand_slug}`}
+                      className="text-[11px] font-bold text-gray-500 uppercase tracking-widest hover:text-[#8B1A2F] transition-colors"
+                    >
+                      {product.brand_name}
+                    </Link>
+                  )}
+                  <h1
+                    className="text-[18px] lg:text-[20px] font-semibold text-gray-900 mt-0.5 leading-snug"
+                    style={{ fontFamily: 'var(--font-heading)' }}
+                  >
+                    {product.title}
+                  </h1>
+                </div>
+                {/* Share icon */}
+                <button
+                  onClick={() => navigator.share?.({ title: product.title, url: window.location.href })}
+                  className="shrink-0 w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F] transition-colors mt-0.5"
+                  aria-label="Share"
                 >
-                  {product.brand_name}
-                </Link>
-              )}
-              <h1
-                className="text-xl lg:text-2xl font-semibold text-gray-900 mt-1 leading-snug"
-                style={{ fontFamily: 'var(--font-heading)' }}
-              >
-                {product.title}
-              </h1>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            {/* Price block */}
-            <div>
-              <div className="flex items-baseline flex-wrap gap-3">
-                <span className="text-2xl font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+            {/* 2. Price block — SS style: final price + MRP strikethrough + % off */}
+            <div className="pb-1">
+              <div className="flex items-baseline flex-wrap gap-2">
+                <span className="text-[22px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
                 {hasDiscount && (
                   <>
-                    <span className="text-sm text-gray-400 line-through">{formatPrice(product.base_price)}</span>
-                    <span className="text-sm font-bold text-[#8B1A2F] bg-red-50 px-2 py-0.5 rounded">
-                      {product.discount_pct}% OFF
+                    <span className="text-[13px] text-gray-400">
+                      MRP <span className="line-through">{formatPrice(product.base_price)}</span>
+                    </span>
+                    <span className="text-[13px] font-bold text-[#2E7D32]">
+                      ({product.discount_pct}% OFF)
                     </span>
                   </>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1">Inclusive of all taxes</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Inclusive of all taxes</p>
             </div>
 
-            {/* Offers */}
-            <OffersSection />
+            {/* 3. Offers — right after price, exactly like SS */}
+            <OffersSection categoryId={product.category_id} />
 
-            {/* Variants */}
+            {/* 4. Variants (color + size) */}
             {product.variants?.length > 0 && (
               <VariantPicker variants={product.variants} selected={selected} onSelect={setSelected} />
             )}
 
-            {/* Delivery check */}
-            <PincodeCheck />
-
-            {/* CTA Buttons */}
+            {/* 5. CTA buttons */}
             <div className="flex flex-col gap-3 pt-1">
               <button
                 onClick={handleAddToBag}
                 disabled={product.stock === 0}
-                className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 bg-[#8B1A2F] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}
               </button>
               <button
                 onClick={handleWishlist}
-                className={`w-full py-4 border-2 font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3.5 border-2 font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
                   wished
                     ? 'border-[#8B1A2F] bg-red-50 text-[#8B1A2F]'
-                    : 'border-gray-200 text-gray-600 hover:border-[#8B1A2F] hover:text-[#8B1A2F]'
+                    : 'border-gray-300 text-gray-700 hover:border-[#8B1A2F] hover:text-[#8B1A2F]'
                 }`}
               >
                 <IconHeart filled={wished} />
-                {wished ? 'Wishlisted' : 'Add to Wishlist'}
+                {wished ? 'Wishlisted' : 'Wishlist'}
               </button>
             </div>
 
-            {/* Product details accordion */}
+            {/* 6. Product Highlights — built-in fields + custom attributes from admin */}
+            {(() => {
+              // Built-in fields always pulled from the product record
+              const builtin = [
+                product.brand_name    && { label: 'Brand',    value: product.brand_name },
+                product.gender        && { label: 'Gender',   value: product.gender.charAt(0).toUpperCase() + product.gender.slice(1) },
+                product.category_name && { label: 'Category', value: product.category_name },
+                                         { label: 'Pack Of',  value: '1' },
+              ].filter(Boolean);
+
+              // Custom highlights from Admin → Attributes tab (section = 'highlights')
+              // Skip any whose label duplicates a built-in one (case-insensitive)
+              const builtinLabels = new Set(builtin.map(r => r.label.toLowerCase()));
+              const custom = (product.attributes || []).filter(
+                a => (a.section || 'highlights') === 'highlights' &&
+                     !builtinLabels.has(a.label.toLowerCase())
+              );
+
+              // Merge: custom attrs first (admin-defined), then built-in fields
+              const rows = [...custom, ...builtin];
+              if (!rows.length) return null;
+
+              return (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                    <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Product Highlights</span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {rows.map(({ label, value }) => (
+                      <div key={label} className="flex items-center px-4 py-2.5 gap-3">
+                        <span className="text-[12px] text-gray-400 w-28 shrink-0">{label}</span>
+                        <span className="text-[12px] font-medium text-gray-800 capitalize">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 7. Delivery / pincode */}
+            <PincodeCheck />
+
+            {/* 8. 14-day returns text line — only if returnable */}
+            {product.is_returnable !== false && (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2" strokeLinecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
+                <span><span className="font-semibold text-gray-700">14 Days</span> Easy Returns And Exchange</span>
+              </div>
+            )}
+
+            {/* 9. Trust badges — 100% Authentic | Fast Delivery | Easy Return (SS style) */}
+            <div className="grid border border-gray-200 rounded-xl overflow-hidden"
+              style={{ gridTemplateColumns: product.is_returnable !== false ? 'repeat(3,1fr)' : 'repeat(2,1fr)' }}
+            >
+              {/* 100% Authentic */}
+              <div className="flex flex-col items-center gap-1.5 py-4 px-2 border-r border-gray-200">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <polyline points="9 12 11 14 15 10"/>
+                </svg>
+                <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">100% Authentic</span>
+              </div>
+
+              {/* Fast Delivery */}
+              <div className={`flex flex-col items-center gap-1.5 py-4 px-2 ${product.is_returnable !== false ? 'border-r border-gray-200' : ''}`}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
+                  <rect x="9" y="11" width="14" height="10" rx="2"/>
+                  <circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                </svg>
+                <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">Fast Delivery</span>
+              </div>
+
+              {/* Easy Return — only if product.is_returnable */}
+              {product.is_returnable !== false && (
+                <div className="flex flex-col items-center gap-1.5 py-4 px-2">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.87"/>
+                  </svg>
+                  <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">Easy Return</span>
+                </div>
+              )}
+            </div>
+
+            {/* 9. Product details accordion */}
             <ProductDetailsAccordion description={product.description} />
+
+            {/* 10. Additional Details — from admin Attributes tab (section = 'details') */}
+            {(() => {
+              const details = (product.attributes || []).filter(
+                a => (a.section || 'highlights') === 'details'
+              );
+              if (!details.length) return null;
+              return (
+                <Accordion title="Additional Details">
+                  <div className="divide-y divide-gray-100">
+                    {details.map(({ label, value }) => (
+                      <div key={label} className="flex px-4 py-2.5 gap-3">
+                        <span className="text-[12px] text-gray-400 w-36 shrink-0">{label}</span>
+                        <span className="text-[12px] text-gray-700 leading-relaxed">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Accordion>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Similar Products */}
-        <SimilarProducts gender={product.gender} currentId={product.id} />
+        {/* Similar Products — below main product detail */}
+        <SimilarProductsSection categorySlug={product.category_slug} gender={product.gender} currentId={product.id} />
 
         {/* Reviews */}
         <ReviewsSection productId={product.id} />
+      </div>
+    </div>
+  );
+}
       </div>
     </div>
   );

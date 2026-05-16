@@ -1,2 +1,3 @@
 import api from './axios.js';
-export const getActiveOffers = () => api.get('/offers/active').then(r => r.data.data);
+export const getActiveOffers = (categoryId) =>
+  api.get('/offers/active', { params: categoryId ? { categoryId } : {} }).then(r => r.data.data);

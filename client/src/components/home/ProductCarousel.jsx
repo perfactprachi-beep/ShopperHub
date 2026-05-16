@@ -20,7 +20,7 @@ function ChevronBtn({ dir, onClick, dark }) {
   );
 }
 
-export default function ProductCarousel({ products, loading, dark = false }) {
+export default function ProductCarousel({ products, loading, dark = false, showNew = false, onAddToBag }) {
   const ref = useRef(null);
 
   const scroll = (dir) => {
@@ -54,7 +54,7 @@ export default function ProductCarousel({ products, loading, dark = false }) {
       >
         {products.map((p) => (
           <div key={p.id} className="shrink-0 w-52">
-            <ProductCard product={p} dark={dark} />
+            <ProductCard product={p} dark={dark} showNew={showNew} onAddToBag={onAddToBag} />
           </div>
         ))}
       </div>

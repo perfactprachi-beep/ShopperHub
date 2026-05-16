@@ -41,6 +41,19 @@ export const deleteImage = (id) =>
 export const setPrimaryImage = (id, productId) =>
   api.put(`/admin/products/images/${id}/primary`, { productId }).then(r => r.data.data);
 
+// ── Product Attributes ────────────────────────────────────────────────────────
+export const getProductAttributes = (productId) =>
+  api.get(`/admin/products/${productId}/attributes`).then(r => r.data.data);
+
+export const addProductAttribute = (productId, data) =>
+  api.post(`/admin/products/${productId}/attributes`, data).then(r => r.data.data);
+
+export const updateProductAttribute = (id, data) =>
+  api.put(`/admin/products/attributes/${id}`, data).then(r => r.data.data);
+
+export const deleteProductAttribute = (id) =>
+  api.delete(`/admin/products/attributes/${id}`).then(r => r.data);
+
 // ── Categories ────────────────────────────────────────────────────────────────
 export const getAdminCategories = () =>
   api.get('/admin/categories').then(r => r.data.data);

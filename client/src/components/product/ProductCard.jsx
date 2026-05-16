@@ -16,11 +16,12 @@ function IconHeart({ filled }) {
   );
 }
 
-export default function ProductCard({ product, dark = false }) {
+export default function ProductCard({ product, dark = false, showNew = false, onAddToBag }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
-  const finalPrice = calcFinalPrice(base_price, discount_pct);
-  const hasDiscount = discount_pct > 0;
   const [imgErr, setImgErr] = useState(false);
+  const imageAvailable = !!image_url && !imgErr;
+  const finalPrice = imageAvailable ? calcFinalPrice(base_price, discount_pct) : base_price;
+  const hasDiscount = discount_pct > 0 && imageAvailable;
 
   const { isLoggedIn } = useAuth();
   const { addToast } = useToastStore();
@@ -47,10 +48,8 @@ export default function ProductCard({ product, dark = false }) {
   };
 
   return (
-    <Link
-      to={`/product/${slug}`}
-      className={`group block overflow-hidden hover:shadow-md transition-shadow duration-200 ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}
-    >
+    <div className={`group flex flex-col overflow-hidden hover:shadow-md transition-shadow duration-200 ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}>
+    <Link to={`/product/${slug}`} className="block flex-1">
       {/* Image */}
       <div className={`relative overflow-hidden ${dark ? 'bg-[#222]' : 'bg-gray-50'}`} style={{ aspectRatio: '3/4' }}>
         {image_url && !imgErr ? (
@@ -64,11 +63,18 @@ export default function ProductCard({ product, dark = false }) {
           <div className={`w-full h-full flex items-center justify-center text-sm ${dark ? 'text-gray-600' : 'text-gray-300'}`}>No image</div>
         )}
 
-        {hasDiscount && (
-          <span className={`absolute top-2 left-2 text-white text-[11px] font-bold px-2 py-0.5 ${dark ? 'bg-[#C9A84C] text-black' : 'bg-[#8B1A2F]'}`}>
-            {discount_pct}% OFF
-          </span>
-        )}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {showNew && (
+            <span className="text-white text-[10px] font-bold px-2 py-0.5 bg-emerald-500 tracking-wide">
+              NEW
+            </span>
+          )}
+          {hasDiscount && (
+            <span className={`text-[11px] font-bold px-2 py-0.5 ${dark ? 'bg-[#C9A84C] text-black' : 'bg-[#8B1A2F] text-white'}`}>
+              {discount_pct}% OFF
+            </span>
+          )}
+        </div>
 
         {/* Wishlist */}
         <button
@@ -87,7 +93,7 @@ export default function ProductCard({ product, dark = false }) {
       </div>
 
       {/* Info */}
-      <div className="pt-3 pb-4 px-0.5">
+      <div className="pt-3 pb-3 px-0.5">
         {brand_name && (
           <p className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 ${dark ? 'text-[#C9A84C]' : 'text-gray-900'}`}>{brand_name}</p>
         )}
@@ -100,5 +106,19 @@ export default function ProductCard({ product, dark = false }) {
         </div>
       </div>
     </Link>
+    {onAddToBag && (
+      <button
+        onClick={(e) => { e.preventDefault(); onAddToBag(product); }}
+        disabled={stock === 0}
+        className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+          dark
+            ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
+            : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+        }`}
+      >
+        {stock === 0 ? 'Out of Stock' : 'Add to Bag'}
+      </button>
+    )}
+    </div>
   );
 }
