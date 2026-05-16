@@ -1,4 +1,19 @@
 import { validateCoupon } from '../services/coupons.service.js';
+import { pool } from '../db/pool.js';
+
+export async function getActiveCoupons(_req, res, next) {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, code, type, value, min_order, expires_at
+      FROM coupons
+      WHERE is_active = true
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND (max_uses IS NULL OR used_count < max_uses)
+      ORDER BY value DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) { next(err); }
+}
 
 export async function validate(req, res, next) {
   try {

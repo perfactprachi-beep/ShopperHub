@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Skeleton } from '../ui/Skeleton.jsx';
 import { assetUrl } from '../../utils/assetUrl.js';
 
+const BANNER_FALLBACK = 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&w=1200&q=80';
+
 function ArrowBtn({ onClick, dir, label }) {
   return (
     <button
@@ -50,10 +52,10 @@ export default function BannerCarousel({ banners = [] }) {
         >
           {b.link ? (
             <a href={b.link} className="block w-full h-full">
-              <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+              <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} onError={e => { e.currentTarget.src = BANNER_FALLBACK; }} />
             </a>
           ) : (
-            <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+            <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} onError={e => { e.currentTarget.src = BANNER_FALLBACK; }} />
           )}
         </div>
       ))}

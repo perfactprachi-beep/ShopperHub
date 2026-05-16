@@ -16,7 +16,7 @@ function IconHeart({ filled }) {
   );
 }
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, dark = false }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
   const finalPrice = calcFinalPrice(base_price, discount_pct);
   const hasDiscount = discount_pct > 0;
@@ -47,9 +47,12 @@ export default function ProductCard({ product }) {
   };
 
   return (
-    <Link to={`/product/${slug}`} className="group block bg-white overflow-hidden hover:shadow-md transition-shadow duration-200">
+    <Link
+      to={`/product/${slug}`}
+      className={`group block overflow-hidden hover:shadow-md transition-shadow duration-200 ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}
+    >
       {/* Image */}
-      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '3/4' }}>
+      <div className={`relative overflow-hidden ${dark ? 'bg-[#222]' : 'bg-gray-50'}`} style={{ aspectRatio: '3/4' }}>
         {image_url && !imgErr ? (
           <img
             src={assetUrl(image_url)}
@@ -58,11 +61,11 @@ export default function ProductCard({ product }) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
+          <div className={`w-full h-full flex items-center justify-center text-sm ${dark ? 'text-gray-600' : 'text-gray-300'}`}>No image</div>
         )}
 
         {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-[#8B1A2F] text-white text-[11px] font-bold px-2 py-0.5">
+          <span className={`absolute top-2 left-2 text-white text-[11px] font-bold px-2 py-0.5 ${dark ? 'bg-[#C9A84C] text-black' : 'bg-[#8B1A2F]'}`}>
             {discount_pct}% OFF
           </span>
         )}
@@ -71,7 +74,7 @@ export default function ProductCard({ product }) {
         <button
           onClick={handleWishlist}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110 transition-all"
+          className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110 transition-all ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}
         >
           <IconHeart filled={wished} />
         </button>
@@ -86,13 +89,13 @@ export default function ProductCard({ product }) {
       {/* Info */}
       <div className="pt-3 pb-4 px-0.5">
         {brand_name && (
-          <p className="text-[11px] font-bold text-gray-900 uppercase tracking-wider mb-0.5">{brand_name}</p>
+          <p className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 ${dark ? 'text-[#C9A84C]' : 'text-gray-900'}`}>{brand_name}</p>
         )}
-        <p className="text-[13px] text-gray-500 line-clamp-2 leading-snug mb-2">{title}</p>
+        <p className={`text-[13px] line-clamp-2 leading-snug mb-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{title}</p>
         <div className="flex items-center gap-2">
-          <span className="text-[14px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+          <span className={`text-[14px] font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{formatPrice(finalPrice)}</span>
           {hasDiscount && (
-            <span className="text-[12px] text-gray-400 line-through">{formatPrice(base_price)}</span>
+            <span className="text-[12px] text-gray-500 line-through">{formatPrice(base_price)}</span>
           )}
         </div>
       </div>

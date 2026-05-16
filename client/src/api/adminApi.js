@@ -100,6 +100,19 @@ export const updateBanner = (id, data) =>
 export const deleteBanner = (id) =>
   api.delete(`/admin/banners/${id}`).then(r => r.data);
 
+// ── Offers ────────────────────────────────────────────────────────────────────
+export const getAdminOffers = () =>
+  api.get('/admin/offers').then(r => r.data.data);
+
+export const createOffer = (data) =>
+  api.post('/admin/offers', data).then(r => r.data.data);
+
+export const updateOffer = (id, data) =>
+  api.put(`/admin/offers/${id}`, data).then(r => r.data.data);
+
+export const deleteOffer = (id) =>
+  api.delete(`/admin/offers/${id}`).then(r => r.data);
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const getAdminUsers = (params) =>
   api.get('/admin/users', { params }).then(r => r.data.data);

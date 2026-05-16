@@ -38,6 +38,7 @@ const AdminCategories = lazy(() => import('./pages/admin/AdminCategories.jsx'));
 const AdminBrands     = lazy(() => import('./pages/admin/AdminBrands.jsx'));
 const AdminOrders     = lazy(() => import('./pages/admin/AdminOrders.jsx'));
 const AdminCoupons    = lazy(() => import('./pages/admin/AdminCoupons.jsx'));
+const AdminOffers     = lazy(() => import('./pages/admin/AdminOffers.jsx'));
 const AdminBanners    = lazy(() => import('./pages/admin/AdminBanners.jsx'));
 const AdminUsers      = lazy(() => import('./pages/admin/AdminUsers.jsx'));
 const NotFoundPage    = lazy(() => import('./pages/NotFoundPage.jsx'));
@@ -111,6 +112,7 @@ function AdminShell() {
             <Route path="brands"     element={<AdminBrands />} />
             <Route path="orders"     element={<AdminOrders />} />
             <Route path="coupons"    element={<AdminCoupons />} />
+            <Route path="offers"     element={<AdminOffers />} />
             <Route path="banners"    element={<AdminBanners />} />
             <Route path="users"      element={<AdminUsers />} />
           </Route>
