@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { assetUrl } from '../../utils/assetUrl.js';
 
 export default function ImageGallery({ images = [] }) {
   const [active, setActive] = useState(0);
@@ -19,7 +20,7 @@ export default function ImageGallery({ images = [] }) {
               active === i ? 'border-[var(--color-primary)]' : 'border-[var(--color-border)]'
             }`}
           >
-            <img src={img.url} alt="" className="w-full h-full object-cover" />
+            <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>
@@ -27,7 +28,7 @@ export default function ImageGallery({ images = [] }) {
       {/* Main image */}
       <div className="flex-1 relative overflow-hidden rounded-[var(--radius-md)] bg-gray-50 group">
         <img
-          src={images[active].url}
+          src={assetUrl(images[active].url)}
           alt=""
           className="w-full h-[480px] object-contain group-hover:scale-110 transition-transform duration-300"
         />

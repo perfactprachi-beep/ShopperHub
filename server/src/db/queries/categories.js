@@ -28,3 +28,32 @@ export async function getCategoryBySlug(slug) {
   );
   return rows[0];
 }
+
+export async function getAllCategories() {
+  const { rows } = await pool.query(
+    'SELECT * FROM categories ORDER BY sort_order, name'
+  );
+  return rows;
+}
+
+export async function createCategory({ name, slug, parent_id, image_url, sort_order }) {
+  const { rows } = await pool.query(
+    `INSERT INTO categories (name, slug, parent_id, image_url, sort_order)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [name, slug, parent_id || null, image_url || null, sort_order || 0]
+  );
+  return rows[0];
+}
+
+export async function updateCategory(id, { name, slug, parent_id, image_url, sort_order }) {
+  const { rows } = await pool.query(
+    `UPDATE categories SET name=$2, slug=$3, parent_id=$4, image_url=$5, sort_order=$6
+     WHERE id=$1 RETURNING *`,
+    [id, name, slug, parent_id || null, image_url || null, sort_order || 0]
+  );
+  return rows[0];
+}
+
+export async function deleteCategory(id) {
+  await pool.query('DELETE FROM categories WHERE id=$1', [id]);
+}

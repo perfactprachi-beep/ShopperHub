@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useWishlistStore } from '../store/wishlistStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { assetUrl } from '../utils/assetUrl.js';
 import { useToastStore } from '../store/toastStore.js';
 import { fetchWishlist, removeFromWishlist } from '../api/wishlistApi.js';
 import { formatPrice } from '../utils/formatPrice.js';
@@ -25,7 +26,7 @@ function WishlistCard({ product, onRemove, onMoveToCart }) {
     <div className="bg-[var(--color-surface)] rounded-[var(--radius-md)] shadow-[var(--shadow-card)] overflow-hidden group">
       <Link to={`/product/${product.slug}`} className="block relative overflow-hidden h-56 bg-gray-50">
         {product.image_url ? (
-          <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={assetUrl(product.image_url)} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-sm">No image</div>
         )}

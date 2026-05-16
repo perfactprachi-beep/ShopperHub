@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Skeleton } from '../ui/Skeleton.jsx';
+import { assetUrl } from '../../utils/assetUrl.js';
 
 function ArrowBtn({ onClick, dir, label }) {
   return (
@@ -49,10 +50,10 @@ export default function BannerCarousel({ banners = [] }) {
         >
           {b.link ? (
             <a href={b.link} className="block w-full h-full">
-              <img src={b.image_url} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+              <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
             </a>
           ) : (
-            <img src={b.image_url} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+            <img src={assetUrl(b.image_url)} alt={b.title ?? ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
           )}
         </div>
       ))}

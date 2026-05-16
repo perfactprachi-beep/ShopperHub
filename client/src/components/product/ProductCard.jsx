@@ -3,6 +3,7 @@ import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { useWishlistStore } from '../../store/wishlistStore.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { assetUrl } from '../../utils/assetUrl.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { toggleWishlist } from '../../api/wishlistApi.js';
 
@@ -51,7 +52,7 @@ export default function ProductCard({ product }) {
       <div className="relative overflow-hidden bg-gray-50 h-64">
         {image_url ? (
           <img
-            src={image_url}
+            src={assetUrl(image_url)}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
