@@ -7,7 +7,7 @@ import {
   setRefreshCookie,
   clearRefreshCookie,
 } from '../services/auth.service.js';
-import { findUserByEmail, findUserById, createUser } from '../db/queries/users.js';
+import { findUserByEmail, findUserByPhone, findUserById, createUser } from '../db/queries/users.js';
 
 function safeUser(user) {
   const { password_hash, ...safe } = user;
@@ -37,11 +37,14 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { email, phone, password } = req.body;
 
-    const user = await findUserByEmail(email);
+    const user = phone
+      ? await findUserByPhone(phone)
+      : await findUserByEmail(email);
+
     if (!user || !(await comparePassword(password, user.password_hash))) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const accessToken = signAccessToken({ id: user.id, role: user.role });

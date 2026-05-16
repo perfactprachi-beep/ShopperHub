@@ -18,14 +18,15 @@ export default function ProductGrid({ products, loading, cols = 4 }) {
 
   if (!products?.length) {
     return (
-      <div className="py-16 text-center text-[var(--color-muted)]">
-        No products found.
+      <div className="py-20 text-center">
+        <svg className="mx-auto mb-4 text-gray-200" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <p className="text-sm text-gray-400 font-medium">No products found</p>
       </div>
     );
   }
 
   return (
-    <div className={`grid ${colClass} gap-4`}>
+    <div className={`grid ${colClass} gap-x-4 gap-y-8`}>
       {products.map(p => <ProductCard key={p.id} product={p} />)}
     </div>
   );

@@ -34,7 +34,7 @@ export default function OrderSuccessPage() {
 
       <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">Order Placed Successfully!</h1>
       <p className="text-gray-500 text-center mb-6">
-        Thank you for shopping with Shoppers Stop.
+        Thank you for shopping with ShoppersHub.
       </p>
 
       {!loading && order && (

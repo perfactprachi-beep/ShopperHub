@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Lato:wght@300;400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -19,14 +19,20 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --font-heading: 'Playfair Display', serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Lato', sans-serif;
+}
+
+html {
+  font-size: 17px;
 }
 
 body {
   font-family: var(--font-body);
   background-color: var(--color-bg);
   color: var(--color-text);
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 /* ── Confetti animation (Order Success page) ── */
@@ -50,6 +56,26 @@ body {
   .btn-primary {
     @apply bg-[#8B1A2F] text-white rounded-lg font-medium
            hover:bg-[#6B1223] transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .select-wrap {
+    @apply relative inline-flex items-center;
+  }
+
+  .select-wrap select {
+    @apply w-full border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-800
+           bg-white outline-none focus:ring-2 focus:ring-[#8B1A2F]/30 focus:border-[#8B1A2F]
+           transition-colors appearance-none cursor-pointer;
+  }
+
+  .select-wrap::after {
+    content: '';
+    @apply pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #9CA3AF;
   }
 }
 

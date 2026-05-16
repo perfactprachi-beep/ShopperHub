@@ -8,7 +8,7 @@ import ProductGrid from '../components/product/ProductGrid.jsx';
 
 export default function BrandPage() {
   const { slug } = useParams();
-  const [filters, setFilters] = useState({ gender: '', minPrice: '', maxPrice: '' });
+  const [filters, setFilters] = useState({ gender: '', minPrice: '', maxPrice: '', brand: '' });
   const [sort, setSort] = useState('newest');
 
   const { data, loading } = useFetch(
@@ -16,18 +16,26 @@ export default function BrandPage() {
     [slug, filters, sort]
   );
 
+  const brandName = data?.brand?.name || slug?.replace(/-/g, ' ');
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-[var(--color-text)] mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
-        {data?.brand?.name || slug}
-      </h1>
       {data?.brand?.description && (
-        <p className="text-sm text-[var(--color-muted)] mb-6">{data.brand.description}</p>
+        <p className="text-sm text-gray-500 mb-6 border-b border-gray-100 pb-4">
+          {data.brand.description}
+        </p>
       )}
-      <div className="flex gap-8 mt-6">
-        <FilterSidebar filters={filters} onChange={setFilters} />
-        <div className="flex-1">
-          <SortBar value={sort} onChange={setSort} total={data?.total} />
+      <div className="flex gap-8">
+        <FilterSidebar filters={filters} onChange={setFilters} brands={[]} />
+        <div className="flex-1 min-w-0">
+          <SortBar
+            value={sort}
+            onChange={setSort}
+            total={data?.total}
+            categoryName={brandName}
+            filters={filters}
+            onFilterChange={setFilters}
+          />
           <ProductGrid products={data?.data} loading={loading} />
         </div>
       </div>

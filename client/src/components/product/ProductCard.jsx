@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
@@ -9,7 +10,7 @@ import { toggleWishlist } from '../../api/wishlistApi.js';
 
 function IconHeart({ filled }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? '#8B1A2F' : 'none'} stroke={filled ? '#8B1A2F' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
@@ -19,76 +20,79 @@ export default function ProductCard({ product }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
   const finalPrice = calcFinalPrice(base_price, discount_pct);
   const hasDiscount = discount_pct > 0;
+  const [imgErr, setImgErr] = useState(false);
 
   const { isLoggedIn } = useAuth();
   const { addToast } = useToastStore();
   const { has, toggle } = useWishlistStore();
   const navigate = useNavigate();
-
   const wished = has(id);
 
   const handleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!isLoggedIn) {
       addToast('Please login to save items', 'info');
       navigate('/login');
       return;
     }
-
     toggle(id);
     try {
       await toggleWishlist(id);
       addToast(wished ? 'Removed from wishlist' : 'Added to wishlist', 'success');
     } catch {
-      toggle(id); // revert on error
+      toggle(id);
       addToast('Something went wrong', 'error');
     }
   };
 
   return (
-    <Link to={`/product/${slug}`} className="group block bg-[var(--color-surface)] rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-card)] hover:shadow-md transition-shadow">
-      <div className="relative overflow-hidden bg-gray-50 h-64">
-        {image_url ? (
+    <Link to={`/product/${slug}`} className="group block bg-white overflow-hidden hover:shadow-md transition-shadow duration-200">
+      {/* Image */}
+      <div className="relative overflow-hidden bg-gray-50" style={{ aspectRatio: '3/4' }}>
+        {image_url && !imgErr ? (
           <img
             src={assetUrl(image_url)}
             alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImgErr(true)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-sm">No image</div>
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
         )}
 
         {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-[var(--color-error)] text-white text-xs font-semibold px-2 py-0.5 rounded-[var(--radius-sm)]">
+          <span className="absolute top-2 left-2 bg-[#8B1A2F] text-white text-[11px] font-bold px-2 py-0.5">
             {discount_pct}% OFF
           </span>
         )}
 
-        {/* Wishlist button */}
+        {/* Wishlist */}
         <button
           onClick={handleWishlist}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${wished ? 'bg-[var(--color-primary)] text-white' : 'bg-white/80 text-[var(--color-muted)] hover:text-[var(--color-primary)]'}`}
+          className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110 transition-all"
         >
           <IconHeart filled={wished} />
         </button>
 
         {stock === 0 && (
-          <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-            <span className="text-sm font-medium text-[var(--color-muted)]">Out of Stock</span>
+          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider border border-gray-400 px-3 py-1">Out of Stock</span>
           </div>
         )}
       </div>
 
-      <div className="p-3">
-        <p className="text-xs text-[var(--color-muted)] mb-0.5">{brand_name}</p>
-        <p className="text-sm font-medium text-[var(--color-text)] line-clamp-2 leading-snug">{title}</p>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-sm font-semibold text-[var(--color-text)]">{formatPrice(finalPrice)}</span>
+      {/* Info */}
+      <div className="pt-3 pb-4 px-0.5">
+        {brand_name && (
+          <p className="text-[11px] font-bold text-gray-900 uppercase tracking-wider mb-0.5">{brand_name}</p>
+        )}
+        <p className="text-[13px] text-gray-500 line-clamp-2 leading-snug mb-2">{title}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
           {hasDiscount && (
-            <span className="text-xs text-[var(--color-muted)] line-through">{formatPrice(base_price)}</span>
+            <span className="text-[12px] text-gray-400 line-through">{formatPrice(base_price)}</span>
           )}
         </div>
       </div>
