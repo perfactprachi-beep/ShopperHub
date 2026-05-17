@@ -63,7 +63,20 @@ export async function createOrder(req, res, next) {
     const total = Math.max(subtotal - discount - pointsDiscount + shipping, 0);
     const pointsEarned = Math.floor(total / 100);
 
-    const rzpOrder = await createRazorpayOrder(total, 'INR', `order_${userId}_${Date.now()}`);
+    console.log('[createOrder] userId:', userId, 'subtotal:', subtotal, 'discount:', discount, 'shipping:', shipping, 'total:', total);
+
+    if (!total || total <= 0) {
+      return res.status(400).json({ success: false, message: 'Order total must be greater than zero' });
+    }
+
+    let rzpOrder;
+    try {
+      rzpOrder = await createRazorpayOrder(total, 'INR', `order_${userId}_${Date.now()}`);
+    } catch (rzpErr) {
+      console.error('[Razorpay] createOrder failed:', rzpErr);
+      const msg = rzpErr?.error?.description || rzpErr?.message || 'Razorpay order creation failed';
+      return res.status(502).json({ success: false, message: msg });
+    }
 
     res.json({
       success: true,

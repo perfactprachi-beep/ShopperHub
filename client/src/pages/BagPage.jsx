@@ -893,7 +893,6 @@ export default function BagPage() {
       openLoginModal(() => navigate('/checkout', { state: { coupon: appliedCoupon || null } }));
       return;
     }
-    if (!selectedAddr) { setAddrDrawerOpen(true); addToast('Please select a delivery address', 'info'); return; }
     navigate('/checkout', { state: { coupon: appliedCoupon || null } });
   };
 

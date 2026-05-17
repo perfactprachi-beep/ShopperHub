@@ -25,7 +25,7 @@ export async function cancel(req, res, next) {
     if (!order) {
       return res.status(400).json({ success: false, message: 'Order not found or cannot be cancelled' });
     }
-    await createNotification(req.user.id, `Your order #ORD-${order.id} has been cancelled.`);
+    createNotification(req.user.id, `Your order #ORD-${order.id} has been cancelled.`).catch(console.error);
     res.json({ success: true, data: order, message: 'Order cancelled' });
   } catch (err) { next(err); }
 }

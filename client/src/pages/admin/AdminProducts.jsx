@@ -9,6 +9,8 @@ import { getAdminCategories } from '../../api/adminApi.js';
 import { getAdminBrands } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
+import { useToastStore } from '../../store/toastStore.js';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 
 const EMPTY_PRODUCT = {
   title: '', slug: '', brand_id: '', category_id: '', gender: '',
@@ -25,6 +27,7 @@ function slugify(str) {
 
 // ── ProductFormModal ──────────────────────────────────────────────────────────
 function ProductFormModal({ product, onClose, onSaved }) {
+  const { addToast } = useToastStore();
   const [tab, setTab] = useState('basic');
   const [form, setForm] = useState(product ? { ...product } : EMPTY_PRODUCT);
   const [variants, setVariants] = useState([]);
@@ -35,8 +38,9 @@ function ProductFormModal({ product, onClose, onSaved }) {
   const [variantForm, setVariantForm] = useState(null);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [attributes, setAttributes] = useState([]);
-  const [attrForm, setAttrForm] = useState(null);   // null | EMPTY_ATTRIBUTE | existing attr
-  const [attrEditing, setAttrEditing] = useState(null); // id being edited
+  const [attrForm, setAttrForm] = useState(null);
+  const [attrEditing, setAttrEditing] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => {
@@ -66,22 +70,24 @@ function ProductFormModal({ product, onClose, onSaved }) {
       const saved = product?.id
         ? await updateProduct(product.id, form)
         : await createProduct(form);
+      addToast(product?.id ? 'Product updated' : 'Product created', 'success');
       onSaved(saved, !product?.id);
       if (!product?.id) onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Save failed');
+      addToast(err.response?.data?.message || 'Save failed', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleAddVariant = async () => {
-    if (!product?.id) { alert('Save the product first'); return; }
+    if (!product?.id) { addToast('Save the product first', 'warning'); return; }
     try {
       const v = await addVariant(product.id, variantForm || EMPTY_VARIANT);
       setVariants(vs => [...vs, v]);
       setVariantForm(null);
-    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+      addToast('Variant added', 'success');
+    } catch (err) { addToast(err.response?.data?.message || 'Error', 'error'); }
   };
 
   const handleUpdateVariant = async (id) => {
@@ -89,36 +95,48 @@ function ProductFormModal({ product, onClose, onSaved }) {
       const updated = await updateVariant(id, variantForm);
       setVariants(vs => vs.map(v => v.id === id ? updated : v));
       setVariantForm(null);
-    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+      addToast('Variant updated', 'success');
+    } catch (err) { addToast(err.response?.data?.message || 'Error', 'error'); }
   };
 
-  const handleDeleteVariant = async (id) => {
-    if (!confirm('Delete this variant?')) return;
-    await deleteVariant(id);
-    setVariants(vs => vs.filter(v => v.id !== id));
+  const handleDeleteVariant = (id) => {
+    setConfirmAction({
+      title: 'Delete variant?',
+      onConfirm: async () => {
+        await deleteVariant(id);
+        setVariants(vs => vs.filter(v => v.id !== id));
+        addToast('Variant deleted', 'success');
+      },
+    });
   };
 
   const handleImageUpload = async (e) => {
     const files = e.target.files;
-    if (!files?.length || !product?.id) { alert('Save the product first'); return; }
+    if (!files?.length || !product?.id) { addToast('Save the product first', 'warning'); return; }
     const fd = new FormData();
     for (const f of files) fd.append('images', f);
     setUploadingImages(true);
     try {
       const newImgs = await uploadImages(product.id, fd);
       setImages(imgs => [...imgs, ...newImgs]);
-    } catch (err) { alert(err.response?.data?.message || 'Upload failed'); }
+      addToast('Images uploaded', 'success');
+    } catch (err) { addToast(err.response?.data?.message || 'Upload failed', 'error'); }
     finally { setUploadingImages(false); e.target.value = ''; }
   };
 
-  const handleDeleteImage = async (id) => {
-    if (!confirm('Delete this image?')) return;
-    try {
-      await deleteImage(id);
-      setImages(imgs => imgs.filter(i => i.id !== id));
-    } catch (err) {
-      alert(err.response?.data?.message || 'Delete failed');
-    }
+  const handleDeleteImage = (id) => {
+    setConfirmAction({
+      title: 'Delete this image?',
+      onConfirm: async () => {
+        try {
+          await deleteImage(id);
+          setImages(imgs => imgs.filter(i => i.id !== id));
+          addToast('Image deleted', 'success');
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Delete failed', 'error');
+        }
+      },
+    });
   };
 
   const handleSetPrimary = async (id) => {
@@ -129,13 +147,14 @@ function ProductFormModal({ product, onClose, onSaved }) {
 
   // ── Attribute handlers ────────────────────────────────────────────────
   const handleAddAttribute = async () => {
-    if (!product?.id) { alert('Save the product first'); return; }
-    if (!attrForm?.label?.trim() || !attrForm?.value?.trim()) { alert('Label and value are required'); return; }
+    if (!product?.id) { addToast('Save the product first', 'warning'); return; }
+    if (!attrForm?.label?.trim() || !attrForm?.value?.trim()) { addToast('Label and value are required', 'warning'); return; }
     try {
       const saved = await addProductAttribute(product.id, attrForm);
       setAttributes(a => [...a, saved]);
       setAttrForm(null);
-    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+      addToast('Attribute added', 'success');
+    } catch (err) { addToast(err.response?.data?.message || 'Error', 'error'); }
   };
 
   const handleUpdateAttribute = async () => {
@@ -143,13 +162,19 @@ function ProductFormModal({ product, onClose, onSaved }) {
       const updated = await updateProductAttribute(attrEditing, attrForm);
       setAttributes(a => a.map(x => x.id === attrEditing ? updated : x));
       setAttrForm(null); setAttrEditing(null);
-    } catch (err) { alert(err.response?.data?.message || 'Error'); }
+      addToast('Attribute updated', 'success');
+    } catch (err) { addToast(err.response?.data?.message || 'Error', 'error'); }
   };
 
-  const handleDeleteAttribute = async (id) => {
-    if (!confirm('Delete this attribute?')) return;
-    await deleteProductAttribute(id);
-    setAttributes(a => a.filter(x => x.id !== id));
+  const handleDeleteAttribute = (id) => {
+    setConfirmAction({
+      title: 'Delete this attribute?',
+      onConfirm: async () => {
+        await deleteProductAttribute(id);
+        setAttributes(a => a.filter(x => x.id !== id));
+        addToast('Attribute deleted', 'success');
+      },
+    });
   };
 
   const TABS = ['basic', 'variants', 'images', 'attributes'];
@@ -544,12 +569,20 @@ function ProductFormModal({ product, onClose, onSaved }) {
           )}
         </div>
       </div>
+      {confirmAction && (
+        <ConfirmDialog
+          title={confirmAction.title}
+          onConfirm={async () => { await confirmAction.onConfirm(); setConfirmAction(null); }}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminProducts() {
+  const { addToast } = useToastStore();
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -561,7 +594,8 @@ export default function AdminProducts() {
   const [categories, setCategories] = useState([]);
   const [dealFilter, setDealFilter] = useState('');
   const [loading, setLoading] = useState(true);
-  const [modalProduct, setModalProduct] = useState(undefined); // undefined=closed, null=new, obj=edit
+  const [modalProduct, setModalProduct] = useState(undefined);
+  const [confirmId, setConfirmId] = useState(null);
 
   const limit = 20;
 
@@ -595,18 +629,33 @@ export default function AdminProducts() {
     load();
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Deactivate this product?')) return;
-    await deleteProduct(id);
-    load();
+  const handleDelete = (id) => {
+    setConfirmId(id);
+  };
+
+  const doDelete = async () => {
+    try {
+      await deleteProduct(confirmId);
+      addToast('Product deactivated', 'success');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setConfirmId(null); }
   };
 
   const handleToggleStatus = async (product) => {
-    await updateProduct(product.id, { ...product, status: product.status === 'active' ? 'inactive' : 'active' });
-    load();
+    try {
+      const next = product.status === 'active' ? 'inactive' : 'active';
+      await updateProduct(product.id, { ...product, status: next });
+      addToast(`Product set to ${next}`, 'success');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    }
   };
 
   const handleSaved = (saved, isNew) => {
+    addToast(isNew ? 'Product created' : 'Product updated', 'success');
     if (isNew) { load(); setModalProduct(undefined); }
     else { setProducts(ps => ps.map(p => p.id === saved.id ? { ...p, ...saved } : p)); setModalProduct(undefined); }
   };
@@ -750,8 +799,11 @@ export default function AdminProducts() {
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={async () => {
-                        await updateProduct(p.id, { ...p, is_deal: !p.is_deal });
-                        setProducts(ps => ps.map(x => x.id === p.id ? { ...x, is_deal: !x.is_deal } : x));
+                        try {
+                          await updateProduct(p.id, { ...p, is_deal: !p.is_deal });
+                          setProducts(ps => ps.map(x => x.id === p.id ? { ...x, is_deal: !x.is_deal } : x));
+                          addToast(!p.is_deal ? 'Added to Top Deals' : 'Removed from Top Deals', 'success');
+                        } catch { addToast('Update failed', 'error'); }
                       }}
                       title={p.is_deal ? 'Remove from Top Deals' : 'Add to Top Deals'}
                       className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
@@ -809,6 +861,16 @@ export default function AdminProducts() {
           product={modalProduct}
           onClose={() => setModalProduct(undefined)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {confirmId && (
+        <ConfirmDialog
+          title="Deactivate this product?"
+          message="The product will be hidden from the store."
+          confirmLabel="Deactivate"
+          onConfirm={doDelete}
+          onCancel={() => setConfirmId(null)}
         />
       )}
     </div>

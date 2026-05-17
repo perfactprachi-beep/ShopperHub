@@ -11,9 +11,10 @@ function getRazorpay() {
 
 export async function createRazorpayOrder(amount, currency = 'INR', receipt) {
   const order = await getRazorpay().orders.create({
-    amount:   Math.round(amount * 100),
+    amount:          Math.round(amount * 100),
     currency,
-    receipt:  receipt || `rcpt_${Date.now()}`,
+    receipt:         receipt || `rcpt_${Date.now()}`,
+    payment_capture: 1,
   });
   return { id: order.id, amount: order.amount, currency: order.currency };
 }

@@ -18,15 +18,56 @@ const PAYMENT_STATUS_COLORS = {
   failed:  'text-red-600',
 };
 
+function CancelConfirmModal({ order, onConfirm, onClose, cancelling }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white w-full max-w-[360px] shadow-2xl">
+        <div className="h-1 bg-[#8B1A2F] w-full" />
+        <div className="px-6 pt-6 pb-5">
+          <div className="flex justify-center mb-4">
+            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8B1A2F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-[16px] font-bold text-gray-900 text-center mb-1">Cancel This Order?</h2>
+          <p className="text-[12px] text-gray-400 text-center mb-5">
+            Order <span className="font-semibold text-gray-600">#ORD-{order.id}</span> will be cancelled and your payment will be refunded if applicable.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={cancelling}
+              className="flex-1 py-3 border border-gray-300 text-gray-700 text-[12px] font-bold uppercase tracking-widest hover:border-gray-500 transition-colors disabled:opacity-50"
+            >
+              Keep Order
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={cancelling}
+              className="flex-1 py-3 bg-[#8B1A2F] text-white text-[12px] font-bold uppercase tracking-widest hover:bg-[#6d1424] transition-colors disabled:opacity-50"
+            >
+              {cancelling ? 'Cancelling…' : 'Yes, Cancel'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const showSuccess = searchParams.get('success') === 'true';
   const addToast = useToastStore((s) => s.addToast);
 
-  const [order, setOrder]     = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [order, setOrder]         = useState(null);
+  const [loading, setLoading]     = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     getOrderById(id)
@@ -35,18 +76,19 @@ export default function OrderDetailPage() {
   }, [id]);
 
   async function handleCancel() {
-    if (!confirm('Are you sure you want to cancel this order?')) return;
     setCancelling(true);
     try {
       const { data } = await cancelOrder(id);
       if (data.success) {
         setOrder((o) => ({ ...o, status: 'cancelled' }));
-        addToast({ type: 'success', message: 'Order cancelled successfully' });
+        addToast('Order cancelled successfully', 'success');
       }
-    } catch {
-      addToast({ type: 'error', message: 'Failed to cancel order' });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to cancel order';
+      addToast(msg, 'error');
     } finally {
       setCancelling(false);
+      setShowCancelModal(false);
     }
   }
 
@@ -175,12 +217,20 @@ export default function OrderDetailPage() {
       {/* Cancel */}
       {canCancel && (
         <button
-          onClick={handleCancel}
-          disabled={cancelling}
-          className="w-full py-2.5 text-sm font-medium border border-[var(--color-error)] text-[var(--color-error)] rounded-[var(--radius-md)] hover:bg-red-50 transition-colors disabled:opacity-50"
+          onClick={() => setShowCancelModal(true)}
+          className="w-full py-2.5 text-sm font-medium border border-[var(--color-error)] text-[var(--color-error)] rounded-[var(--radius-md)] hover:bg-red-50 transition-colors"
         >
-          {cancelling ? 'Cancelling…' : 'Cancel Order'}
+          Cancel Order
         </button>
+      )}
+
+      {showCancelModal && (
+        <CancelConfirmModal
+          order={order}
+          onConfirm={handleCancel}
+          onClose={() => !cancelling && setShowCancelModal(false)}
+          cancelling={cancelling}
+        />
       )}
     </div>
   );
