@@ -30,16 +30,16 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 
 INSERT INTO stores (name, city, state, address, pincode, lat, lng) VALUES
-('Shoppers Stop - Phoenix Palladium',   'Mumbai',    'Maharashtra', 'Lower Parel, Mumbai',          '400013', 18.9944,  72.8303),
-('Shoppers Stop - Inorbit Mall',        'Mumbai',    'Maharashtra', 'Malad West, Mumbai',           '400064', 19.1860,  72.8481),
-('Shoppers Stop - Forum Mall',          'Bengaluru', 'Karnataka',   'Koramangala, Bengaluru',       '560095', 12.9348,  77.6101),
-('Shoppers Stop - Garuda Mall',         'Bengaluru', 'Karnataka',   'Magrath Road, Bengaluru',      '560025', 12.9727,  77.6101),
-('Shoppers Stop - Express Avenue',      'Chennai',   'Tamil Nadu',  'Royapettah, Chennai',          '600002', 13.0524,  80.2623),
-('Shoppers Stop - Ambience Mall',       'Gurugram',  'Haryana',     'NH-8, Gurugram',               '122001', 28.5025,  77.0938),
-('Shoppers Stop - Pacific Mall',        'Delhi',     'Delhi',       'Tagore Garden, Delhi',         '110027', 28.6669,  77.1036),
-('Shoppers Stop - Quest Mall',          'Kolkata',   'West Bengal', 'Syed Amir Ali Ave, Kolkata',   '700017', 22.5434,  88.3540),
-('Shoppers Stop - Phoenix Market City', 'Pune',      'Maharashtra', 'Nagar Road, Pune',             '411014', 18.5545,  73.9282),
-('Shoppers Stop - Ahmedabad One',       'Ahmedabad', 'Gujarat',     'Vastrapur, Ahmedabad',         '380015', 23.0395,  72.5236)
+('ShoppersHub - Phoenix Palladium',   'Mumbai',    'Maharashtra', 'Lower Parel, Mumbai',          '400013', 18.9944,  72.8303),
+('ShoppersHub - Inorbit Mall',        'Mumbai',    'Maharashtra', 'Malad West, Mumbai',           '400064', 19.1860,  72.8481),
+('ShoppersHub - Forum Mall',          'Bengaluru', 'Karnataka',   'Koramangala, Bengaluru',       '560095', 12.9348,  77.6101),
+('ShoppersHub - Garuda Mall',         'Bengaluru', 'Karnataka',   'Magrath Road, Bengaluru',      '560025', 12.9727,  77.6101),
+('ShoppersHub - Express Avenue',      'Chennai',   'Tamil Nadu',  'Royapettah, Chennai',          '600002', 13.0524,  80.2623),
+('ShoppersHub - Ambience Mall',       'Gurugram',  'Haryana',     'NH-8, Gurugram',               '122001', 28.5025,  77.0938),
+('ShoppersHub - Pacific Mall',        'Delhi',     'Delhi',       'Tagore Garden, Delhi',         '110027', 28.6669,  77.1036),
+('ShoppersHub - Quest Mall',          'Kolkata',   'West Bengal', 'Syed Amir Ali Ave, Kolkata',   '700017', 22.5434,  88.3540),
+('ShoppersHub - Phoenix Market City', 'Pune',      'Maharashtra', 'Nagar Road, Pune',             '411014', 18.5545,  73.9282),
+('ShoppersHub - Ahmedabad One',       'Ahmedabad', 'Gujarat',     'Vastrapur, Ahmedabad',         '380015', 23.0395,  72.5236)
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS store_inventory (

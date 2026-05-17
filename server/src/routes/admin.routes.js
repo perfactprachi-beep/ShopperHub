@@ -19,7 +19,7 @@ import {
   adminListOrders, adminUpdateOrderStatus, adminGetDashboardStats,
 } from '../db/queries/orders.js';
 import { updatePickupStatus } from '../db/queries/stores.js';
-import { adminListUsers } from '../db/queries/users.js';
+import { adminListUsers, adminUpdateUserStatus, adminDeleteUser } from '../db/queries/users.js';
 import { createNotification } from '../db/queries/notifications.js';
 import {
   adminListPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod,
@@ -360,6 +360,26 @@ router.get('/users', async (req, res, next) => {
     const rows = await adminListUsers(req.query);
     const total = rows[0]?.total_count ? parseInt(rows[0].total_count, 10) : 0;
     res.json({ success: true, data: { users: rows, total } });
+  } catch (err) { next(err); }
+});
+
+router.patch('/users/:id/status', async (req, res, next) => {
+  try {
+    const { is_active } = req.body;
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'is_active must be a boolean' });
+    }
+    const user = await adminUpdateUserStatus(req.params.id, is_active);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found or cannot modify admin accounts' });
+    res.json({ success: true, data: user });
+  } catch (err) { next(err); }
+});
+
+router.delete('/users/:id', async (req, res, next) => {
+  try {
+    const user = await adminDeleteUser(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found or cannot delete admin accounts' });
+    res.json({ success: true, message: 'User deleted' });
   } catch (err) { next(err); }
 });
 

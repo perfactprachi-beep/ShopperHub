@@ -239,7 +239,7 @@ export async function hasPurchasedProduct(userId, productId) {
 // Wrap fulfilment in a single transaction
 export async function fulfillOrder({ userId, addressId, couponId, subtotal, discount,
   shipping, total, pointsEarned, paymentMethod, razorpayOrderId, deliveryType = 'standard',
-  deliveryMethod = 'express_delivery', storeId = null, items }) {
+  deliveryMethod = 'express_delivery', storeId = null, items, paymentStatus }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -252,15 +252,17 @@ export async function fulfillOrder({ userId, addressId, couponId, subtotal, disc
     );
     const pickupStatus = deliveryMethod === 'store_pickup' ? 'pending' : null;
 
+    const resolvedPaymentStatus = paymentStatus || (paymentMethod === 'cod' ? 'pending' : 'paid');
+
     const { rows: [order] } = await client.query(
       `INSERT INTO orders
          (user_id, address_id, coupon_id, subtotal, discount, shipping, total,
           points_earned, payment_method, payment_status, razorpay_order_id, status, delivery_type,
           delivery_method, store_id, pickup_status, pickup_pin, expected_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid',$10,'confirmed',$11,$12,$13,$14,$15,$16)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'confirmed',$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [userId, addressId, couponId || null, subtotal, discount, shipping, total,
-       pointsEarned, paymentMethod || 'razorpay', razorpayOrderId, deliveryType,
+       pointsEarned, paymentMethod || 'razorpay', resolvedPaymentStatus, razorpayOrderId, deliveryType,
        deliveryMethod, storeId || null, pickupStatus, pickupPin, expectedBy]
     );
 
