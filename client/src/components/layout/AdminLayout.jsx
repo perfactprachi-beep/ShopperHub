@@ -198,17 +198,12 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="px-4 py-4 border-b border-white/8">
           <Link to="/" className="flex items-center gap-3">
-            {/* Brand icon */}
             <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
               <rect width="36" height="36" rx="9" fill="#8B1A2F"/>
-              {/* Shopping bag handle */}
               <path d="M13 16V13.5a5 5 0 0 1 10 0V16" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              {/* Shopping bag body */}
               <path d="M10 16h16l-1.2 11.2A1.5 1.5 0 0 1 23.3 28H12.7a1.5 1.5 0 0 1-1.5-1.3L10 16z" fill="white" fillOpacity="0.95"/>
-              {/* Centre sparkle */}
               <path d="M18 21v3M16.5 22.5h3" stroke="#8B1A2F" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
-            {/* Brand name */}
             <div>
               <p className="text-white text-[13px] font-bold tracking-wide leading-none">ShoppersHub</p>
             </div>
@@ -217,7 +212,7 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5">
-{NAV_ITEMS.map(({ to, label, Icon, end }) => (
+          {NAV_ITEMS.map(({ to, label, Icon, end }) => (
             <NavLink
               key={to}
               to={to}

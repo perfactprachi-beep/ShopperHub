@@ -60,7 +60,7 @@ export async function deleteWarehouse(id) {
 
 // ── Inventory queries ─────────────────────────────────────────────────────────
 
-export async function getInventoryList({ page = 1, limit = 20, search, warehouse_id, category_id, status }) {
+export async function getInventoryList({ page = 1, limit = 20, search, warehouse_id, category_id, brand_id, status }) {
   const conditions = ['w.is_active = true'];
   const values = [];
   let idx = 1;
@@ -79,6 +79,11 @@ export async function getInventoryList({ page = 1, limit = 20, search, warehouse
   if (category_id) {
     conditions.push(`p.category_id = $${idx++}`);
     values.push(category_id);
+  }
+
+  if (brand_id) {
+    conditions.push(`p.brand_id = $${idx++}`);
+    values.push(brand_id);
   }
 
   if (status) {
@@ -245,7 +250,7 @@ export async function bulkUpdateInventoryStock(updates, admin_id) {
 
 // ── Low stock queries ─────────────────────────────────────────────────────────
 
-export async function getLowStockItems({ page = 1, limit = 20, category_id }) {
+export async function getLowStockItems({ page = 1, limit = 20, category_id, brand_id }) {
   const conditions = ['i.stock_quantity <= i.low_stock_threshold', 'w.is_active = true'];
   const values = [];
   let idx = 1;
@@ -253,6 +258,11 @@ export async function getLowStockItems({ page = 1, limit = 20, category_id }) {
   if (category_id) {
     conditions.push(`p.category_id = $${idx++}`);
     values.push(category_id);
+  }
+
+  if (brand_id) {
+    conditions.push(`p.brand_id = $${idx++}`);
+    values.push(brand_id);
   }
 
   const offset = (Number(page) - 1) * Number(limit);

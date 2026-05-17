@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
-import { getAdminCategories } from '../../api/adminApi.js';
+import { getAdminCategories, getAdminBrands } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
-import CategoryFilter from '../../components/ui/CategoryFilter.jsx';
+import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 
 function RestockModal({ item, onClose, onRestocked }) {
   const [quantity, setQuantity] = useState(item?.low_stock_threshold * 2 || 20);
@@ -107,31 +107,26 @@ function RestockModal({ item, onClose, onRestocked }) {
 export default function LowStockAlerts() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
   const [restockingItem, setRestockingItem] = useState(null);
-  
+
   const limit = 20;
 
   useEffect(() => {
-    loadCategories();
+    Promise.all([getAdminCategories(), getAdminBrands()])
+      .then(([cats, brs]) => { setCategories(cats); setBrands(brs); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     loadLowStockItems();
-  }, [page, categoryFilter, subCategoryFilter]);
-
-  const loadCategories = async () => {
-    try {
-      const data = await getAdminCategories();
-      setCategories(data);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
+  }, [page, categoryFilter, subCategoryFilter, brandFilter]);
 
   const loadLowStockItems = async () => {
     setLoading(true);
@@ -139,7 +134,8 @@ export default function LowStockAlerts() {
       const { data } = await inventoryApi.getLowStockItems({
         page,
         limit,
-        category_id: subCategoryFilter || categoryFilter || undefined
+        category_id: subCategoryFilter || categoryFilter || undefined,
+        brand_id: brandFilter || undefined
       });
       if (data.success) {
         setItems(data.data.items);
@@ -208,33 +204,43 @@ export default function LowStockAlerts() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center gap-4">
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={categoryFilter}
-            selectedSubCategory={subCategoryFilter}
-            onCategoryChange={(catId) => {
-              setCategoryFilter(catId);
-              setSubCategoryFilter('');
-              setPage(1);
-            }}
-            onSubCategoryChange={(subCatId) => {
-              setSubCategoryFilter(subCatId);
-              setPage(1);
-            }}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterDropdown
+            placeholder="All Brands"
+            value={brandFilter}
+            onChange={v => { setBrandFilter(v); setPage(1); }}
+            onClear={() => { setBrandFilter(''); setPage(1); }}
+            options={[{ value: '', label: 'All Brands' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
           />
 
-          {(categoryFilter || subCategoryFilter) && (
+          <FilterDropdown
+            placeholder="All Categories"
+            value={categoryFilter}
+            onChange={v => { setCategoryFilter(v); setSubCategoryFilter(''); setPage(1); }}
+            onClear={() => { setCategoryFilter(''); setSubCategoryFilter(''); setPage(1); }}
+            options={[{ value: '', label: 'All Categories' }, ...categories.filter(c => !c.parent_id).map(c => ({ value: c.id, label: c.name }))]}
+          />
+
+          <FilterDropdown
+            placeholder="All Subcategories"
+            value={subCategoryFilter}
+            onChange={v => { setSubCategoryFilter(v); setPage(1); }}
+            onClear={() => { setSubCategoryFilter(''); setPage(1); }}
+            disabled={!categoryFilter}
+            options={[
+              { value: '', label: 'All Subcategories' },
+              ...categories.filter(c => c.parent_id && String(c.parent_id) === String(categoryFilter)).map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
+
+          {(categoryFilter || subCategoryFilter || brandFilter) && (
             <button
-              onClick={() => {
-                setCategoryFilter('');
-                setSubCategoryFilter('');
-                setPage(1);
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800"
+              onClick={() => { setCategoryFilter(''); setSubCategoryFilter(''); setBrandFilter(''); setPage(1); }}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
             >
-              Clear Filter
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Clear all
             </button>
           )}
 

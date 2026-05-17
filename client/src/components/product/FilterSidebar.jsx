@@ -94,6 +94,15 @@ export default function FilterSidebar({ filters, onChange, brands = [], hideDepa
         {!hideDepartment && (
           <AccordionSection title="Department" badge={genderCount} defaultOpen>
             <div className="space-y-2">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={!filters.gender}
+                  onChange={() => set('gender', '')}
+                  className="w-3.5 h-3.5 rounded border-gray-300 accent-[#8B1A2F] cursor-pointer"
+                />
+                <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900">All</span>
+              </label>
               {GENDERS.map((g) => (
                 <label key={g} className="flex items-center gap-2.5 cursor-pointer group">
                   <input
@@ -115,6 +124,15 @@ export default function FilterSidebar({ filters, onChange, brands = [], hideDepa
         {brands.length > 0 && (
           <AccordionSection title="Brand" badge={brandCount} defaultOpen>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={!filters.brand}
+                  onChange={() => set('brand', '')}
+                  className="w-3.5 h-3.5 rounded border-gray-300 accent-[#8B1A2F] cursor-pointer"
+                />
+                <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900">All</span>
+              </label>
               {brands.map((b) => (
                 <label key={b.id} className="flex items-center gap-2.5 cursor-pointer group">
                   <input
@@ -133,6 +151,15 @@ export default function FilterSidebar({ filters, onChange, brands = [], hideDepa
         {/* Price */}
         <AccordionSection title="Price" badge={priceCount} defaultOpen>
           <div className="space-y-2">
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={!filters.minPrice && !filters.maxPrice}
+                onChange={() => onChange({ ...filters, minPrice: '', maxPrice: '' })}
+                className="w-3.5 h-3.5 rounded border-gray-300 accent-[#8B1A2F] cursor-pointer"
+              />
+              <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900">All</span>
+            </label>
             {PRICE_RANGES.map((r) => (
               <label key={r.label} className="flex items-center gap-2.5 cursor-pointer group">
                 <input
@@ -166,6 +193,15 @@ export default function FilterSidebar({ filters, onChange, brands = [], hideDepa
         {/* Discount */}
         <AccordionSection title="Discount" badge={discountCount}>
           <div className="space-y-2">
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={!filters.minDiscount}
+                onChange={() => set('minDiscount', '')}
+                className="w-3.5 h-3.5 rounded border-gray-300 accent-[#8B1A2F] cursor-pointer"
+              />
+              <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900">All</span>
+            </label>
             {DISCOUNT_OPTIONS.map((d) => (
               <label key={d.value} className="flex items-center gap-2.5 cursor-pointer group">
                 <input

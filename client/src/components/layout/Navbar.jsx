@@ -7,6 +7,7 @@ import { useCartStore } from '../../store/cartStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import api from '../../api/axios.js';
 import { getNotifications, markAllRead } from '../../api/notificationsApi.js';
+import { checkPincode } from '../../api/storesApi.js';
 
 const MEGA_SLUGS = new Set(['men', 'women', 'kids', 'beauty']);
 
@@ -87,12 +88,20 @@ function IconChevronRight({ size = 14 }) {
     </svg>
   );
 }
+function IconPin({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  );
+}
 
 /* ── Main Component ─────────────────────────────────────────────────── */
 export default function Navbar() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { isLoggedIn, user, logout } = useAuth();
+  const { isLoggedIn, isAdmin, user, logout } = useAuth();
   const scrollDir = useScrollDirection();
   const cartItems = useCartStore((s) => s.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
@@ -110,9 +119,17 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread]           = useState(0);
 
-  const accountRef = useRef(null);
-  const notifRef   = useRef(null);
-  const megaTimer  = useRef(null);
+  const accountRef  = useRef(null);
+  const notifRef    = useRef(null);
+  const megaTimer   = useRef(null);
+
+  const [savedLocation, setSavedLocation] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('shoppers_location')); } catch { return null; }
+  });
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [pinInput,     setPinInput]     = useState('');
+  const [pinLoading,   setPinLoading]   = useState(false);
+  const [pinResult,    setPinResult]    = useState(null);
 
   useEffect(() => {
     api.get('/categories').then(({ data }) => {
@@ -148,10 +165,39 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  const handlePinCheck = async () => {
+    if (!/^\d{6}$/.test(pinInput)) return;
+    setPinLoading(true);
+    try {
+      const res = await checkPincode(pinInput);
+      setPinResult({ ...res.data.data, pincode: pinInput });
+    } catch {
+      setPinResult({ available: false, reason: 'Unable to check pincode', pincode: pinInput });
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleSaveLocation = () => {
+    if (!pinResult?.city) return;
+    const loc = { pincode: pinInput, city: pinResult.city };
+    localStorage.setItem('shoppers_location', JSON.stringify(loc));
+    setSavedLocation(loc);
+    setLocationOpen(false);
+    setPinInput('');
+    setPinResult(null);
+  };
+
+  const handleClearLocation = () => {
+    localStorage.removeItem('shoppers_location');
+    setSavedLocation(null);
+    setLocationOpen(false);
+  };
+
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    document.body.style.overflow = (mobileOpen || locationOpen) ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [mobileOpen]);
+  }, [mobileOpen, locationOpen]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -210,13 +256,15 @@ export default function Navbar() {
       <header className="hidden lg:block bg-white sticky top-0 z-40">
 
         {/* Announcement bar */}
-        <div className="bg-[#1A1A1A] text-white text-xs py-2 px-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <p className="flex-1 text-center tracking-wide">
+        <div className="bg-[#111820] px-6 text-xs text-white xl:px-10">
+          <div className="mx-auto flex h-11 max-w-[1920px] items-center justify-between">
+            <p className="tracking-wide">
               Use Code: <span className="font-bold text-[#E8B04B]">NEW10</span> — For An Extra 10% Off For First-Time Users
             </p>
-            <div className="flex items-center gap-4 shrink-0 text-gray-400">
+            <div className="flex items-center gap-4 shrink-0 text-gray-300">
               <Link to="/stores" className="hover:text-white cursor-pointer transition-colors">Store Locator</Link>
+              <span className="text-gray-600">|</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Get The App</span>
               <span className="text-gray-600">|</span>
               <span className="hover:text-white cursor-pointer transition-colors">Help</span>
             </div>
@@ -225,44 +273,62 @@ export default function Navbar() {
 
         {/* Row 1 — Logo | Search | Actions */}
         <div className="border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-6 flex items-center gap-6 h-[80px]">
+          <div className="mx-auto flex h-[76px] max-w-[1920px] items-center gap-4 px-6 xl:gap-5 xl:px-10">
             {/* Logo */}
-            <Link to="/" className="shrink-0">
+            <Link to="/" className="shrink-0 leading-none">
               <span
-                className="text-[36px] font-bold text-[#8B1A2F]"
+                className="text-[34px] font-bold text-[#8B1A2F]"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontVariant: 'small-caps', letterSpacing: '0.05em' }}
               >
                 Shoppers<span className="text-[#1A1A1A]">Hub</span>
               </span>
             </Link>
 
+            {/* Location trigger */}
+            <div className="flex min-w-0 shrink-0 items-center">
+              <div className="mr-4 h-7 w-px bg-gray-200" />
+              <button
+                onClick={() => { setLocationOpen(true); setPinInput(''); setPinResult(null); }}
+                className="flex h-10 items-center gap-1.5 text-gray-600 hover:text-[#8B1A2F] transition-colors"
+              >
+                <IconPin size={15} />
+                <span className="max-w-[150px] truncate text-[14px] font-medium xl:max-w-[210px]">
+                  {savedLocation ? `${savedLocation.pincode} — ${savedLocation.city}` : 'Select Location'}
+                </span>
+                <IconChevronDown size={12} />
+              </button>
+            </div>
+
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-xl ml-auto">
-              <div className="relative flex items-center border border-gray-300 rounded-full overflow-hidden hover:border-[#8B1A2F] transition-colors focus-within:border-[#8B1A2F] focus-within:ring-2 focus-within:ring-[#8B1A2F]/10">
+            <form onSubmit={handleSearch} className="ml-auto w-[clamp(300px,34vw,600px)] shrink-0">
+              <div className="relative flex h-[50px] items-center border border-gray-200 bg-gray-50 hover:border-gray-300 transition-colors focus-within:border-[#8B1A2F] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8B1A2F]/10">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <IconSearch size={18} />
+                </span>
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search for products, brands and more…"
-                  className="flex-1 pl-5 pr-4 py-2.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400"
+                  placeholder="Search products, brands and more..."
+                  className="h-full w-full bg-transparent pl-12 pr-4 text-[15px] text-gray-800 outline-none placeholder:text-gray-500"
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#8B1A2F] text-white hover:bg-[#6B1223] transition-colors"
+                  className="sr-only"
                   aria-label="Search"
                 >
-                  <IconSearch size={18} />
+                  Search
                 </button>
               </div>
             </form>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex shrink-0 items-center gap-3 xl:gap-4">
               {/* Account */}
               <div ref={accountRef} className="relative">
                 <button
                   onClick={() => isLoggedIn ? setAccountOpen((v) => !v) : setLoginModal(true)}
-                  className="flex items-center gap-1 text-gray-600 hover:text-[#8B1A2F] transition-colors"
+                  className="flex h-10 items-center justify-center gap-1 text-gray-600 hover:text-[#8B1A2F] transition-colors"
                 >
                   <IconUser size={26} />
                   <IconChevronDown size={12} />
@@ -275,8 +341,15 @@ export default function Navbar() {
                           <p className="text-xs font-semibold text-gray-800 truncate">{user.full_name}</p>
                           <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
                         </div>
-                        <Link to="/orders"   onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">My Orders</Link>
-                        <Link to="/wishlist" onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">Wishlist</Link>
+                        {!isAdmin && (
+                          <>
+                            <Link to="/orders"   onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">My Orders</Link>
+                            <Link to="/wishlist" onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">Wishlist</Link>
+                          </>
+                        )}
+                        {isAdmin && (
+                          <Link to="/admin" onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">Admin Dashboard</Link>
+                        )}
                         <Link to="/account"  onClick={() => setAccountOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-gray-50 text-gray-700">My Account</Link>
                         <div className="border-t border-gray-100"/>
                         <button onClick={() => { logout(); setAccountOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">Logout</button>
@@ -293,17 +366,17 @@ export default function Navbar() {
 
               {/* Wishlist */}
               {isLoggedIn ? (
-                <Link to="/wishlist" className="text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                <Link to="/wishlist" className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
                   <IconHeart size={26}/>
                 </Link>
               ) : (
-                <button onClick={openLoginModal} className="text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                <button onClick={openLoginModal} className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
                   <IconHeart size={26}/>
                 </button>
               )}
 
               {/* Cart */}
-              <Link to="/cart" className="relative text-gray-600 hover:text-[#8B1A2F] transition-colors">
+              <Link to="/cart" className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
                 <IconCart size={26}/>
                 {cartCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
@@ -315,16 +388,13 @@ export default function Navbar() {
               {/* Notifications */}
               {isLoggedIn && (
                 <div ref={notifRef} className="relative">
-                  <button onClick={() => setNotifOpen((v) => !v)} className="flex flex-col items-center gap-0.5 text-gray-600 hover:text-[#8B1A2F] transition-colors">
-                    <span className="relative">
-                      <IconBell size={22}/>
-                      {unread > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                          {unread > 9 ? '9+' : unread}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[10px] font-medium">Alerts</span>
+                  <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                    <IconBell size={26}/>
+                    {unread > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
                   </button>
                   {notifOpen && (
                     <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-50">
@@ -356,7 +426,7 @@ export default function Navbar() {
 
         {/* Row 2 — Category nav */}
         <div className={`border-b border-gray-200 bg-white transition-all duration-300 ${scrollDir === 'down' ? 'shadow-none' : ''}`}>
-          <nav className="max-w-7xl mx-auto px-6 flex items-center">
+          <nav className="mx-auto flex h-[62px] max-w-[1920px] items-center justify-center px-6 xl:px-10">
             {NAV_LINKS.map((link) => {
               const href    = link.href ?? `/category/${link.slug}`;
               const active  = isActive(link);
@@ -370,7 +440,7 @@ export default function Navbar() {
                 >
                   <Link
                     to={href}
-                    className={`inline-block px-5 py-4 text-[15px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 ${
+                    className={`inline-flex h-[62px] items-center px-5 text-[15px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 xl:px-6 ${
                       active
                         ? 'text-[#8B1A2F] border-[#8B1A2F]'
                         : 'text-gray-700 border-transparent hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
@@ -605,6 +675,105 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* ── Location Drawer ─────────────────────────────────────── */}
+      {/* Backdrop */}
+      {locationOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setLocationOpen(false)} />
+      )}
+
+      {/* Drawer — slides in from the left */}
+      <div className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-out ${locationOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Select Delivery Location</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Enter pincode to check delivery</p>
+          </div>
+          <button
+            onClick={() => setLocationOpen(false)}
+            className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
+            aria-label="Close"
+          >
+            <IconX size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+          {/* Current location chip */}
+          {savedLocation && (
+            <div className="flex items-center gap-3 p-3 bg-[#8B1A2F]/5 border border-[#8B1A2F]/20 rounded-xl">
+              <div className="w-8 h-8 rounded-full bg-[#8B1A2F]/10 flex items-center justify-center shrink-0">
+                <IconPin size={14} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500">Current location</p>
+                <p className="text-sm font-semibold text-gray-900">{savedLocation.pincode} — {savedLocation.city}</p>
+              </div>
+              <button
+                onClick={handleClearLocation}
+                className="text-xs text-red-400 hover:text-red-600 font-medium shrink-0 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {/* Pincode input */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Enter Pincode</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="e.g. 380051"
+                value={pinInput}
+                onChange={e => { setPinInput(e.target.value.replace(/\D/g, '')); setPinResult(null); }}
+                onKeyDown={e => e.key === 'Enter' && handlePinCheck()}
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#8B1A2F] focus:ring-2 focus:ring-[#8B1A2F]/10"
+              />
+              <button
+                onClick={handlePinCheck}
+                disabled={pinLoading || pinInput.length !== 6}
+                className="px-4 py-2.5 bg-[#8B1A2F] text-white text-sm font-bold rounded-lg disabled:opacity-40 hover:bg-[#6d1424] transition-colors"
+              >
+                {pinLoading ? '…' : 'Check'}
+              </button>
+            </div>
+          </div>
+
+          {/* Result */}
+          {pinResult && (
+            <div className={`flex items-start gap-3 p-3.5 rounded-xl border text-sm ${
+              pinResult.available
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              <span className="text-lg leading-none mt-0.5">{pinResult.available ? '✓' : '✗'}</span>
+              <div>
+                {pinResult.available
+                  ? <><p className="font-semibold">{pinResult.city}</p><p className="text-xs mt-0.5 opacity-80">Express delivery in {pinResult.delivery_hrs} hrs</p></>
+                  : <p>{pinResult.reason}</p>
+                }
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {pinResult?.city && (
+          <div className="border-t border-gray-100 px-5 py-4">
+            <button
+              onClick={handleSaveLocation}
+              className="w-full py-3.5 bg-[#8B1A2F] text-white text-sm font-bold rounded-xl hover:bg-[#6d1424] transition-colors tracking-wide"
+            >
+              Set as My Location
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 }
