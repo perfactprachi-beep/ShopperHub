@@ -24,6 +24,20 @@ function IconTwitter() {
   );
 }
 
+function RazorpayLogo() {
+  return (
+    <span className="inline-flex h-7 items-center gap-2 rounded border border-white/20 bg-white px-2.5 text-[#0b72e7] shadow-sm">
+      <svg width="17" height="18" viewBox="0 0 17 18" aria-hidden="true" className="shrink-0">
+        <path fill="#0b72e7" d="M8.87 0 0 11.95h5.01L2.98 18l10.8-12.62H8.5L8.87 0Z" />
+        <path fill="#072654" d="M10.38 0 9.94 3.84H17L14.23 0h-3.85Z" />
+      </svg>
+      <span className="text-[11px] font-bold leading-none tracking-normal text-[#072654]">
+        Razorpay
+      </span>
+    </span>
+  );
+}
+
 const SHOP_LINKS = [
   { label: 'Men',    to: '/category/men' },
   { label: 'Women',  to: '/category/women' },
@@ -45,6 +59,8 @@ const SOCIAL = [
   { label: 'Twitter',   href: '#', Icon: IconTwitter },
 ];
 
+const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
 export default function Footer() {
   return (
     <footer className="bg-[var(--color-text)] text-gray-300 mt-16">
@@ -52,7 +68,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-2 md:grid-cols-3 gap-10">
         {/* Col 1 — Brand */}
         <div className="col-span-2 md:col-span-1">
-          <Link to="/">
+          <Link to="/" onClick={scrollTop}>
             <span
               className="text-2xl font-bold text-white"
               style={{ fontFamily: 'var(--font-heading)' }}
@@ -83,7 +99,7 @@ export default function Footer() {
           <ul className="space-y-2.5">
             {SHOP_LINKS.map(({ label, to }) => (
               <li key={label}>
-                <Link to={to} className="text-sm text-gray-400 hover:text-white transition-colors">
+                <Link to={to} onClick={scrollTop} className="text-sm text-gray-400 hover:text-white transition-colors">
                   {label}
                 </Link>
               </li>
@@ -97,7 +113,7 @@ export default function Footer() {
           <ul className="space-y-2.5">
             {HELP_LINKS.map(({ label, to }) => (
               <li key={label}>
-                <Link to={to} className="text-sm text-gray-400 hover:text-white transition-colors">
+                <Link to={to} onClick={scrollTop} className="text-sm text-gray-400 hover:text-white transition-colors">
                   {label}
                 </Link>
               </li>
@@ -110,14 +126,9 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <p>© {new Date().getFullYear()} ShoppersHub. All rights reserved.</p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-gray-400">Secure payments:</span>
-            {/* Payment logos (text badges) */}
-            {['Razorpay', 'Visa', 'Mastercard', 'UPI'].map((p) => (
-              <span key={p} className="px-2 py-0.5 border border-white/20 rounded text-gray-400 text-[10px] font-medium">
-                {p}
-              </span>
-            ))}
+            <RazorpayLogo />
           </div>
         </div>
       </div>

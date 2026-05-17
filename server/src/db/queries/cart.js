@@ -20,7 +20,7 @@ export async function getCartByUser(userId) {
     `SELECT ${ITEM_SELECT}
      FROM cart_items ci
      JOIN product_variants pv ON pv.id = ci.variant_id
-     JOIN products p ON p.id = pv.product_id
+     JOIN products p ON p.id = pv.product_id AND p.status = 'active'
      LEFT JOIN brands b ON b.id = p.brand_id
      WHERE ci.user_id = $1
      ORDER BY ci.created_at DESC`,

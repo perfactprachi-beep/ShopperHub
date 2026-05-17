@@ -80,7 +80,9 @@ function CartItem({ item, onQty, onRemove }) {
               {item.brand && (
                 <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">{item.brand}</p>
               )}
-              <p className="text-[13px] font-medium text-gray-900 leading-snug line-clamp-2">{item.title}</p>
+              <Link to={item.slug ? `/product/${item.slug}` : '#'} className="text-[13px] font-medium text-gray-900 leading-snug line-clamp-2 hover:underline underline-offset-2">
+                {item.title}
+              </Link>
             </div>
             <button
               onClick={() => onRemove(item)}
