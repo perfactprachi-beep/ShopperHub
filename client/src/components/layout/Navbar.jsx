@@ -264,8 +264,6 @@ export default function Navbar() {
             <div className="flex items-center gap-4 shrink-0 text-gray-300">
               <Link to="/stores" className="hover:text-white cursor-pointer transition-colors">Store Locator</Link>
               <span className="text-gray-600">|</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Get The App</span>
-              <span className="text-gray-600">|</span>
               <span className="hover:text-white cursor-pointer transition-colors">Help</span>
             </div>
           </div>

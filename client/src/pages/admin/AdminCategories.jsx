@@ -3,6 +3,8 @@ import {
   getAdminCategories, createCategory, updateCategory, deleteCategory,
 } from '../../api/adminApi.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
+import { useToastStore } from '../../store/toastStore.js';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -13,6 +15,7 @@ const EMPTY = { name: '', slug: '', parent_id: '', image_url: '', sort_order: 0 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 // showParentField: false when adding/editing a top-level category
 function CategoryModal({ category, categories, showParentField, onClose, onSaved }) {
+  const { addToast } = useToastStore();
   const [form, setForm] = useState({
     ...EMPTY,
     ...(category?.id ? category : {}),
@@ -36,10 +39,11 @@ function CategoryModal({ category, categories, showParentField, onClose, onSaved
       const saved = category?.id
         ? await updateCategory(category.id, payload)
         : await createCategory(payload);
+      addToast(category?.id ? 'Category updated' : 'Category created', 'success');
       onSaved(saved, !category?.id);
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Save failed');
+      addToast(err.response?.data?.message || 'Save failed', 'error');
     } finally { setSaving(false); }
   };
 
@@ -226,13 +230,15 @@ function ChildRow({ node, onEdit, onDelete, onAddChild, depth = 1 }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminCategories() {
+  const { addToast } = useToastStore();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(undefined);   // undefined=closed, null=new, obj=edit
+  const [modal, setModal] = useState(undefined);
   const [defaultParent, setDefaultParent] = useState(null);
-  const [expanded, setExpanded] = useState({});    // { [id]: bool }
+  const [expanded, setExpanded] = useState({});
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubCategory, setFilterSubCategory] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -248,10 +254,16 @@ export default function AdminCategories() {
 
   useEffect(() => { load(); }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this category? Subcategories will become top-level.')) return;
-    await deleteCategory(id);
-    load();
+  const handleDelete = (id) => setConfirmId(id);
+
+  const doDelete = async () => {
+    try {
+      await deleteCategory(confirmId);
+      addToast('Category deleted', 'success');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setConfirmId(null); }
   };
 
   const handleSaved = () => load();
@@ -409,12 +421,20 @@ export default function AdminCategories() {
           category={modalInitial}
           categories={categories}
           showParentField={
-            // Show parent dropdown only when adding a sub OR editing an existing subcategory
-            (modal === null && defaultParent !== null) ||   // clicking "+ Sub"
-            (modal?.id && !!modal?.parent_id)              // editing a child category
+            (modal === null && defaultParent !== null) ||
+            (modal?.id && !!modal?.parent_id)
           }
           onClose={() => { setModal(undefined); setDefaultParent(null); }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {confirmId && (
+        <ConfirmDialog
+          title="Delete this category?"
+          message="Subcategories will become top-level."
+          onConfirm={doDelete}
+          onCancel={() => setConfirmId(null)}
         />
       )}
     </div>

@@ -110,7 +110,8 @@ export async function checkMobile(req, res, next) {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     otpStore.set(phone, { otp, expiresAt: Date.now() + 10 * 60 * 1000 }); // 10 min
 
-    await sendOtp(phone, otp);
+    // Fire-and-forget — don't block the response waiting for Twilio
+    sendOtp(phone, otp).catch(err => console.error('[OTP] sendOtp error:', err?.message));
 
     const isDev = process.env.NODE_ENV !== 'production';
     res.json({ success: true, message: 'OTP sent', ...(isDev && { devOtp: otp }) });

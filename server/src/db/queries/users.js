@@ -4,7 +4,7 @@ import { pool } from '../pool.js';
 
 export async function getAddresses(userId) {
   const { rows } = await pool.query(
-    'SELECT * FROM addresses WHERE user_id = $1 ORDER BY is_default DESC, id ASC',
+    'SELECT * FROM addresses WHERE user_id = $1 AND is_deleted IS NOT TRUE ORDER BY is_default DESC, id ASC',
     [userId]
   );
   return rows;
@@ -33,8 +33,21 @@ export async function updateAddress(id, userId, data) {
   return rows[0];
 }
 
+export async function hasActiveOrdersForAddress(addressId, userId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*) FROM orders
+     WHERE address_id = $1 AND user_id = $2
+       AND status NOT IN ('delivered', 'cancelled')`,
+    [addressId, userId]
+  );
+  return Number(rows[0].count) > 0;
+}
+
 export async function deleteAddress(id, userId) {
-  await pool.query('DELETE FROM addresses WHERE id=$1 AND user_id=$2', [id, userId]);
+  await pool.query(
+    'UPDATE addresses SET is_deleted = true WHERE id=$1 AND user_id=$2',
+    [id, userId]
+  );
 }
 
 export async function setDefaultAddress(id, userId) {

@@ -10,6 +10,7 @@
     "migrate5": "node src/db/migrate-phase5.js",
     "migrate7": "node src/db/migrate-phase7.js",
     "migrate8": "node src/db/migrate-phase8.js",
+    "migrate-address": "node src/db/migrate-address-soft-delete.js",
     "seed": "node src/db/seed.js",
     "seed-products": "node src/db/seed-products.js",
     "scrape": "node scraper/index.js",

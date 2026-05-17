@@ -263,13 +263,6 @@ function OtpPopup({ phone, onBack, onClose, onSuccess, onNewUser, devOtp }) {
             Enter the 6-digit OTP sent to your mobile number.
           </p>
 
-          {localDevOtp && (
-            <div className="mb-4 px-3 py-2.5 rounded bg-amber-50 border border-amber-200 flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span className="text-[12px] text-amber-700 font-medium">Dev mode — OTP: <span className="font-bold tracking-widest">{localDevOtp}</span></span>
-            </div>
-          )}
-
           {error && (
             <div className="mb-4 px-3 py-2 rounded bg-red-50 text-red-600 text-sm">{error}</div>
           )}

@@ -792,11 +792,6 @@ export default function ProductDetail() {
   const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
   const hasDiscount = product.discount_pct > 0;
   const primaryImage = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '';
-  const wished = has(product.id);
-  const inCart = cartItems.some((i) =>
-    selectedVariant ? i.variantId === selectedVariant.id : i.productId === product.id
-  );
-
   const sizes  = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))];
   const selectedVariant = product.variants?.find((v) => {
     if (selected.size && selected.color) return v.size === selected.size && v.color === selected.color;
@@ -804,6 +799,11 @@ export default function ProductDetail() {
     if (selected.color) return v.color === selected.color && v.stock > 0;
     return v.stock > 0;
   }) || product.variants?.[0];
+
+  const wished = has(product.id);
+  const inCart = cartItems.some((i) =>
+    selectedVariant ? i.variantId === selectedVariant.id : i.productId === product.id
+  );
 
   const handleAddToBag = async () => {
     if (sizes.length > 0 && !selected.size) {
@@ -817,6 +817,7 @@ export default function ProductDetail() {
     const cartItem = {
       variantId:    selectedVariant.id,
       productId:    product.id,
+      slug:         product.slug,
       title:        product.title,
       brand:        product.brand_name,
       image:        assetUrl(primaryImage),

@@ -3,6 +3,7 @@ import {
   addAddress,
   updateAddress,
   deleteAddress,
+  hasActiveOrdersForAddress,
   setDefaultAddress,
   findUserById,
   updateUserProfile,
@@ -62,6 +63,13 @@ export async function editAddress(req, res, next) {
 
 export async function removeAddress(req, res, next) {
   try {
+    const hasActive = await hasActiveOrdersForAddress(req.params.id, req.user.id);
+    if (hasActive) {
+      return res.status(409).json({
+        success: false,
+        message: 'This address has an active order. You can delete it once the order is delivered or cancelled.',
+      });
+    }
     await deleteAddress(req.params.id, req.user.id);
     res.json({ success: true, message: 'Address deleted' });
   } catch (err) { next(err); }

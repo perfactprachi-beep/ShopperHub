@@ -4,11 +4,12 @@ import { useAuthStore } from '../store/authStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useToastStore } from '../store/toastStore.js';
 import { fetchAddresses, createAddress, deleteAddress } from '../api/addressApi.js';
-import { getPaymentMethods, createOrder, createCodOrder, verifyPayment } from '../api/paymentsApi.js';
+import { createOrder, verifyPayment } from '../api/paymentsApi.js';
 import { openRazorpayModal } from '../utils/razorpayHelper.js';
 import AddressForm from '../components/address/AddressForm.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
-import { DeliveryMethodStep } from '../components/checkout/DeliveryMethodStep.jsx';
+import { PincodeChecker } from '../components/checkout/PincodeChecker.jsx';
+import { StorePicker } from '../components/checkout/StorePicker.jsx';
 
 const FREE_SHIPPING_THRESHOLD = 999;
 
@@ -22,10 +23,9 @@ function calcShipping(deliveryType, subtotal) {
 // ── Stepper ───────────────────────────────────────────────────────────────────
 function StepBar({ step }) {
   const nodes = [
-    { label: 'Bag',      done: true,       active: false       },
-    { label: 'Delivery', done: step > 0,   active: step === 0  },
-    { label: 'Address',  done: step > 1,   active: step === 1  },
-    { label: 'Payment',  done: false,       active: step === 2  },
+    { label: 'Bag',     done: true,       active: false       },
+    { label: 'Address', done: step > 0,   active: step === 0  },
+    { label: 'Payment', done: false,       active: step === 1  },
   ];
 
   return (
@@ -66,7 +66,7 @@ function StepBar({ step }) {
 }
 
 // ── Price Sidebar ─────────────────────────────────────────────────────────────
-function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDelivery, onContinue, paying }) {
+function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDelivery, selectedStore, onContinue, paying }) {
   const [showItems, setShowItems] = useState(false);
 
   const subtotal      = items.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -77,7 +77,9 @@ function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDeli
   const grandTotal    = Math.max(0, subtotal - couponDiscount + shipping);
   const totalSavings  = offerDiscount + couponDiscount;
 
-  const canContinue = step === 0 ? false : step === 1 ? !!selectedAddressId : true;
+  const canContinue = step === 0
+    ? (!!selectedAddressId && (selectedDelivery !== 'store_pickup' || !!selectedStore))
+    : true;
   const fmt = (n) => n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   return (
@@ -171,6 +173,28 @@ function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDeli
         </div>
       )}
 
+      {/* Test-mode credentials — shown in sidebar on payment step */}
+      {step === 1 && import.meta.env.MODE !== 'production' && (
+        <div className="mx-5 mb-4 px-3 py-2.5 bg-amber-50 border border-amber-300">
+          <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-2">Test Credentials</p>
+          <div className="space-y-1.5 text-[10px] text-amber-900">
+            <div>
+              <p className="font-bold text-amber-700">UPI (easiest):</p>
+              <p className="font-mono font-bold">success@razorpay</p>
+            </div>
+            <div>
+              <p className="font-bold text-amber-700">Card:</p>
+              <p className="font-mono font-bold">4111 1111 1111 1111</p>
+              <p>Expiry: 12/26 · CVV: 123 · OTP: 1234</p>
+            </div>
+            <div>
+              <p className="font-bold text-amber-700">Net Banking:</p>
+              <p>Select any bank → auto-succeeds</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CTA */}
       <div className="px-5 pb-5">
         <button
@@ -185,10 +209,8 @@ function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDeli
           {paying
             ? 'Processing…'
             : step === 0
-              ? 'Select Delivery Method Above'
-              : step === 1
-                ? 'Continue'
-                : `Pay ₹${fmt(grandTotal)}`}
+              ? 'Continue'
+              : `Pay ₹${fmt(grandTotal)}`}
         </button>
       </div>
     </div>
@@ -242,7 +264,19 @@ const DELIVERY_CONFIG = [
 ];
 
 // ── Delivery Options section ──────────────────────────────────────────────────
-function DeliveryOptions({ items, subtotal, selected, onChange }) {
+function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect }) {
+  const [pickupPincode, setPickupPincode] = useState('');
+  const [confirmedPincode, setConfirmedPincode] = useState('');
+
+  function handleChange(id) {
+    onChange(id);
+    if (id !== 'store_pickup') {
+      setPickupPincode('');
+      setConfirmedPincode('');
+      onStoreSelect?.(null);
+    }
+  }
+
   return (
     <div className="mb-7">
       <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-4">
@@ -251,7 +285,6 @@ function DeliveryOptions({ items, subtotal, selected, onChange }) {
 
       <div className="space-y-2">
         {DELIVERY_CONFIG.map((opt) => {
-          // Determine availability dynamically
           let available = opt.alwaysAvailable;
           let ineligibleItems = [];
 
@@ -260,7 +293,6 @@ function DeliveryOptions({ items, subtotal, selected, onChange }) {
             available = ineligibleItems.length === 0;
           }
 
-          // Compute displayed shipping price for this option
           const shippingCost = calcShipping(opt.id, subtotal);
           const priceLabel =
             opt.id === 'standard'
@@ -270,60 +302,108 @@ function DeliveryOptions({ items, subtotal, selected, onChange }) {
           const isSelected = selected === opt.id;
 
           return (
-            <div
-              key={opt.id}
-              onClick={() => available && onChange(opt.id)}
-              className={`flex items-center gap-4 border p-4 transition-all ${
-                !available
-                  ? 'border-gray-100 bg-gray-50/60 opacity-55 cursor-not-allowed'
-                  : isSelected
-                    ? 'border-gray-900 bg-white cursor-pointer'
-                    : 'border-gray-200 bg-white hover:border-gray-400 cursor-pointer'
-              }`}
-            >
-              {/* Icon */}
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                available ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-400'
-              }`}>
-                {opt.icon}
-              </div>
+            <div key={opt.id}>
+              {/* Option row */}
+              <div
+                onClick={() => available && handleChange(opt.id)}
+                className={`flex items-center gap-4 border p-4 transition-all ${
+                  !available
+                    ? 'border-gray-100 bg-gray-50/60 opacity-55 cursor-not-allowed'
+                    : isSelected
+                      ? 'border-gray-900 bg-white cursor-pointer'
+                      : 'border-gray-200 bg-white hover:border-gray-400 cursor-pointer'
+                }`}
+              >
+                {/* Icon */}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  available ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {opt.icon}
+                </div>
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className={`text-[13px] font-semibold ${available ? 'text-gray-800' : 'text-gray-400'}`}>
-                    {opt.label}
-                  </p>
-                  {available && (
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                      opt.price === 0 || (opt.id === 'standard' && shippingCost === 0)
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {priceLabel}
-                    </span>
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`text-[13px] font-semibold ${available ? 'text-gray-800' : 'text-gray-400'}`}>
+                      {opt.label}
+                    </p>
+                    {available && (
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                        opt.price === 0 || (opt.id === 'standard' && shippingCost === 0)
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {priceLabel}
+                      </span>
+                    )}
+                  </div>
+                  {available ? (
+                    <p className="text-[11px] text-gray-400 mt-0.5">{opt.days}</p>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 italic mt-0.5">
+                      {ineligibleItems.length > 0
+                        ? `${ineligibleItems.length} item${ineligibleItems.length > 1 ? 's are' : ' is'} not eligible`
+                        : 'Not available for some items'}
+                    </p>
                   )}
                 </div>
+
+                {/* Radio */}
                 {available ? (
-                  <p className="text-[11px] text-gray-400 mt-0.5">{opt.days}</p>
+                  <div className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                    isSelected ? 'border-gray-900' : 'border-gray-400'
+                  }`}>
+                    {isSelected && <div className="w-[8px] h-[8px] rounded-full bg-gray-900" />}
+                  </div>
                 ) : (
-                  <p className="text-[11px] text-gray-400 italic mt-0.5">
-                    {ineligibleItems.length > 0
-                      ? `${ineligibleItems.length} item${ineligibleItems.length > 1 ? 's are' : ' is'} not eligible for this option`
-                      : `Not available for some items`}
-                  </p>
+                  <div className="w-[18px] h-[18px] rounded-full border-2 border-gray-300 shrink-0" />
                 )}
               </div>
 
-              {/* Right indicator */}
-              {available ? (
-                <div className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                  isSelected ? 'border-gray-900' : 'border-gray-400'
-                }`}>
-                  {isSelected && <div className="w-[8px] h-[8px] rounded-full bg-gray-900" />}
+              {/* ── Express: inline pincode checker ── */}
+              {isSelected && opt.id === 'express' && available && (
+                <div className="border border-t-0 border-gray-900 bg-gray-50 px-4 pb-4">
+                  <p className="text-[11px] text-gray-500 pt-3 mb-1">
+                    Check if express delivery is available at your pincode:
+                  </p>
+                  <PincodeChecker onResult={() => {}} />
                 </div>
-              ) : (
-                <div className="w-[18px] h-[18px] rounded-full border-2 border-gray-300 shrink-0" />
+              )}
+
+              {/* ── Store Pickup: inline store finder ── */}
+              {isSelected && opt.id === 'store_pickup' && available && (
+                <div className="border border-t-0 border-gray-900 bg-gray-50 px-4 pb-4">
+                  <p className="text-[11px] text-gray-500 pt-3 mb-1">
+                    Enter your pincode to find nearby stores:
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="Enter pincode"
+                      value={pickupPincode}
+                      onChange={(e) => {
+                        setPickupPincode(e.target.value.replace(/\D/g, ''));
+                        setConfirmedPincode('');
+                        onStoreSelect?.(null);
+                      }}
+                      className="flex-1 border border-gray-300 px-3 py-2 text-[13px] focus:outline-none focus:border-gray-800"
+                    />
+                    <button
+                      onClick={() => { if (pickupPincode.length === 6) setConfirmedPincode(pickupPincode); }}
+                      disabled={pickupPincode.length !== 6}
+                      className="px-4 py-2 bg-[#8B1A2F] text-white text-[12px] font-bold uppercase tracking-wider disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-[#6d1424] transition-colors"
+                    >
+                      Find Stores
+                    </button>
+                  </div>
+                  {confirmedPincode && (
+                    <StorePicker
+                      pincode={confirmedPincode}
+                      onSelect={(store) => onStoreSelect?.(store)}
+                    />
+                  )}
+                </div>
               )}
             </div>
           );
@@ -334,7 +414,7 @@ function DeliveryOptions({ items, subtotal, selected, onChange }) {
 }
 
 // ── Address step ──────────────────────────────────────────────────────────────
-function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, selectedId, onSelect }) {
+function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, selectedId, onSelect, onStoreSelect }) {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
@@ -384,6 +464,7 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
         subtotal={subtotal}
         selected={selectedDelivery}
         onChange={onDeliveryChange}
+        onStoreSelect={onStoreSelect}
       />
 
       {/* Warning — no address yet */}
@@ -505,46 +586,14 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
   );
 }
 
-// ── Payment method icons ──────────────────────────────────────────────────────
-const METHOD_ICONS = {
-  card: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-    </svg>
-  ),
-  cash: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <rect x="2" y="6" width="20" height="12" rx="2"/>
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M6 12h.01M18 12h.01"/>
-    </svg>
-  ),
-  upi: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-      <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-    </svg>
-  ),
-  wallet: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
-      <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><circle cx="18" cy="12" r="2"/>
-    </svg>
-  ),
-  bank: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <path d="M3 22V9M21 22V9M12 2L2 9h20L12 2zM6 22V9M18 22V9M10 22V9M14 22V9"/>
-    </svg>
-  ),
-};
-
 // ── Payment step ──────────────────────────────────────────────────────────────
-function PaymentStep({ onBack, methods, selectedCode, onSelect, loadingMethods }) {
+function PaymentStep({ onBack }) {
   return (
     <div>
+      {/* Back */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+        className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-700 mb-8 transition-colors"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <polyline points="15 18 9 12 15 6" />
@@ -552,47 +601,91 @@ function PaymentStep({ onBack, methods, selectedCode, onSelect, loadingMethods }
         Back to Address
       </button>
 
-      <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-5">
-        Payment Method
-      </h2>
+      {/* Page heading */}
+      <div className="mb-7">
+        <h2 className="text-[20px] font-bold text-gray-900 tracking-tight">Online Payment</h2>
+        <p className="text-[12px] text-gray-400 mt-1">Select a payment method to complete your order</p>
+      </div>
 
-      {loadingMethods ? (
-        <div className="flex justify-center py-10 text-gray-400 text-[13px]">Loading payment options…</div>
-      ) : methods.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 p-6 text-center text-[13px] text-gray-500">
-          No payment methods available. Please contact support.
+      {/* Security banner */}
+      <div className="flex items-center gap-3 bg-green-50 border border-green-200 px-4 py-3 mb-6">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <polyline points="9 12 11 14 15 10"/>
+        </svg>
+        <div>
+          <p className="text-[12px] font-semibold text-green-800">100% Secure Payments</p>
+          <p className="text-[11px] text-green-600 mt-0.5">All transactions are SSL encrypted and protected</p>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {methods.map((method) => {
-            const isSelected = selectedCode === method.code;
-            return (
-              <div
-                key={method.code}
-                onClick={() => onSelect(method.code)}
-                className={`flex items-center gap-4 border p-4 cursor-pointer transition-all ${
-                  isSelected ? 'border-gray-900 bg-white' : 'border-gray-200 bg-white hover:border-gray-400'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
-                  {METHOD_ICONS[method.icon_type] || METHOD_ICONS.card}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-gray-800">{method.name}</p>
-                  {method.description && (
-                    <p className="text-[11px] text-gray-400 mt-0.5">{method.description}</p>
-                  )}
-                </div>
-                <div className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                  isSelected ? 'border-gray-900' : 'border-gray-400'
-                }`}>
-                  {isSelected && <div className="w-[8px] h-[8px] rounded-full bg-gray-900" />}
-                </div>
-              </div>
-            );
-          })}
+      </div>
+
+      {/* Payment option card */}
+      <div className="border-2 border-[#8B1A2F] p-5 mb-6">
+        <div className="flex items-start gap-4">
+
+          {/* Selected radio */}
+          <div className="mt-0.5 w-[18px] h-[18px] rounded-full border-2 border-[#8B1A2F] flex items-center justify-center shrink-0">
+            <div className="w-[8px] h-[8px] rounded-full bg-[#8B1A2F]" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-[14px] font-bold text-gray-900">Cards</p>
+              <span className="text-[10px] text-gray-400 font-medium">(Credit / Debit)</span>
+            </div>
+
+            <p className="text-[11px] text-gray-400 mb-4">
+              Visa · Mastercard · RuPay · American Express
+            </p>
+
+            {/* Accepted card logos */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center justify-center h-7 px-2.5 border border-gray-200 bg-white rounded-sm text-[10px] font-black tracking-wider text-[#1A1F71]">
+                VISA
+              </span>
+              <span className="inline-flex items-center justify-center h-7 px-1.5 border border-gray-200 bg-white rounded-sm">
+                <span className="w-4 h-4 rounded-full bg-[#EB001B] inline-block" />
+                <span className="w-4 h-4 rounded-full bg-[#F79E1B] inline-block -ml-2 opacity-90" />
+              </span>
+              <span className="inline-flex items-center justify-center h-7 px-2 border border-gray-200 bg-white rounded-sm text-[9px] font-black" style={{ color: '#1a5ea8' }}>
+                RuPay
+              </span>
+              <span className="inline-flex items-center justify-center h-7 px-2 border border-gray-200 bg-white rounded-sm text-[9px] font-bold" style={{ color: '#097939' }}>
+                UPI
+              </span>
+              <span className="inline-flex items-center justify-center h-7 px-2 border border-gray-200 bg-white rounded-sm text-[9px] font-medium text-gray-500">
+                Net Banking
+              </span>
+              <span className="inline-flex items-center justify-center h-7 px-2 border border-gray-200 bg-white rounded-sm text-[9px] font-medium text-gray-500">
+                EMI
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dev-mode test credentials hint */}
+      {import.meta.env.MODE !== 'production' && (
+        <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200">
+          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Test Mode — Use these credentials:</p>
+          <div className="space-y-1 text-[11px] text-amber-800 font-mono">
+            <p><span className="font-bold">Card:</span> 4111 1111 1111 1111 · any expiry · any CVV · OTP: 1234</p>
+            <p><span className="font-bold">UPI:</span> success@razorpay</p>
+            <p><span className="font-bold">Net Banking:</span> Select any bank → auto-succeeds</p>
+          </div>
         </div>
       )}
+
+      {/* Powered by Razorpay */}
+      <div className="flex items-center justify-center gap-2">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <span className="text-[11px] text-gray-400">Payments secured by</span>
+        <span className="text-[11px] font-black" style={{ color: '#072654', fontFamily: 'Arial, sans-serif' }}>Razorpay</span>
+      </div>
     </div>
   );
 }
@@ -607,25 +700,12 @@ export default function CheckoutPage() {
   const { state: navState } = useLocation();
 
   const [step, setStep]                           = useState(0);
-  const [deliveryData, setDeliveryData]           = useState({ deliveryMethod: 'express_delivery', store: null });
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [selectedDelivery, setSelectedDelivery]   = useState('standard');
+  const [selectedStore, setSelectedStore]         = useState(null);
   const [paying, setPaying]                       = useState(false);
-  const [paymentMethods, setPaymentMethods]       = useState([]);
-  const [loadingMethods, setLoadingMethods]       = useState(true);
-  const [selectedPaymentCode, setSelectedPaymentCode] = useState('');
 
   const couponData = navState?.coupon ?? null;
-
-  useEffect(() => {
-    getPaymentMethods()
-      .then((methods) => {
-        setPaymentMethods(methods);
-        if (methods.length > 0) setSelectedPaymentCode(methods[0].code);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMethods(false));
-  }, []);
 
   const subtotal       = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const couponDiscount = Number(couponData?.discount ?? couponData?.discountAmount ?? 0);
@@ -635,28 +715,11 @@ export default function CheckoutPage() {
   async function handlePay() {
     setPaying(true);
     try {
-      if (selectedPaymentCode === 'cod') {
-        const result = await createCodOrder({
-          addressId:      selectedAddressId,
-          couponCode:     couponData?.code || undefined,
-          usePoints:      false,
-          deliveryType:   selectedDelivery,
-          deliveryMethod: deliveryData.deliveryMethod,
-          storeId:        deliveryData.store?.id || null,
-        });
-        clearCart();
-        navigate(`/track/${result.orderId}`);
-        return;
-      }
-
-      // Razorpay (and any future online gateway)
       const orderData = await createOrder({
-        addressId:      selectedAddressId,
-        couponCode:     couponData?.code || undefined,
-        usePoints:      false,
-        deliveryType:   selectedDelivery,
-        deliveryMethod: deliveryData.deliveryMethod,
-        storeId:        deliveryData.store?.id || null,
+        addressId:    selectedAddressId,
+        couponCode:   couponData?.code || undefined,
+        usePoints:    false,
+        deliveryType: selectedDelivery,
       });
 
       openRazorpayModal({
@@ -679,8 +742,7 @@ export default function CheckoutPage() {
               shipping,
               total:          grandTotal,
               deliveryType:   selectedDelivery,
-              deliveryMethod: deliveryData.deliveryMethod,
-              storeId:        deliveryData.store?.id || null,
+              storeId:        selectedStore?.id ?? null,
             });
             clearCart();
             navigate(`/track/${result.orderId}`);
@@ -702,13 +764,13 @@ export default function CheckoutPage() {
   }
 
   function handleContinue() {
-    if (step === 1) {
+    if (step === 0) {
       if (!selectedAddressId) {
         addToast('Please select or add a delivery address', 'info');
         return;
       }
-      setStep(2);
-    } else if (step === 2) {
+      setStep(1);
+    } else if (step === 1) {
       handlePay();
     }
   }
@@ -737,15 +799,6 @@ export default function CheckoutPage() {
           {/* ── Left: main content ── */}
           <div className="flex-1 min-w-0 bg-white border border-gray-200 p-6">
             {step === 0 && (
-              <DeliveryMethodStep
-                onNext={(data) => {
-                  setDeliveryData(data);
-                  if (data.deliveryMethod === 'store_pickup') setSelectedDelivery('store_pickup');
-                  setStep(1);
-                }}
-              />
-            )}
-            {step === 1 && (
               <AddressStep
                 items={items}
                 subtotal={subtotal}
@@ -753,16 +806,11 @@ export default function CheckoutPage() {
                 onDeliveryChange={setSelectedDelivery}
                 selectedId={selectedAddressId}
                 onSelect={setSelectedAddressId}
+                onStoreSelect={setSelectedStore}
               />
             )}
-            {step === 2 && (
-              <PaymentStep
-                onBack={() => setStep(1)}
-                methods={paymentMethods}
-                selectedCode={selectedPaymentCode}
-                onSelect={setSelectedPaymentCode}
-                loadingMethods={loadingMethods}
-              />
+            {step === 1 && (
+              <PaymentStep onBack={() => setStep(0)} />
             )}
           </div>
 
@@ -774,6 +822,7 @@ export default function CheckoutPage() {
               step={step}
               selectedAddressId={selectedAddressId}
               selectedDelivery={selectedDelivery}
+              selectedStore={selectedStore}
               onContinue={handleContinue}
               paying={paying}
             />

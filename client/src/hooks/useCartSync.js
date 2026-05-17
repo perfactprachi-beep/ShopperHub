@@ -16,7 +16,12 @@ export function useCartSync() {
     const justLoggedOut = !isLoggedIn && prevLoggedIn.current;
 
     if (justLoggedIn) {
-      const guestItems = items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }));
+      // Only merge Zustand items into server cart when they are genuine guest items
+      // (synced=false). If synced=true the items are already on the server —
+      // merging again would double every quantity.
+      const guestItems = !synced
+        ? items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }))
+        : [];
 
       const syncCart = guestItems.length > 0
         ? mergeCart(guestItems).then(() => fetchCart())

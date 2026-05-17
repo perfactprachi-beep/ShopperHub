@@ -118,8 +118,9 @@ function AddressesTab() {
       await deleteAddress(id);
       addToast({ type: 'success', message: 'Address deleted' });
       load();
-    } catch {
-      addToast({ type: 'error', message: 'Failed to delete address' });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to delete address';
+      addToast({ type: 'error', message: msg });
     }
   }
 
