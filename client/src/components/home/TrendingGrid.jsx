@@ -2,11 +2,17 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '../ui/Skeleton.jsx';
 
+const GENDER_OVERRIDE = {
+  Footwear: 'women',
+};
+
 function TrendingCard({ name, slug, imageUrl }) {
   const [err, setErr] = useState(false);
+  const gender = GENDER_OVERRIDE[name];
+  const to = gender ? `/category/${slug}?gender=${gender}` : `/category/${slug}`;
   return (
     <Link
-      to={`/category/${slug}`}
+      to={to}
       className="group relative overflow-hidden rounded-lg bg-gray-100 aspect-square block"
     >
       {imageUrl && !err ? (

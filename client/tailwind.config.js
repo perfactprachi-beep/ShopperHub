@@ -3,6 +3,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      keyframes: {
+        fadeUp: {
+          '0%':   { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fadeUp': 'fadeUp 0.18s ease-out',
+      },
       colors: {
         primary: {
           DEFAULT: '#8B1A2F',

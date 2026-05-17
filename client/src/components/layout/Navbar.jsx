@@ -96,7 +96,7 @@ export default function Navbar() {
   const scrollDir = useScrollDirection();
   const cartItems = useCartStore((s) => s.items);
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
-  const { openCart } = useUiStore();
+  const { openCart, openLoginModal } = useUiStore();
 
   const [search, setSearch]           = useState('');
   const [mobileOpen, setMobileOpen]   = useState(false);
@@ -180,6 +180,30 @@ export default function Navbar() {
     return location.pathname.startsWith(`/category/${link.slug}`);
   };
 
+  /* ── Minimal checkout header (cart page only) ── */
+  if (location.pathname === '/cart') {
+    return (
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link to="/">
+            <span
+              className="text-[30px] font-bold text-[#8B1A2F]"
+              style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontVariant: 'small-caps', letterSpacing: '0.05em' }}
+            >
+              Shoppers<span className="text-[#1A1A1A]">Hub</span>
+            </span>
+          </Link>
+          <div className="flex items-center gap-1.5 text-[13px] text-gray-500">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span className="font-semibold uppercase tracking-wide text-[12px]">100% Secure Checkout</span>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <>
       {/* ── Desktop ─────────────────────────────────────────────── */}
@@ -215,7 +239,7 @@ export default function Navbar() {
             </Link>
 
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl mx-auto">
+            <form onSubmit={handleSearch} className="flex-1 max-w-xl ml-auto">
               <div className="relative flex items-center border border-gray-300 rounded-full overflow-hidden hover:border-[#8B1A2F] transition-colors focus-within:border-[#8B1A2F] focus-within:ring-2 focus-within:ring-[#8B1A2F]/10">
                 <input
                   type="text"
@@ -270,19 +294,25 @@ export default function Navbar() {
               </div>
 
               {/* Wishlist */}
-              <Link to="/wishlist" className="text-gray-600 hover:text-[#8B1A2F] transition-colors">
-                <IconHeart size={26}/>
-              </Link>
+              {isLoggedIn ? (
+                <Link to="/wishlist" className="text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                  <IconHeart size={26}/>
+                </Link>
+              ) : (
+                <button onClick={openLoginModal} className="text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                  <IconHeart size={26}/>
+                </button>
+              )}
 
               {/* Cart */}
-              <button onClick={openCart} className="relative text-gray-600 hover:text-[#8B1A2F] transition-colors">
+              <Link to="/cart" className="relative text-gray-600 hover:text-[#8B1A2F] transition-colors">
                 <IconCart size={26}/>
                 {cartCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {cartCount > 9 ? '9+' : cartCount}
                   </span>
                 )}
-              </button>
+              </Link>
 
               {/* Notifications */}
               {isLoggedIn && (
@@ -458,14 +488,14 @@ export default function Navbar() {
             <button onClick={() => setMobileSearch((v) => !v)} className="text-gray-700 p-1" aria-label="Search">
               <IconSearch/>
             </button>
-            <button onClick={openCart} className="relative text-gray-700 p-1" aria-label="Cart">
+            <Link to="/cart" className="relative text-gray-700 p-1" aria-label="Cart">
               <IconCart/>
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
         </div>
 

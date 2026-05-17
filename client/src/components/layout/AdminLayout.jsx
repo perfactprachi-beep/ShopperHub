@@ -47,6 +47,15 @@ function IconOrders() {
   );
 }
 
+function IconInventory() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 function IconCoupons() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -113,6 +122,7 @@ const NAV_ITEMS = [
   { to: '/admin/categories', label: 'Categories', Icon: IconCategories },
   { to: '/admin/brands',     label: 'Brands',     Icon: IconBrands },
   { to: '/admin/orders',     label: 'Orders',     Icon: IconOrders },
+  { to: '/admin/inventory',  label: 'Inventory',  Icon: IconInventory },
   { to: '/admin/coupons',    label: 'Coupons',    Icon: IconCoupons },
   { to: '/admin/offers',     label: 'Offers',     Icon: IconOffers },
   { to: '/admin/banners',    label: 'Banners',    Icon: IconBanners },
@@ -120,27 +130,37 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_TITLES = {
-  '/admin':            'Dashboard',
-  '/admin/products':   'Products',
-  '/admin/categories': 'Categories',
-  '/admin/brands':     'Brands',
-  '/admin/orders':     'Orders',
-  '/admin/coupons':    'Coupons',
-  '/admin/offers':     'Offers',
-  '/admin/banners':    'Banners',
-  '/admin/users':      'Users',
+  '/admin':                    'Dashboard',
+  '/admin/products':           'Products',
+  '/admin/categories':         'Categories',
+  '/admin/brands':             'Brands',
+  '/admin/orders':             'Orders',
+  '/admin/inventory':          'Inventory',
+  '/admin/inventory/stocks':   'Stock Management',
+  '/admin/inventory/low-stock': 'Low Stock Alerts',
+  '/admin/inventory/warehouses': 'Warehouses',
+  '/admin/inventory/logs':     'Inventory Logs',
+  '/admin/coupons':            'Coupons',
+  '/admin/offers':             'Offers',
+  '/admin/banners':            'Banners',
+  '/admin/users':              'Users',
 };
 
 const PAGE_SUBTITLES = {
-  '/admin':            'Overview & analytics',
-  '/admin/products':   'Manage your product catalog',
-  '/admin/categories': 'Organize product categories',
-  '/admin/brands':     'Manage brand listings',
-  '/admin/orders':     'Track and fulfill orders',
-  '/admin/coupons':    'Discount codes & promotions',
-  '/admin/offers':     'Manage product page offer messages',
-  '/admin/banners':    'Homepage & promotional banners',
-  '/admin/users':      'Customer accounts',
+  '/admin':                    'Overview & analytics',
+  '/admin/products':           'Manage your product catalog',
+  '/admin/categories':         'Organize product categories',
+  '/admin/brands':             'Manage brand listings',
+  '/admin/orders':             'Track and fulfill orders',
+  '/admin/inventory':          'Inventory overview & analytics',
+  '/admin/inventory/stocks':   'Manage product stock levels',
+  '/admin/inventory/low-stock': 'Monitor low stock items',
+  '/admin/inventory/warehouses': 'Manage warehouse locations',
+  '/admin/inventory/logs':     'Track inventory changes',
+  '/admin/coupons':            'Discount codes & promotions',
+  '/admin/offers':             'Manage product page offer messages',
+  '/admin/banners':            'Homepage & promotional banners',
+  '/admin/users':              'Customer accounts',
 };
 
 export default function AdminLayout() {

@@ -22,15 +22,19 @@ router.get('/', async (_req, res, next) => {
         LIMIT 6
       `),
       pool.query(`
-        SELECT DISTINCT ON (name) id, name, slug, image_url
-        FROM categories
-        WHERE name = ANY(ARRAY[
+        SELECT DISTINCT ON (c.name) c.id, c.name, c.slug, c.image_url
+        FROM categories c
+        LEFT JOIN categories p ON p.id = c.parent_id
+        WHERE c.name = ANY(ARRAY[
           'T-Shirts','Jeans','Dresses & Jumpsuits','Watches',
           'Handbags & Accessories','Kurtas & Kurtis','Skincare','Fragrances',
           'Western Wear','Footwear'
         ])
-        AND image_url IS NOT NULL
-        ORDER BY name, sort_order
+        AND c.image_url IS NOT NULL
+        ORDER BY
+          c.name,
+          CASE WHEN c.name = 'Footwear' AND LOWER(COALESCE(p.name,'')) = 'women' THEN 0 ELSE 1 END,
+          c.sort_order
         LIMIT 8
       `),
       pool.query(`
