@@ -8,7 +8,7 @@ export async function getWishlistByUser(userId) {
        (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
        w.created_at AS wishlisted_at
      FROM wishlists w
-     JOIN products p ON p.id = w.product_id
+     JOIN products p ON p.id = w.product_id AND p.status = 'active'
      LEFT JOIN brands b ON b.id = p.brand_id
      WHERE w.user_id = $1
      ORDER BY w.created_at DESC`,
