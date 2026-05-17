@@ -40,7 +40,7 @@ try {
     INSERT INTO brands (name, slug, description) VALUES
       ('Allen Solly', 'allen-solly', 'Premium casual and formal wear brand'),
       ('AND',         'and',         'Contemporary women''s fashion brand'),
-      ('Stop',        'stop',        'Shoppers Stop private label')
+      ('Stop',        'stop',        'ShoppersHub private label')
     ON CONFLICT (slug) DO NOTHING
   `);
 

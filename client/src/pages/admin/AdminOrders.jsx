@@ -20,22 +20,22 @@ export default function AdminOrders() {
   const [updating, setUpdating] = useState(null);
   const limit = 20;
 
-  const load = async () => {
+  const load = async (tab = activeTab, pg = page) => {
     setLoading(true);
     try {
-      const data = await getAdminOrders({ page, limit, status: activeTab === 'all' ? undefined : activeTab });
+      const data = await getAdminOrders({ page: pg, limit, status: tab === 'all' ? undefined : tab });
       setOrders(data.orders);
       setTotal(data.total);
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [page, activeTab]);
+  useEffect(() => { load(activeTab, page); }, [page, activeTab]);
 
   const handleStatusChange = async (orderId, status) => {
     setUpdating(orderId);
     try {
-      const updated = await updateOrderStatus(orderId, status);
-      setOrders(os => os.map(o => o.id === orderId ? { ...o, status: updated.status } : o));
+      await updateOrderStatus(orderId, status);
+      await load();
     } catch (err) {
       alert(err.response?.data?.message || 'Update failed');
     } finally { setUpdating(null); }
@@ -117,19 +117,23 @@ export default function AdminOrders() {
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="select-wrap w-32">
-                      <select
-                        value={order.status}
-                        disabled={updating === order.id || order.status === 'cancelled' || order.status === 'delivered'}
-                        onChange={e => handleStatusChange(order.id, e.target.value)}
-                        className="disabled:opacity-50 text-xs"
-                      >
-                        {['pending','confirmed','shipped','delivered','cancelled'].map(s => (
-                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    {updating === order.id ? (
+                      <span className="text-xs text-gray-400 italic">Updating…</span>
+                    ) : (
+                      <div className="select-wrap w-32">
+                        <select
+                          value={order.status}
+                          disabled={order.status === 'cancelled' || order.status === 'delivered'}
+                          onChange={e => handleStatusChange(order.id, e.target.value)}
+                          className="disabled:opacity-50 text-xs"
+                        >
+                          {['pending','confirmed','shipped','delivered','cancelled'].map(s => (
+                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

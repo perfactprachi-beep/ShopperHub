@@ -55,6 +55,10 @@ export async function login(req, res, next) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    if (user.is_active === false) {
+      return res.status(403).json({ success: false, message: 'Your account has been deactivated. Please contact support.' });
+    }
+
     const accessToken = signAccessToken({ id: user.id, role: user.role });
     const refreshToken = signRefreshToken({ id: user.id });
     setRefreshCookie(res, refreshToken);
@@ -136,6 +140,9 @@ export async function verifyOtp(req, res, next) {
 
     const user = await findUserByPhone(phone);
     if (user) {
+      if (user.is_active === false) {
+        return res.status(403).json({ success: false, message: 'Your account has been deactivated. Please contact support.' });
+      }
       // Existing user — log in directly
       const accessToken = signAccessToken({ id: user.id, role: user.role });
       const refreshToken = signRefreshToken({ id: user.id });

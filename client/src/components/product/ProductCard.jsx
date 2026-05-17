@@ -25,7 +25,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const finalPrice     = imageAvailable ? calcFinalPrice(base_price, discount_pct) : base_price;
   const hasDiscount    = discount_pct > 0 && imageAvailable;
 
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
   const { has, toggle } = useWishlistStore();
   const { openLoginModal } = useUiStore();
@@ -120,7 +120,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
       </Link>
 
       {/* CTA area */}
-      {onAddToBag && (
+      {onAddToBag && !isAdmin && (
         <button
           onClick={handleAddToBag}
           disabled={stock === 0}

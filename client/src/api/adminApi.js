@@ -130,6 +130,12 @@ export const deleteOffer = (id) =>
 export const getAdminUsers = (params) =>
   api.get('/admin/users', { params }).then(r => r.data.data);
 
+export const updateUserStatus = (id, isActive) =>
+  api.patch(`/admin/users/${id}/status`, { is_active: isActive }).then(r => r.data.data);
+
+export const deleteAdminUser = (id) =>
+  api.delete(`/admin/users/${id}`).then(r => r.data);
+
 // ── Payment Methods ───────────────────────────────────────────────────────────
 export const getAdminPaymentMethods = () =>
   api.get('/admin/payment-methods').then(r => r.data.data);

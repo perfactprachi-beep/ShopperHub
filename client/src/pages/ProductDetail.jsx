@@ -15,11 +15,12 @@ import { useAuth } from '../hooks/useAuth.js';
 import { useToastStore } from '../store/toastStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useWishlistStore } from '../store/wishlistStore.js';
+import { addCartItem } from '../api/cartApi.js';
 import { toggleWishlist } from '../api/wishlistApi.js';
 import { assetUrl } from '../utils/assetUrl.js';
 import { getActiveOffers } from '../api/offersApi.js';
 
-/* ── Offers section — Shoppers Stop style ──────────────────────────────── */
+/* ── Offers section ─────────────────────────────────────────────────────── */
 /* Percent SVG — fallback when no image_url (mirrors SS percentIcon.svg) */
 function PercentIcon() {
   return (
@@ -719,12 +720,14 @@ function SizeChartDrawer({ open, onClose, product, onAddToBag }) {
           >
             Close
           </button>
-          <button
-            onClick={() => { onAddToBag?.(); onClose(); setShowMeasure(false); }}
-            className="flex-1 py-3 bg-[#8B1A2F] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#6d1424] transition-colors"
-          >
-            Add To Bag
-          </button>
+          {onAddToBag && (
+            <button
+              onClick={() => { onAddToBag(); onClose(); setShowMeasure(false); }}
+              className="flex-1 py-3 bg-[#8B1A2F] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#6d1424] transition-colors"
+            >
+              Add To Bag
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -752,7 +755,7 @@ export default function ProductDetail() {
   useEffect(() => { setSelected({}); setSizeChartOpen(false); }, [slug]);
   const product = data?.data;
 
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
   const addItem  = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
@@ -790,7 +793,9 @@ export default function ProductDetail() {
   const hasDiscount = product.discount_pct > 0;
   const primaryImage = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '';
   const wished = has(product.id);
-  const inCart = cartItems.some((i) => i.productId === product.id);
+  const inCart = cartItems.some((i) =>
+    selectedVariant ? i.variantId === selectedVariant.id : i.productId === product.id
+  );
 
   const sizes  = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))];
   const selectedVariant = product.variants?.find((v) => {
@@ -800,7 +805,7 @@ export default function ProductDetail() {
     return v.stock > 0;
   }) || product.variants?.[0];
 
-  const handleAddToBag = () => {
+  const handleAddToBag = async () => {
     if (sizes.length > 0 && !selected.size) {
       addToast('Please select a size', 'error');
       return;
@@ -822,6 +827,14 @@ export default function ProductDetail() {
       discount_pct: product.discount_pct,
       quantity:     1,
     };
+    if (isLoggedIn) {
+      try {
+        await addCartItem({ variantId: selectedVariant.id, quantity: 1 });
+      } catch {
+        addToast('Could not save item to your bag. Please try again.', 'error');
+        return;
+      }
+    }
     addItem(cartItem);
     navigate('/bag-added', { state: { product: { ...cartItem, slug: product.slug } } });
   };
@@ -855,7 +868,7 @@ export default function ProductDetail() {
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
         product={product}
-        onAddToBag={handleAddToBag}
+        onAddToBag={isAdmin ? undefined : handleAddToBag}
       />
 
       <Helmet>
@@ -959,13 +972,15 @@ export default function ProductDetail() {
             )}
 
             {/* 5. Add To Bag / Go to Bag */}
-            <button
-              onClick={inCart ? () => navigate('/cart') : handleAddToBag}
-              disabled={product.stock === 0 && !inCart}
-              className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-[15px] tracking-wide hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {product.stock === 0 && !inCart ? 'Out of Stock' : inCart ? 'Go to Bag' : 'Add To Bag'}
-            </button>
+            {!isAdmin && (
+              <button
+                onClick={inCart ? () => navigate('/cart') : handleAddToBag}
+                disabled={product.stock === 0 && !inCart}
+                className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-[15px] tracking-wide hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {product.stock === 0 && !inCart ? 'Out of Stock' : inCart ? 'Go to Bag' : 'Add To Bag'}
+              </button>
+            )}
 
             {/* 6. Delivery check */}
             <PincodeCheck />

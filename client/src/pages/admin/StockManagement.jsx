@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
-import { getAdminCategories } from '../../api/adminApi.js';
+import { getAdminCategories, getAdminBrands } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
-import CategoryFilter from '../../components/ui/CategoryFilter.jsx';
+import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 
 function StockEditModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -187,35 +187,30 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
 export default function StockManagement() {
   const [inventory, setInventory] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedItems, setSelectedItems] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
   const [showBulkUpdate, setShowBulkUpdate] = useState(false);
-  
+
   const limit = 20;
 
   useEffect(() => {
-    loadCategories();
+    Promise.all([getAdminCategories(), getAdminBrands()])
+      .then(([cats, brs]) => { setCategories(cats); setBrands(brs); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     loadInventory();
-  }, [page, categoryFilter, subCategoryFilter, statusFilter]);
-
-  const loadCategories = async () => {
-    try {
-      const data = await getAdminCategories();
-      setCategories(data);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
+  }, [page, categoryFilter, subCategoryFilter, brandFilter, statusFilter]);
 
   const loadInventory = async () => {
     setLoading(true);
@@ -225,6 +220,7 @@ export default function StockManagement() {
         limit,
         search: search || undefined,
         category_id: subCategoryFilter || categoryFilter || undefined,
+        brand_id: brandFilter || undefined,
         status: statusFilter || undefined
       });
       if (data.success) {
@@ -338,45 +334,54 @@ export default function StockManagement() {
             </button>
           </form>
 
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={categoryFilter}
-            selectedSubCategory={subCategoryFilter}
-            onCategoryChange={(catId) => {
-              setCategoryFilter(catId);
-              setSubCategoryFilter('');
-              setPage(1);
-            }}
-            onSubCategoryChange={(subCatId) => {
-              setSubCategoryFilter(subCatId);
-              setPage(1);
-            }}
+          <FilterDropdown
+            placeholder="All Brands"
+            value={brandFilter}
+            onChange={v => { setBrandFilter(v); setPage(1); }}
+            onClear={() => { setBrandFilter(''); setPage(1); }}
+            options={[{ value: '', label: 'All Brands' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
           />
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Status</option>
-            <option value="in_stock">In Stock</option>
-            <option value="low_stock">Low Stock</option>
-            <option value="out_of_stock">Out of Stock</option>
-          </select>
+          <FilterDropdown
+            placeholder="All Categories"
+            value={categoryFilter}
+            onChange={v => { setCategoryFilter(v); setSubCategoryFilter(''); setPage(1); }}
+            onClear={() => { setCategoryFilter(''); setSubCategoryFilter(''); setPage(1); }}
+            options={[{ value: '', label: 'All Categories' }, ...categories.filter(c => !c.parent_id).map(c => ({ value: c.id, label: c.name }))]}
+          />
 
-          {(search || categoryFilter || subCategoryFilter || statusFilter) && (
+          <FilterDropdown
+            placeholder="All Subcategories"
+            value={subCategoryFilter}
+            onChange={v => { setSubCategoryFilter(v); setPage(1); }}
+            onClear={() => { setSubCategoryFilter(''); setPage(1); }}
+            disabled={!categoryFilter}
+            options={[
+              { value: '', label: 'All Subcategories' },
+              ...categories.filter(c => c.parent_id && String(c.parent_id) === String(categoryFilter)).map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
+
+          <FilterDropdown
+            placeholder="All Status"
+            value={statusFilter}
+            onChange={v => { setStatusFilter(v); setPage(1); }}
+            onClear={() => { setStatusFilter(''); setPage(1); }}
+            options={[
+              { value: '', label: 'All Status' },
+              { value: 'in_stock', label: 'In Stock' },
+              { value: 'low_stock', label: 'Low Stock' },
+              { value: 'out_of_stock', label: 'Out of Stock' },
+            ]}
+          />
+
+          {(search || categoryFilter || subCategoryFilter || brandFilter || statusFilter) && (
             <button
-              onClick={() => {
-                setSearch('');
-                setCategoryFilter('');
-                setSubCategoryFilter('');
-                setStatusFilter('');
-                setPage(1);
-                loadInventory();
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800"
+              onClick={() => { setSearch(''); setCategoryFilter(''); setSubCategoryFilter(''); setBrandFilter(''); setStatusFilter(''); setPage(1); }}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
             >
-              Clear Filters
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Clear all
             </button>
           )}
         </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   getAdminCategories, createCategory, updateCategory, deleteCategory,
 } from '../../api/adminApi.js';
+import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -230,6 +231,8 @@ export default function AdminCategories() {
   const [modal, setModal] = useState(undefined);   // undefined=closed, null=new, obj=edit
   const [defaultParent, setDefaultParent] = useState(null);
   const [expanded, setExpanded] = useState({});    // { [id]: bool }
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubCategory, setFilterSubCategory] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -251,7 +254,7 @@ export default function AdminCategories() {
     load();
   };
 
-  const handleSaved = () => load();   // reload tree after any change
+  const handleSaved = () => load();
 
   const openNew = (parentNode = null) => {
     setDefaultParent(parentNode);
@@ -265,28 +268,81 @@ export default function AdminCategories() {
 
   const toggleExpand = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
 
-  // When adding a child, pre-fill parent_id from the clicked row
+  const handleCategoryFilter = (val) => {
+    setFilterCategory(val);
+    setFilterSubCategory('');
+    // auto-expand selected parent
+    if (val) setExpanded(e => ({ ...e, [Number(val)]: true }));
+  };
+
+  const clearFilters = () => {
+    setFilterCategory('');
+    setFilterSubCategory('');
+  };
+
   const modalInitial = modal === null && defaultParent
-    ? { parent_id: defaultParent.id }   // new category pre-filled with parent
-    : modal;                             // null = new blank, obj = edit existing
+    ? { parent_id: defaultParent.id }
+    : modal;
 
   const tree = buildTree(categories);
 
+  // ── Derived filter data ───────────────────────────────────────────────────────
+  const topLevel = tree;  // all parent nodes
+  const subOptions = filterCategory
+    ? (tree.find(p => p.id === Number(filterCategory))?.children ?? [])
+    : [];
+
+  // Filter the tree for display
+  const filteredTree = filterCategory
+    ? tree.filter(p => p.id === Number(filterCategory))
+    : tree;
+
   const totalTop = tree.length;
   const totalSub = categories.length - totalTop;
+  const isFiltered = filterCategory || filterSubCategory;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
-            <span className="font-bold text-gray-800">{totalTop}</span> categories
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
-            <span className="font-bold text-gray-800">{totalSub}</span> subcategories
-          </span>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <FilterDropdown
+            placeholder="All Categories"
+            value={filterCategory}
+            onChange={handleCategoryFilter}
+            onClear={clearFilters}
+            options={[{ value: '', label: 'All Categories' }, ...topLevel.map(p => ({ value: p.id, label: p.name }))]}
+          />
+
+          <FilterDropdown
+            placeholder="All Subcategories"
+            value={filterSubCategory}
+            onChange={v => setFilterSubCategory(v)}
+            onClear={() => setFilterSubCategory('')}
+            disabled={!filterCategory}
+            options={[{ value: '', label: 'All Subcategories' }, ...subOptions.map(c => ({ value: c.id, label: c.name }))]}
+          />
+
+          {isFiltered && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Clear
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 ml-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+              <span className="font-bold text-gray-800">{totalTop}</span> categories
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+              <span className="font-bold text-gray-800">{totalSub}</span> subcategories
+            </span>
+          </div>
         </div>
+
         <button onClick={() => openNew()} className="btn-primary px-4 py-2 text-sm flex items-center gap-1.5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Category
@@ -297,8 +353,8 @@ export default function AdminCategories() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-400 text-sm animate-pulse">Loading categories…</div>
-        ) : tree.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">No categories yet. Add one above.</div>
+        ) : filteredTree.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm">No categories found.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -312,27 +368,35 @@ export default function AdminCategories() {
                 </tr>
               </thead>
               <tbody>
-                {tree.map(parent => (
-                  <React.Fragment key={parent.id}>
-                    <ParentRow
-                      node={parent}
-                      expanded={!!expanded[parent.id]}
-                      onToggle={() => toggleExpand(parent.id)}
-                      onEdit={openEdit}
-                      onDelete={handleDelete}
-                      onAddChild={openNew}
-                    />
-                    {expanded[parent.id] && parent.children.map(child => (
-                      <ChildRow
-                        key={child.id}
-                        node={child}
+                {filteredTree.map(parent => {
+                  // If a subcategory is selected, only show that child
+                  const visibleChildren = filterSubCategory
+                    ? parent.children.filter(c => c.id === Number(filterSubCategory))
+                    : parent.children;
+                  const isExpanded = filterCategory ? true : !!expanded[parent.id];
+
+                  return (
+                    <React.Fragment key={parent.id}>
+                      <ParentRow
+                        node={{ ...parent, children: visibleChildren }}
+                        expanded={isExpanded}
+                        onToggle={() => toggleExpand(parent.id)}
                         onEdit={openEdit}
                         onDelete={handleDelete}
                         onAddChild={openNew}
                       />
-                    ))}
-                  </React.Fragment>
-                ))}
+                      {isExpanded && visibleChildren.map(child => (
+                        <ChildRow
+                          key={child.id}
+                          node={child}
+                          onEdit={openEdit}
+                          onDelete={handleDelete}
+                          onAddChild={openNew}
+                        />
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

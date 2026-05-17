@@ -16,7 +16,7 @@ const BRANDS = [
   // ── Existing brands (add logos) ───────────────────────────────────────────
   { name: 'Allen Solly',        logo: GF('allensolly.com'),         desc: 'Premium smart-casual fashion for men and women.' },
   { name: 'AND',                logo: GF('andindia.com'),            desc: 'Contemporary women\'s fashion brand.' },
-  { name: 'Stop',               logo: null,                          desc: 'Shoppers Stop private label.' },
+  { name: 'Stop',               logo: null,                          desc: 'ShoppersHub private label.' },
 
   // ── From screenshot (Popular Brands) ─────────────────────────────────────
   { name: 'Casio',              logo: GF('casio.com'),               desc: 'Japanese electronics brand known for watches and calculators.' },
@@ -25,8 +25,8 @@ const BRANDS = [
   { name: 'Michael Kors',       logo: GF('michaelkors.com'),         desc: 'American luxury fashion brand.' },
   { name: 'Jockey',             logo: GF('jockey.com'),              desc: 'Global innerwear and activewear brand.' },
   { name: 'Jack & Jones',       logo: GF('jackjones.com'),           desc: 'Danish menswear brand with a modern casual style.' },
-  { name: 'Fratini',            logo: null,                          desc: 'Shoppers Stop\'s premium women\'s fashion label.' },
-  { name: 'Life',               logo: null,                          desc: 'Shoppers Stop\'s casual lifestyle brand.' },
+  { name: 'Fratini',            logo: null,                          desc: 'ShoppersHub\'s premium women\'s fashion label.' },
+  { name: 'Life',               logo: null,                          desc: 'ShoppersHub\'s casual lifestyle brand.' },
   { name: 'Skechers',           logo: GF('skechers.com'),            desc: 'American footwear brand known for comfort and style.' },
   { name: 'Adidas',             logo: GF('adidas.com'),              desc: 'German multinational sportswear brand.' },
   { name: 'Puma',               logo: GF('puma.com'),                desc: 'German multinational corporation for athletic and casual footwear.' },

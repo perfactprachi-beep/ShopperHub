@@ -140,13 +140,12 @@ export default function Warehouses() {
 
   const handleWarehouseSaved = (savedWarehouse) => {
     if (modalWarehouse?.id) {
-      // Update existing
-      setWarehouses(prev => prev.map(w => 
-        w.id === savedWarehouse.id ? savedWarehouse : w
+      // Merge so computed fields (inventory_count, total_stock) are preserved
+      setWarehouses(prev => prev.map(w =>
+        w.id === savedWarehouse.id ? { ...w, ...savedWarehouse } : w
       ));
     } else {
-      // Add new
-      setWarehouses(prev => [savedWarehouse, ...prev]);
+      setWarehouses(prev => [{ ...savedWarehouse, inventory_count: 0, total_stock: 0 }, ...prev]);
     }
   };
 
