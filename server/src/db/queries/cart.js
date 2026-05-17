@@ -10,7 +10,9 @@ const ITEM_SELECT = `
   b.name       AS brand,
   (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image,
   ROUND((p.base_price * (1 - p.discount_pct::NUMERIC / 100)) + pv.extra_price, 2) AS "unitPrice",
-  ROUND(((p.base_price * (1 - p.discount_pct::NUMERIC / 100)) + pv.extra_price) * ci.quantity, 2) AS "lineTotal"
+  ROUND(((p.base_price * (1 - p.discount_pct::NUMERIC / 100)) + pv.extra_price) * ci.quantity, 2) AS "lineTotal",
+  COALESCE(p.express_eligible, false)      AS "expressEligible",
+  COALESCE(p.store_pickup_eligible, false) AS "storePickupEligible"
 `;
 
 export async function getCartByUser(userId) {

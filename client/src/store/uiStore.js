@@ -5,7 +5,8 @@ export const useUiStore = create((set) => ({
   openCart:       () => set({ cartOpen: true }),
   closeCart:      () => set({ cartOpen: false }),
 
-  loginModalOpen:  false,
-  openLoginModal:  () => set({ loginModalOpen: true }),
-  closeLoginModal: () => set({ loginModalOpen: false }),
+  loginModalOpen:      false,
+  loginModalOnSuccess: null,
+  openLoginModal:      (onSuccess) => set({ loginModalOpen: true, loginModalOnSuccess: onSuccess ?? null }),
+  closeLoginModal:     () => set({ loginModalOpen: false, loginModalOnSuccess: null }),
 }));

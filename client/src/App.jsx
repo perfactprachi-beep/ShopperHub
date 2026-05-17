@@ -1,5 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
@@ -23,6 +23,10 @@ const BrandsPage        = lazy(() => import('./pages/BrandsPage.jsx'));
 const ProductDetail     = lazy(() => import('./pages/ProductDetail.jsx'));
 const SearchPage        = lazy(() => import('./pages/SearchPage.jsx'));
 const OffersPage        = lazy(() => import('./pages/OffersPage.jsx'));
+const StoreLocatorPage  = lazy(() => import('./pages/StoreLocatorPage.jsx'));
+const FaqsPage          = lazy(() => import('./pages/FaqsPage.jsx'));
+const ReturnsPage       = lazy(() => import('./pages/ReturnsPage.jsx'));
+const ContactPage       = lazy(() => import('./pages/ContactPage.jsx'));
 const CartPage          = lazy(() => import('./pages/CartPage.jsx'));
 const BagPage           = lazy(() => import('./pages/BagPage.jsx'));
 const WishlistPage      = lazy(() => import('./pages/WishlistPage.jsx'));
@@ -52,6 +56,7 @@ const StockManagement    = lazy(() => import('./pages/admin/StockManagement.jsx'
 const LowStockAlerts     = lazy(() => import('./pages/admin/LowStockAlerts.jsx'));
 const Warehouses         = lazy(() => import('./pages/admin/Warehouses.jsx'));
 const InventoryLogs      = lazy(() => import('./pages/admin/InventoryLogs.jsx'));
+const AdminPaymentMethods = lazy(() => import('./pages/admin/AdminPaymentMethods.jsx'));
 
 const NotFoundPage       = lazy(() => import('./pages/NotFoundPage.jsx'));
 
@@ -71,12 +76,23 @@ function AdminSpinner() {
   );
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname, search]);
+
+  return null;
+}
+
 function AppShell() {
   useCartSync();
-  const { cartOpen, closeCart, loginModalOpen, closeLoginModal } = useUiStore();
+  const { cartOpen, closeCart, loginModalOpen, closeLoginModal, loginModalOnSuccess } = useUiStore();
 
   return (
     <>
+      <ScrollToTop />
       <Navbar />
       <Suspense fallback={<PageSpinner />}>
         <main>
@@ -91,6 +107,11 @@ function AppShell() {
             <Route path="/product/:slug"  element={<ProductDetail />} />
             <Route path="/search"         element={<SearchPage />} />
             <Route path="/offers"         element={<OffersPage />} />
+            <Route path="/stores"         element={<StoreLocatorPage />} />
+            <Route path="/faqs"           element={<FaqsPage />} />
+            <Route path="/account/help"   element={<FaqsPage />} />
+            <Route path="/returns"        element={<ReturnsPage />} />
+            <Route path="/contact"        element={<ContactPage />} />
             <Route path="/bag-added"      element={<AddedToBagPage />} />
 
             {/* Protected */}
@@ -109,7 +130,7 @@ function AppShell() {
       </Suspense>
       <Footer />
       <CartDrawer isOpen={cartOpen} onClose={closeCart} />
-      {loginModalOpen && <LoginModal onClose={closeLoginModal} />}
+      {loginModalOpen && <LoginModal onClose={closeLoginModal} onSuccess={loginModalOnSuccess} />}
       <ToastContainer />
     </>
   );
@@ -135,6 +156,7 @@ function AdminShell() {
             <Route path="offers"            element={<AdminOffers />} />
             <Route path="banners"           element={<AdminBanners />} />
             <Route path="users"             element={<AdminUsers />} />
+            <Route path="payment-methods"   element={<AdminPaymentMethods />} />
           </Route>
         </Routes>
       </Suspense>

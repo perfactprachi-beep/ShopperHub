@@ -216,9 +216,7 @@ export default function Navbar() {
               Use Code: <span className="font-bold text-[#E8B04B]">NEW10</span> — For An Extra 10% Off For First-Time Users
             </p>
             <div className="flex items-center gap-4 shrink-0 text-gray-400">
-              <span className="hover:text-white cursor-pointer transition-colors">Store Locator</span>
-              <span className="text-gray-600">|</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Get The App</span>
+              <Link to="/stores" className="hover:text-white cursor-pointer transition-colors">Store Locator</Link>
               <span className="text-gray-600">|</span>
               <span className="hover:text-white cursor-pointer transition-colors">Help</span>
             </div>
