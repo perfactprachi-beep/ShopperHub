@@ -21,7 +21,7 @@ export async function validate(req, res, next) {
     if (!code || cartTotal === undefined) {
       return res.status(400).json({ success: false, message: 'code and cartTotal are required' });
     }
-    const result = await validateCoupon(code, cartTotal, req.user.id);
+    const result = await validateCoupon(code, cartTotal, req.user?.id);
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.reason });
     }

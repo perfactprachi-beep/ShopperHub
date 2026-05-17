@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
 import ImageGallery from '../components/product/ImageGallery.jsx';
 import VariantPicker from '../components/product/VariantPicker.jsx';
 import ProductCarousel from '../components/home/ProductCarousel.jsx';
+import SizeSelectDrawer from '../components/product/SizeSelectDrawer.jsx';
 import { formatPrice } from '../utils/formatPrice.js';
 import { calcFinalPrice } from '../utils/calcDiscount.js';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
-import { getReviews, checkPurchased, addReview } from '../api/reviewsApi.js';
-import LoginModal from '../components/auth/LoginModal.jsx';
+import { useUiStore } from '../store/uiStore.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useToastStore } from '../store/toastStore.js';
 import { useCartStore } from '../store/cartStore.js';
@@ -18,45 +18,6 @@ import { useWishlistStore } from '../store/wishlistStore.js';
 import { toggleWishlist } from '../api/wishlistApi.js';
 import { assetUrl } from '../utils/assetUrl.js';
 import { getActiveOffers } from '../api/offersApi.js';
-
-/* ── Star helpers ──────────────────────────────────────────────────────── */
-function StarFilled({ size = 16, color = '#f59e0b' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-function StarEmpty({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-function StarRating({ value, onChange, size = 24 }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange?.(n)}
-          onMouseEnter={() => setHover(n)}
-          onMouseLeave={() => setHover(0)}
-        >
-          {(hover || value) >= n ? <StarFilled size={size} /> : <StarEmpty size={size} />}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function maskName(name) {
-  if (!name) return 'Anonymous';
-  return name.trim().split(' ').map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(p.length - 1))).join(' ');
-}
 
 /* ── Offers section — Shoppers Stop style ──────────────────────────────── */
 /* Percent SVG — fallback when no image_url (mirrors SS percentIcon.svg) */
@@ -242,44 +203,65 @@ function ProductDetailsAccordion({ description }) {
 }
 
 /* ── Similar products ──────────────────────────────────────────────────── */
-function SimilarProductsSection({ categorySlug, categoryName, gender, currentId }) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+function SimilarProductsSection({ categorySlug, parentCategorySlug, categoryName, gender, currentId }) {
+  const [products, setProducts]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [drawerProduct, setDrawerProduct] = useState(null);
   const { addToast } = useToastStore();
   const addItem = useCartStore((s) => s.addItem);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!categorySlug && !gender) { setLoading(false); return; }
-    const params = categorySlug ? { category: categorySlug, limit: 13 } : { gender, limit: 13 };
-    productsApi
-      .list(params)
-      .then(({ data }) => setProducts((data.data || []).filter((p) => p.id !== currentId).slice(0, 12)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [categorySlug, gender, currentId]);
+    if (!categorySlug && !parentCategorySlug && !gender) { setLoading(false); return; }
 
-  const handleAddToBag = (product) => {
-    const variant = product.variants?.[0];
-    const variantId = variant?.id ?? product.id;
-    const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
+    async function fetchSimilar() {
+      const tryFetch = async (params) => {
+        const { data } = await productsApi.list(params);
+        return (data.data || []).filter((p) => p.id !== currentId);
+      };
+
+      try {
+        let results = categorySlug ? await tryFetch({ category: categorySlug, limit: 25 }) : [];
+        if (results.length < 4 && parentCategorySlug && parentCategorySlug !== categorySlug)
+          results = await tryFetch({ category: parentCategorySlug, limit: 25 });
+        if (results.length < 4 && gender)
+          results = await tryFetch({ gender, limit: 25 });
+        setProducts(results.slice(0, 12));
+      } catch { setProducts([]); }
+      finally { setLoading(false); }
+    }
+
+    fetchSimilar();
+  }, [categorySlug, parentCategorySlug, gender, currentId]);
+
+  const handleDrawerAdd = (product, variant) => {
     addItem({
-      variantId,
-      productId: product.id,
-      title: product.title,
-      brand: product.brand_name,
-      image: assetUrl(product.image_url || ''),
-      size: variant?.size || null,
-      color: variant?.color || null,
-      price: finalPrice,
-      quantity: 1,
+      variantId:    variant?.id ?? product.id,
+      productId:    product.id,
+      title:        product.title,
+      brand:        product.brand_name,
+      image:        assetUrl(product.image_url || ''),
+      size:         variant?.size || null,
+      color:        variant?.color || null,
+      price:        calcFinalPrice(product.base_price, product.discount_pct),
+      mrp:          product.base_price,
+      discount_pct: product.discount_pct,
+      quantity:     1,
     });
-    addToast('Added to bag!', 'success');
+    navigate('/bag-added', { state: { product: { slug: product.slug } } });
   };
 
   if (!loading && !products.length) return null;
 
   return (
     <div className="mt-14 border-t border-gray-100 pt-10">
+      {drawerProduct && (
+        <SizeSelectDrawer
+          product={drawerProduct}
+          onClose={() => setDrawerProduct(null)}
+          onAddToBag={handleDrawerAdd}
+        />
+      )}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
           Similar Products
@@ -293,219 +275,77 @@ function SimilarProductsSection({ categorySlug, categoryName, gender, currentId 
           </Link>
         )}
       </div>
-      <ProductCarousel products={products} loading={loading} onAddToBag={handleAddToBag} />
+      <ProductCarousel products={products} loading={loading} onAddToBag={setDrawerProduct} openInNewTab withDrawer />
     </div>
   );
 }
 
 /* ── You May Also Like ─────────────────────────────────────────────────── */
 function YouMayAlsoLikeSection({ parentCategorySlug, categorySlug, gender, currentId }) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts]           = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [drawerProduct, setDrawerProduct] = useState(null);
   const { addToast } = useToastStore();
   const addItem = useCartStore((s) => s.addItem);
+  const navigate = useNavigate();
 
-  // Use parent category for broader "related" picks; fall back to sub-category or gender
   const browseSlug = parentCategorySlug || categorySlug;
 
   useEffect(() => {
     if (!browseSlug && !gender) { setLoading(false); return; }
-    const params = {
-      ...(browseSlug ? { category: browseSlug } : { gender }),
-      sort: 'random',
-      limit: 13,
-    };
-    productsApi
-      .list(params)
-      .then(({ data }) => setProducts((data.data || []).filter((p) => p.id !== currentId).slice(0, 12)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+
+    async function fetchYMAL() {
+      const tryFetch = async (params) => {
+        const { data } = await productsApi.list(params);
+        return (data.data || []).filter((p) => p.id !== currentId);
+      };
+
+      try {
+        let results = browseSlug
+          ? await tryFetch({ category: browseSlug, sort: 'random', limit: 25 })
+          : [];
+        if (results.length < 4 && gender)
+          results = await tryFetch({ gender, sort: 'random', limit: 25 });
+        setProducts(results.slice(0, 12));
+      } catch { setProducts([]); }
+      finally { setLoading(false); }
+    }
+
+    fetchYMAL();
   }, [browseSlug, gender, currentId]);
 
-  const handleAddToBag = (product) => {
-    const variant = product.variants?.[0];
-    const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
+  const handleDrawerAdd = (product, variant) => {
     addItem({
-      variantId: variant?.id ?? product.id,
-      productId: product.id,
-      title:     product.title,
-      brand:     product.brand_name,
-      image:     assetUrl(product.image_url || ''),
-      size:      variant?.size || null,
-      color:     variant?.color || null,
-      price:     finalPrice,
-      quantity:  1,
+      variantId:    variant?.id ?? product.id,
+      productId:    product.id,
+      title:        product.title,
+      brand:        product.brand_name,
+      image:        assetUrl(product.image_url || ''),
+      size:         variant?.size || null,
+      color:        variant?.color || null,
+      price:        calcFinalPrice(product.base_price, product.discount_pct),
+      mrp:          product.base_price,
+      discount_pct: product.discount_pct,
+      quantity:     1,
     });
-    addToast('Added to bag!', 'success');
+    navigate('/bag-added', { state: { product: { slug: product.slug } } });
   };
 
   if (!loading && !products.length) return null;
 
   return (
     <div className="mt-14 border-t border-gray-100 pt-10">
+      {drawerProduct && (
+        <SizeSelectDrawer
+          product={drawerProduct}
+          onClose={() => setDrawerProduct(null)}
+          onAddToBag={handleDrawerAdd}
+        />
+      )}
       <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide mb-6" style={{ fontFamily: 'var(--font-heading)' }}>
         You May Also Like
       </h2>
-      <ProductCarousel products={products} loading={loading} onAddToBag={handleAddToBag} />
-    </div>
-  );
-}
-
-/* ── Reviews section ───────────────────────────────────────────────────── */
-function ReviewsSection({ productId }) {
-  const { isLoggedIn } = useAuth();
-  const { addToast } = useToastStore();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const [reviews, setReviews]       = useState([]);
-  const [stats, setStats]           = useState(null);
-  const [purchased, setPurchased]   = useState(false);
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [rating, setRating]         = useState(0);
-  const [body, setBody]             = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const loadReviews = () =>
-    getReviews(productId).then(({ data }) => {
-      if (data.success) { setReviews(data.data.reviews); setStats(data.data.stats); }
-    });
-
-  useEffect(() => {
-    loadReviews();
-    if (isLoggedIn) {
-      checkPurchased(productId).then(({ data }) => {
-        if (data.success) setPurchased(data.data.purchased);
-      }).catch(() => {});
-    }
-  }, [productId, isLoggedIn]);
-
-  useEffect(() => {
-    if (searchParams.get('review') === '1' && purchased) {
-      setModalOpen(true);
-      searchParams.delete('review');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [purchased]);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!rating) return addToast('Please select a rating', 'error');
-    setSubmitting(true);
-    try {
-      const { data } = await addReview({ productId, rating, body });
-      if (data.success) {
-        addToast('Review submitted!', 'success');
-        setModalOpen(false);
-        setRating(0);
-        setBody('');
-        loadReviews();
-      }
-    } catch (err) {
-      addToast(err.response?.data?.message ?? 'Failed to submit review', 'error');
-    } finally { setSubmitting(false); }
-  }
-
-  const totalCount = parseInt(stats?.count ?? 0, 10);
-  const avg = parseFloat(stats?.average ?? 0);
-
-  return (
-    <div className="mt-12 border-t border-gray-100 pt-10">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide" style={{ fontFamily: 'var(--font-heading)' }}>
-          Ratings & Reviews
-        </h2>
-        {isLoggedIn && purchased && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="px-4 py-2 border border-[#8B1A2F] text-[#8B1A2F] text-sm font-semibold hover:bg-[#8B1A2F] hover:text-white transition-colors"
-          >
-            Write a Review
-          </button>
-        )}
-      </div>
-
-      {totalCount === 0 ? (
-        <p className="text-sm text-gray-400">No reviews yet. Be the first to review!</p>
-      ) : (
-        <div className="flex flex-col lg:flex-row gap-8 mb-8">
-          <div className="flex flex-col items-center justify-center min-w-[120px]">
-            <span className="text-5xl font-bold text-gray-900">{avg.toFixed(1)}</span>
-            <div className="flex mt-1">
-              {[1,2,3,4,5].map((n) => avg >= n ? <StarFilled key={n} size={14} /> : <StarEmpty key={n} size={14} />)}
-            </div>
-            <span className="text-xs text-gray-400 mt-1">{totalCount} rating{totalCount !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex-1 flex flex-col gap-1.5">
-            {[5,4,3,2,1].map((star) => {
-              const key = ['five','four','three','two','one'][5 - star];
-              const count = parseInt(stats?.[key] ?? 0, 10);
-              const pct = totalCount ? Math.round((count / totalCount) * 100) : 0;
-              return (
-                <div key={star} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 text-right text-gray-400">{star}</span>
-                  <StarFilled size={10} />
-                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="w-5 text-gray-400">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-5">
-        {reviews.map((r) => (
-          <div key={r.id} className="border-b border-gray-100 pb-5 last:border-0">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="flex">{[1,2,3,4,5].map((n) => r.rating >= n ? <StarFilled key={n} size={12} /> : <StarEmpty key={n} size={12} />)}</div>
-              <span className="text-xs font-semibold text-gray-800">{maskName(r.full_name)}</span>
-              <span className="text-xs text-gray-300">·</span>
-              <span className="text-xs text-gray-400">
-                {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
-            </div>
-            {r.body && <p className="text-sm text-gray-500">{r.body}</p>}
-          </div>
-        ))}
-      </div>
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded shadow-xl w-full max-w-md p-6">
-            <h3 className="text-base font-bold text-gray-900 mb-4">Write a Review</h3>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-2">Your Rating</label>
-                <StarRating value={rating} onChange={setRating} size={28} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Your Review (optional)</label>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={4}
-                  placeholder="Share your experience…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 focus:outline-none focus:border-[#8B1A2F] resize-none"
-                />
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-700">
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !rating}
-                  className="px-5 py-2 bg-[#8B1A2F] text-white text-sm font-semibold hover:bg-[#6d1424] disabled:opacity-50 transition-colors"
-                >
-                  {submitting ? 'Submitting…' : 'Submit'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ProductCarousel products={products} loading={loading} onAddToBag={setDrawerProduct} openInNewTab withDrawer />
     </div>
   );
 }
@@ -883,7 +723,7 @@ function SizeChartDrawer({ open, onClose, product, onAddToBag }) {
             onClick={() => { onAddToBag?.(); onClose(); setShowMeasure(false); }}
             className="flex-1 py-3 bg-[#8B1A2F] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#6d1424] transition-colors"
           >
-            Add to Bag
+            Add To Bag
           </button>
         </div>
       </div>
@@ -906,21 +746,21 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState({});
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
-  const [isAdded, setIsAdded]       = useState(false);
-  const [bagQty, setBagQty]         = useState(1);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { data, loading } = useFetch(() => productsApi.detail(slug), [slug]);
+
+  // Reset variant selection when product changes
+  useEffect(() => { setSelected({}); setSizeChartOpen(false); }, [slug]);
   const product = data?.data;
 
   const { isLoggedIn } = useAuth();
   const { addToast }   = useToastStore();
-  const addItem    = useCartStore((s) => s.addItem);
-  const updateQty  = useCartStore((s) => s.updateQty);
-  const cartItems  = useCartStore((s) => s.items);
+  const addItem  = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
   const { has, toggle } = useWishlistStore();
+  const { openLoginModal } = useUiStore();
 
-  // Reset when navigating to a different product
-  useEffect(() => { setIsAdded(false); setBagQty(1); }, [slug]);
+  // Scroll to top whenever navigating to a different product
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [slug]);
 
   useEffect(() => {
     if (!product) return;
@@ -950,7 +790,7 @@ export default function ProductDetail() {
   const hasDiscount = product.discount_pct > 0;
   const primaryImage = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '';
   const wished = has(product.id);
-  const inCart = isAdded || cartItems.some((i) => String(i.productId) === String(product.id));
+  const inCart = cartItems.some((i) => i.productId === product.id);
 
   const sizes  = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))];
   const selectedVariant = product.variants?.find((v) => {
@@ -969,25 +809,26 @@ export default function ProductDetail() {
       addToast('No variant available', 'error');
       return;
     }
-    addItem({
-      variantId: selectedVariant.id,
-      productId: product.id,
-      title:     product.title,
-      brand:     product.brand_name,
-      image:     assetUrl(primaryImage),
-      size:      selectedVariant.size,
-      color:     selectedVariant.color,
-      price:     finalPrice,
-      quantity:  1,
-    });
-    setIsAdded(true);
-    setBagQty(1);
-    addToast('Added to bag!', 'success');
+    const cartItem = {
+      variantId:    selectedVariant.id,
+      productId:    product.id,
+      title:        product.title,
+      brand:        product.brand_name,
+      image:        assetUrl(primaryImage),
+      size:         selectedVariant.size,
+      color:        selectedVariant.color,
+      price:        finalPrice,
+      mrp:          product.base_price,
+      discount_pct: product.discount_pct,
+      quantity:     1,
+    };
+    addItem(cartItem);
+    navigate('/bag-added', { state: { product: { ...cartItem, slug: product.slug } } });
   };
 
   const handleWishlist = async () => {
     if (!isLoggedIn) {
-      setLoginModalOpen(true);
+      openLoginModal();
       return;
     }
     toggle(product.id);
@@ -1015,11 +856,6 @@ export default function ProductDetail() {
         onClose={() => setSizeChartOpen(false)}
         product={product}
         onAddToBag={handleAddToBag}
-      />
-
-      <LoginModal
-        isOpen={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
       />
 
       <Helmet>
@@ -1055,77 +891,64 @@ export default function ProductDetail() {
           </div>
 
           {/* ── Right: Product info ── */}
-          <div className="w-full lg:w-[48%] space-y-4">
+          <div className="w-full lg:w-[48%] space-y-5">
 
-            {/* 1. Brand + title + share */}
-            <div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  {product.brand_name && (
-                    <Link
-                      to={`/brand/${product.brand_slug}`}
-                      className="text-[11px] font-bold text-gray-500 uppercase tracking-widest hover:text-[#8B1A2F] transition-colors"
-                    >
-                      {product.brand_name}
-                    </Link>
-                  )}
-                  <h1
-                    className="text-[18px] lg:text-[20px] font-semibold text-gray-900 mt-0.5 leading-snug"
+            {/* 1. Brand + title + icons */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                {product.brand_name && (
+                  <Link
+                    to={`/brand/${product.brand_slug}`}
+                    className="text-[20px] font-bold text-gray-900 uppercase tracking-wide hover:text-[#8B1A2F] transition-colors leading-tight block"
                     style={{ fontFamily: 'var(--font-heading)' }}
                   >
-                    {product.title}
-                  </h1>
-                </div>
-                {/* Share + Wishlist icons */}
-                <div className="flex items-center gap-2 mt-0.5 shrink-0">
-                  <button
-                    onClick={() => navigator.share?.({ title: product.title, url: window.location.href })}
-                    className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F] transition-colors"
-                    aria-label="Share"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleWishlist}
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
-                      wished
-                        ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50'
-                        : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
-                    }`}
-                    aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-                  >
-                    <IconHeart filled={wished} />
-                  </button>
-                </div>
+                    {product.brand_name}
+                  </Link>
+                )}
+                <p className="text-[14px] text-gray-500 mt-1 leading-snug">{product.title}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 mt-1">
+                <button
+                  onClick={() => navigator.share?.({ title: product.title, url: window.location.href })}
+                  className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F] transition-colors"
+                  aria-label="Share"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={handleWishlist}
+                  className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
+                    wished ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50' : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
+                  }`}
+                  aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+                >
+                  <IconHeart filled={wished} />
+                </button>
               </div>
             </div>
 
-            {/* 2. Price block — SS style: final price + MRP strikethrough + % off */}
-            <div className="pb-1">
+            {/* 2. Price */}
+            <div className="border-t border-b border-gray-100 py-3">
               <div className="flex items-baseline flex-wrap gap-2">
-                <span className="text-[22px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+                <span className="text-[24px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
                 {hasDiscount && (
                   <>
-                    <span className="text-[13px] text-gray-400">
-                      MRP <span className="line-through">{formatPrice(product.base_price)}</span>
-                    </span>
-                    <span className="text-[13px] font-bold text-[#2E7D32]">
-                      ({product.discount_pct}% OFF)
-                    </span>
+                    <span className="text-[13px] text-gray-400 line-through">{formatPrice(product.base_price)}</span>
+                    <span className="text-[13px] font-bold text-[#2E7D32]">{product.discount_pct}% Off</span>
                   </>
                 )}
               </div>
               <p className="text-[11px] text-gray-400 mt-0.5">Inclusive of all taxes</p>
             </div>
 
-            {/* 3. Offers — right after price, exactly like SS */}
+            {/* 3. Offers */}
             <OffersSection categoryId={product.category_id} />
 
-            {/* 4. Variants (color + size) */}
+            {/* 4. Variants */}
             {product.variants?.length > 0 && (
               <VariantPicker
                 variants={product.variants}
@@ -1135,146 +958,56 @@ export default function ProductDetail() {
               />
             )}
 
-            {/* 5. CTA buttons */}
-            <div className="flex flex-col gap-3 pt-1">
-              {inCart ? (
-                /* ── Qty stepper (bordered) + Go To Bag (dark) side by side ── */
-                <div className="flex items-stretch gap-3 h-[52px]">
-                  {/* Qty stepper — white bg, dark border */}
-                  <div className="flex items-stretch border-2 border-gray-300 flex-1">
-                    <button
-                      onClick={() => {
-                        const n = Math.max(1, bagQty - 1);
-                        setBagQty(n);
-                        updateQty(selectedVariant?.id ?? product.id, n);
-                      }}
-                      className="w-14 shrink-0 flex items-center justify-center bg-white text-gray-900 text-2xl hover:bg-gray-100 transition-colors"
-                    >
-                      −
-                    </button>
-                    <div className="flex-1 flex items-center justify-center bg-white border-x border-gray-300 text-gray-900 text-base font-semibold select-none">
-                      {bagQty}
-                    </div>
-                    <button
-                      onClick={() => {
-                        const n = bagQty + 1;
-                        setBagQty(n);
-                        updateQty(selectedVariant?.id ?? product.id, n);
-                      }}
-                      className="w-14 shrink-0 flex items-center justify-center bg-white text-gray-900 text-2xl hover:bg-gray-100 transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
+            {/* 5. Add To Bag / Go to Bag */}
+            <button
+              onClick={inCart ? () => navigate('/cart') : handleAddToBag}
+              disabled={product.stock === 0 && !inCart}
+              className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-[15px] tracking-wide hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {product.stock === 0 && !inCart ? 'Out of Stock' : inCart ? 'Go to Bag' : 'Add To Bag'}
+            </button>
 
-                  {/* Go To Bag — dark */}
-                  <button
-                    onClick={() => navigate('/cart')}
-                    className="flex-1 bg-[#1C1C1C] text-white font-bold text-sm tracking-widest hover:bg-black transition-colors"
-                  >
-                    Go To Bag
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleAddToBag}
-                  disabled={product.stock === 0}
-                  className="w-full py-3.5 bg-[#8B1A2F] text-white font-bold text-sm uppercase tracking-widest hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}
-                </button>
-              )}
-            </div>
-
-            {/* 6. Product Highlights — built-in fields + custom attributes from admin */}
-            {(() => {
-              // Built-in fields always pulled from the product record
-              const builtin = [
-                product.brand_name    && { label: 'Brand',    value: product.brand_name },
-                product.gender        && { label: 'Gender',   value: product.gender.charAt(0).toUpperCase() + product.gender.slice(1) },
-                product.category_name && { label: 'Category', value: product.category_name },
-                                         { label: 'Pack Of',  value: '1' },
-              ].filter(Boolean);
-
-              // Custom highlights from Admin → Attributes tab (section = 'highlights')
-              // Skip any whose label duplicates a built-in one (case-insensitive)
-              const builtinLabels = new Set(builtin.map(r => r.label.toLowerCase()));
-              const custom = (product.attributes || []).filter(
-                a => (a.section || 'highlights') === 'highlights' &&
-                     !builtinLabels.has(a.label.toLowerCase())
-              );
-
-              // Merge: custom attrs first (admin-defined), then built-in fields
-              const rows = [...custom, ...builtin];
-              if (!rows.length) return null;
-
-              return (
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                    <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Product Highlights</span>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {rows.map(({ label, value }) => (
-                      <div key={label} className="flex items-center px-4 py-2.5 gap-3">
-                        <span className="text-[12px] text-gray-400 w-28 shrink-0">{label}</span>
-                        <span className="text-[12px] font-medium text-gray-800 capitalize">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* 7. Delivery / pincode */}
+            {/* 6. Delivery check */}
             <PincodeCheck />
 
-            {/* 8. 14-day returns text line — only if returnable */}
-            {product.is_returnable !== false && (
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2" strokeLinecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
-                <span><span className="font-semibold text-gray-700">14 Days</span> Easy Returns And Exchange</span>
-              </div>
-            )}
-
-            {/* 9. Trust badges — 100% Authentic | Fast Delivery | Easy Return (SS style) */}
-            <div className="grid border border-gray-200 rounded-xl overflow-hidden"
-              style={{ gridTemplateColumns: product.is_returnable !== false ? 'repeat(3,1fr)' : 'repeat(2,1fr)' }}
-            >
-              {/* 100% Authentic */}
-              <div className="flex flex-col items-center gap-1.5 py-4 px-2 border-r border-gray-200">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  <polyline points="9 12 11 14 15 10"/>
-                </svg>
-                <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">100% Authentic</span>
-              </div>
-
-              {/* Fast Delivery */}
-              <div className={`flex flex-col items-center gap-1.5 py-4 px-2 ${product.is_returnable !== false ? 'border-r border-gray-200' : ''}`}>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
-                  <rect x="9" y="11" width="14" height="10" rx="2"/>
-                  <circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                </svg>
-                <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">Fast Delivery</span>
-              </div>
-
-              {/* Easy Return — only if product.is_returnable */}
+            {/* 7. Returns + trust badges */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
               {product.is_returnable !== false && (
-                <div className="flex flex-col items-center gap-1.5 py-4 px-2">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="1 4 1 10 7 10"/>
-                    <path d="M3.51 15a9 9 0 1 0 .49-3.87"/>
-                  </svg>
-                  <span className="text-[11px] text-gray-600 font-medium text-center leading-tight">Easy Return</span>
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 text-[12px] text-gray-600">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2" strokeLinecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
+                  <span><span className="font-semibold text-gray-800">14 Days</span> Easy Returns & Exchange</span>
                 </div>
               )}
+              <div className="grid divide-x divide-gray-100"
+                style={{ gridTemplateColumns: product.is_returnable !== false ? 'repeat(3,1fr)' : 'repeat(2,1fr)' }}>
+                <div className="flex flex-col items-center gap-1.5 py-4 px-2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+                  </svg>
+                  <span className="text-[10px] text-gray-500 font-medium text-center">100% Authentic</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 py-4 px-2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
+                    <rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                  </svg>
+                  <span className="text-[10px] text-gray-500 font-medium text-center">Fast Delivery</span>
+                </div>
+                {product.is_returnable !== false && (
+                  <div className="flex flex-col items-center gap-1.5 py-4 px-2">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/>
+                    </svg>
+                    <span className="text-[10px] text-gray-500 font-medium text-center">Easy Return</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* 9. Product details accordion */}
+            {/* 8. Product details accordion */}
             <ProductDetailsAccordion description={product.description} />
 
-            {/* 10. Additional Details — from admin Attributes tab (section = 'details') */}
+            {/* 12. Additional Details — from admin Attributes tab (section = 'details') */}
             {(() => {
               const details = (product.attributes || []).filter(
                 a => (a.section || 'highlights') === 'details'
@@ -1296,14 +1029,11 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Similar Products — same sub-category */}
-        <SimilarProductsSection categorySlug={product.category_slug} categoryName={product.category_name} gender={product.gender} currentId={product.id} />
+        {/* Similar Products — same sub-category, falls back to parent category then gender */}
+        <SimilarProductsSection categorySlug={product.category_slug} parentCategorySlug={product.parent_category_slug} categoryName={product.category_name} gender={product.gender} currentId={product.id} />
 
         {/* You May Also Like — random picks from same parent category */}
         <YouMayAlsoLikeSection parentCategorySlug={product.parent_category_slug} categorySlug={product.category_slug} gender={product.gender} currentId={product.id} />
-
-        {/* Reviews */}
-        <ReviewsSection productId={product.id} />
       </div>
     </div>
   );

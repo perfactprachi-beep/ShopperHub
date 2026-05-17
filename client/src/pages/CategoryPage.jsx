@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
@@ -16,9 +16,11 @@ function toTitleCase(str) {
 
 export default function CategoryPage() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
 
   const [filters, setFilters] = useState({
-    gender: '', minPrice: '', maxPrice: '', brand: '', minDiscount: '',
+    gender: searchParams.get('gender') || '',
+    minPrice: '', maxPrice: '', brand: '', minDiscount: '',
   });
   const [sort, setSort]   = useState('newest');
   const [page, setPage]   = useState(1);

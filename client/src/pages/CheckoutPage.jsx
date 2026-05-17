@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useToastStore } from '../store/toastStore.js';
@@ -148,9 +148,19 @@ function SummaryStep({ onNext, onBack }) {
   const subtotal = useCartStore((s) => s.subtotal());
   const user     = useAuthStore((s) => s.user);
   const { addToast } = useToastStore();
+  const { state: navState } = useLocation();
 
+  // Pre-fill coupon from BagPage if customer already applied one
   const [couponCode, setCouponCode]   = useState('');
-  const [couponData, setCouponData]   = useState(null);
+  const [couponData, setCouponData]   = useState(() => {
+    const c = navState?.coupon;
+    if (!c) return null;
+    return {
+      code:     c.code,
+      couponId: c.couponId,
+      discount: Number(c.discountAmount ?? c.discount ?? 0),
+    };
+  });
   const [couponError, setCouponError] = useState('');
   const [applyingCoupon, setApplyingCoupon] = useState(false);
 
@@ -329,7 +339,7 @@ function PaymentStep({ addressId, pricingData, onBack }) {
               total:         pricingData.total,
             });
             clearCart();
-            navigate(`/order-success/${result.orderId}`);
+            navigate(`/track/${result.orderId}`);
           } catch {
             addToast('Payment recorded but order confirmation failed. Contact support.', 'error');
           } finally { setPaying(false); }

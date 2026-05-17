@@ -3,8 +3,20 @@ const COLOR_MAP = {
   blue:   '#2563EB', navy: '#1E3A5F', green:  '#16A34A',
   yellow: '#EAB308', pink: '#EC4899', grey:   '#9CA3AF',
   gray:   '#9CA3AF', brown:'#92400E', beige:  '#D4C4A0',
-  orange: '#F97316', purple:'#7C3AED',cream:  '#F5F0E8',
+  orange: '#F97316', purple:'#7C3AED', cream: '#F5F0E8',
+  gold:   '#D4AF37', silver:'#C0C0C0', maroon:'#800000',
+  teal:   '#0D9488', olive: '#6B7C43', tan:   '#D2B48C',
+  khaki:  '#C3B091', coral: '#FF6B6B', cyan:  '#06B6D4',
+  indigo: '#4F46E5', violet:'#7C3AED', rose:  '#F43F5E',
 };
+
+function swatchStyle(color) {
+  const words = color.toLowerCase().split(/[\s/\-&+]+/).filter(Boolean);
+  const hexes = words.map((w) => COLOR_MAP[w]).filter(Boolean);
+  if (hexes.length === 0) return { backgroundColor: '#E5E7EB' };
+  if (hexes.length === 1) return { backgroundColor: hexes[0] };
+  return { background: `linear-gradient(135deg, ${hexes[0]} 50%, ${hexes[1]} 50%)` };
+}
 
 export default function VariantPicker({ variants = [], selected, onSelect, onSizeChart }) {
   const sizes  = [...new Set(variants.map((v) => v.size).filter(Boolean))];
@@ -22,24 +34,34 @@ export default function VariantPicker({ variants = [], selected, onSelect, onSiz
           <div className="flex flex-wrap gap-3">
             {colors.map((color) => {
               const isSelected = selected?.color === color;
-              const swatch = COLOR_MAP[color.toLowerCase()] || '#E5E7EB';
+              const isWhite = color.toLowerCase() === 'white';
               return (
                 <button
                   key={color}
                   onClick={() => onSelect({ ...selected, color })}
                   title={color}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-1 group"
                 >
+                  {/* Outer ring — maroon when selected, transparent otherwise */}
                   <div
-                    className={`w-9 h-9 rounded-full border-2 transition-all ${
-                      isSelected ? 'border-[#8B1A2F] scale-110 shadow-md' : 'border-gray-300 hover:border-gray-500'
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-[#8B1A2F] ring-offset-2'
+                        : 'ring-1 ring-gray-200 ring-offset-1 group-hover:ring-gray-400'
                     }`}
-                    style={{
-                      backgroundColor: swatch,
-                      boxShadow: color.toLowerCase() === 'white' ? 'inset 0 0 0 1px #E5E7EB' : undefined,
-                    }}
-                  />
-                  <span className="text-[10px] text-gray-500 capitalize">{color}</span>
+                  >
+                    {/* Inner swatch circle */}
+                    <div
+                      className="w-8 h-8 rounded-full"
+                      style={{
+                        ...swatchStyle(color),
+                        boxShadow: isWhite ? 'inset 0 0 0 1px #E5E7EB' : undefined,
+                      }}
+                    />
+                  </div>
+                  <span className={`text-[10px] capitalize transition-colors ${isSelected ? 'text-[#8B1A2F] font-semibold' : 'text-gray-500'}`}>
+                    {color}
+                  </span>
                 </button>
               );
             })}

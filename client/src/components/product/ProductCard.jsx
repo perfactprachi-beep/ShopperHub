@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { useWishlistStore } from '../../store/wishlistStore.js';
-import { useCartStore } from '../../store/cartStore.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { assetUrl } from '../../utils/assetUrl.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { useUiStore } from '../../store/uiStore.js';
 import { toggleWishlist } from '../../api/wishlistApi.js';
 
 function IconHeart({ filled }) {
@@ -17,11 +17,9 @@ function IconHeart({ filled }) {
   );
 }
 
-export default function ProductCard({ product, dark = false, showNew = false, onAddToBag }) {
+export default function ProductCard({ product, dark = false, showNew = false, onAddToBag, openInNewTab = false, withDrawer = false }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
-  const [imgErr, setImgErr]   = useState(false);
-  const [isAdded, setIsAdded] = useState(false);
-  const [qty, setQty]         = useState(1);
+  const [imgErr, setImgErr] = useState(false);
 
   const imageAvailable = !!image_url && !imgErr;
   const finalPrice     = imageAvailable ? calcFinalPrice(base_price, discount_pct) : base_price;
@@ -30,7 +28,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const { isLoggedIn } = useAuth();
   const { addToast }   = useToastStore();
   const { has, toggle } = useWishlistStore();
-  const updateQty      = useCartStore((s) => s.updateQty);
+  const { openLoginModal } = useUiStore();
   const navigate       = useNavigate();
   const wished         = has(id);
 
@@ -38,8 +36,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
     e.preventDefault();
     e.stopPropagation();
     if (!isLoggedIn) {
-      addToast('Please login to save items', 'info');
-      navigate('/login');
+      openLoginModal();
       return;
     }
     toggle(id);
@@ -55,22 +52,18 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const handleAddToBag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAddToBag) onAddToBag(product);
-    setIsAdded(true);
-    setQty(1);
-  };
-
-  const handleQtyChange = (e) => {
-    const newQty = Number(e.target.value);
-    setQty(newQty);
-    // variantId used by cartStore is product.id when added from card
-    const variantId = product.variants?.[0]?.id ?? product.id;
-    updateQty(variantId, newQty);
+    if (withDrawer) {
+      // Has variants — open the size selection drawer
+      if (onAddToBag) onAddToBag(product);
+    } else {
+      // Navigate to product detail so the customer can pick size/variant and add from there
+      navigate(`/product/${slug}`);
+    }
   };
 
   return (
-    <div className={`group flex flex-col overflow-hidden hover:shadow-md transition-shadow duration-200 ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}>
-      <Link to={`/product/${slug}`} className="block flex-1">
+    <div className={`group flex flex-col h-full overflow-hidden hover:shadow-md transition-shadow duration-200 ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}>
+      <Link to={`/product/${slug}`} className="block flex-1" target={openInNewTab ? '_blank' : undefined} rel={openInNewTab ? 'noopener noreferrer' : undefined}>
         {/* Image */}
         <div className={`relative overflow-hidden ${dark ? 'bg-[#222]' : 'bg-gray-50'}`} style={{ aspectRatio: '3/4' }}>
           {image_url && !imgErr ? (
@@ -128,56 +121,17 @@ export default function ProductCard({ product, dark = false, showNew = false, on
 
       {/* CTA area */}
       {onAddToBag && (
-        isAdded ? (
-          /* ── Go to Bag row with qty dropdown ── */
-          <div className="flex items-stretch gap-0">
-            {/* Quantity dropdown */}
-            <select
-              value={qty}
-              onChange={handleQtyChange}
-              onClick={(e) => e.stopPropagation()}
-              className={`border-r text-[11px] font-semibold px-2 cursor-pointer outline-none ${
-                dark
-                  ? 'bg-[#1e1e1e] text-[#C9A84C] border-[#C9A84C]/40'
-                  : 'bg-gray-50 text-gray-700 border-gray-200'
-              }`}
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <option key={n} value={n}>Qty: {n}</option>
-              ))}
-            </select>
-
-            {/* Go to Bag button */}
-            <button
-              onClick={(e) => { e.preventDefault(); navigate('/cart'); }}
-              className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 ${
-                dark
-                  ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
-                  : 'bg-[#2E7D32] text-white hover:bg-[#1b5e20]'
-              }`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-                <line x1="3" y1="6" x2="21" y2="6"/>
-                <path d="M16 10a4 4 0 01-8 0"/>
-              </svg>
-              Go to Bag
-            </button>
-          </div>
-        ) : (
-          /* ── Add to Bag button ── */
-          <button
-            onClick={handleAddToBag}
-            disabled={stock === 0}
-            className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              dark
-                ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
-                : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
-            }`}
-          >
-            {stock === 0 ? 'Out of Stock' : 'Add to Bag'}
-          </button>
-        )
+        <button
+          onClick={handleAddToBag}
+          disabled={stock === 0}
+          className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            dark
+              ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
+              : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+          }`}
+        >
+          {stock === 0 ? 'Out of Stock' : 'Add To Bag'}
+        </button>
       )}
     </div>
   );

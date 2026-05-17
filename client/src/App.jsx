@@ -5,6 +5,7 @@ import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
 import ToastContainer from './components/ui/Toast.jsx';
 import CartDrawer from './components/cart/CartDrawer.jsx';
+import LoginModal from './components/ui/LoginModal.jsx';
 import Spinner from './components/ui/Spinner.jsx';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
 import AdminRoute from './components/guards/AdminRoute.jsx';
@@ -23,25 +24,36 @@ const ProductDetail     = lazy(() => import('./pages/ProductDetail.jsx'));
 const SearchPage        = lazy(() => import('./pages/SearchPage.jsx'));
 const OffersPage        = lazy(() => import('./pages/OffersPage.jsx'));
 const CartPage          = lazy(() => import('./pages/CartPage.jsx'));
+const BagPage           = lazy(() => import('./pages/BagPage.jsx'));
 const WishlistPage      = lazy(() => import('./pages/WishlistPage.jsx'));
 const CheckoutPage      = lazy(() => import('./pages/CheckoutPage.jsx'));
 const OrderSuccessPage  = lazy(() => import('./pages/OrderSuccessPage.jsx'));
 const OrdersPage        = lazy(() => import('./pages/OrdersPage.jsx'));
 const OrderDetailPage   = lazy(() => import('./pages/OrderDetailPage.jsx'));
+const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage.jsx'));
+const AddedToBagPage    = lazy(() => import('./pages/AddedToBagPage.jsx'));
 const AccountPage       = lazy(() => import('./pages/AccountPage.jsx'));
 
 // Admin pages
-const AdminLoginPage  = lazy(() => import('./pages/admin/AdminLoginPage.jsx'));
-const AdminDashboard  = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
-const AdminProducts   = lazy(() => import('./pages/admin/AdminProducts.jsx'));
-const AdminCategories = lazy(() => import('./pages/admin/AdminCategories.jsx'));
-const AdminBrands     = lazy(() => import('./pages/admin/AdminBrands.jsx'));
-const AdminOrders     = lazy(() => import('./pages/admin/AdminOrders.jsx'));
-const AdminCoupons    = lazy(() => import('./pages/admin/AdminCoupons.jsx'));
-const AdminOffers     = lazy(() => import('./pages/admin/AdminOffers.jsx'));
-const AdminBanners    = lazy(() => import('./pages/admin/AdminBanners.jsx'));
-const AdminUsers      = lazy(() => import('./pages/admin/AdminUsers.jsx'));
-const NotFoundPage    = lazy(() => import('./pages/NotFoundPage.jsx'));
+const AdminLoginPage     = lazy(() => import('./pages/admin/AdminLoginPage.jsx'));
+const AdminDashboard     = lazy(() => import('./pages/admin/AdminDashboard.jsx'));
+const AdminProducts      = lazy(() => import('./pages/admin/AdminProducts.jsx'));
+const AdminCategories    = lazy(() => import('./pages/admin/AdminCategories.jsx'));
+const AdminBrands        = lazy(() => import('./pages/admin/AdminBrands.jsx'));
+const AdminOrders        = lazy(() => import('./pages/admin/AdminOrders.jsx'));
+const AdminCoupons       = lazy(() => import('./pages/admin/AdminCoupons.jsx'));
+const AdminOffers        = lazy(() => import('./pages/admin/AdminOffers.jsx'));
+const AdminBanners       = lazy(() => import('./pages/admin/AdminBanners.jsx'));
+const AdminUsers         = lazy(() => import('./pages/admin/AdminUsers.jsx'));
+
+// Inventory pages
+const InventoryDashboard = lazy(() => import('./pages/admin/InventoryDashboard.jsx'));
+const StockManagement    = lazy(() => import('./pages/admin/StockManagement.jsx'));
+const LowStockAlerts     = lazy(() => import('./pages/admin/LowStockAlerts.jsx'));
+const Warehouses         = lazy(() => import('./pages/admin/Warehouses.jsx'));
+const InventoryLogs      = lazy(() => import('./pages/admin/InventoryLogs.jsx'));
+
+const NotFoundPage       = lazy(() => import('./pages/NotFoundPage.jsx'));
 
 function PageSpinner() {
   return (
@@ -61,7 +73,7 @@ function AdminSpinner() {
 
 function AppShell() {
   useCartSync();
-  const { cartOpen, closeCart } = useUiStore();
+  const { cartOpen, closeCart, loginModalOpen, closeLoginModal } = useUiStore();
 
   return (
     <>
@@ -79,14 +91,16 @@ function AppShell() {
             <Route path="/product/:slug"  element={<ProductDetail />} />
             <Route path="/search"         element={<SearchPage />} />
             <Route path="/offers"         element={<OffersPage />} />
+            <Route path="/bag-added"      element={<AddedToBagPage />} />
 
             {/* Protected */}
-            <Route path="/cart"     element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
+            <Route path="/cart"     element={<BagPage />} />
             <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/order-success/:id" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
             <Route path="/orders"    element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
             <Route path="/orders/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
+            <Route path="/track/:id"  element={<ProtectedRoute><OrderTrackingPage /></ProtectedRoute>} />
             <Route path="/account"   element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/account/*" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFoundPage />} />
@@ -95,6 +109,7 @@ function AppShell() {
       </Suspense>
       <Footer />
       <CartDrawer isOpen={cartOpen} onClose={closeCart} />
+      {loginModalOpen && <LoginModal onClose={closeLoginModal} />}
       <ToastContainer />
     </>
   );
@@ -106,15 +121,20 @@ function AdminShell() {
       <Suspense fallback={<AdminSpinner />}>
         <Routes>
           <Route element={<AdminLayout />}>
-            <Route index          element={<AdminDashboard />} />
-            <Route path="products"   element={<AdminProducts />} />
-            <Route path="categories" element={<AdminCategories />} />
-            <Route path="brands"     element={<AdminBrands />} />
-            <Route path="orders"     element={<AdminOrders />} />
-            <Route path="coupons"    element={<AdminCoupons />} />
-            <Route path="offers"     element={<AdminOffers />} />
-            <Route path="banners"    element={<AdminBanners />} />
-            <Route path="users"      element={<AdminUsers />} />
+            <Route index                    element={<AdminDashboard />} />
+            <Route path="products"          element={<AdminProducts />} />
+            <Route path="categories"        element={<AdminCategories />} />
+            <Route path="brands"            element={<AdminBrands />} />
+            <Route path="orders"            element={<AdminOrders />} />
+            <Route path="inventory"          element={<InventoryDashboard />} />
+            <Route path="inventory/stocks"  element={<StockManagement />} />
+            <Route path="inventory/low-stock" element={<LowStockAlerts />} />
+            <Route path="inventory/warehouses" element={<Warehouses />} />
+            <Route path="inventory/logs"    element={<InventoryLogs />} />
+            <Route path="coupons"           element={<AdminCoupons />} />
+            <Route path="offers"            element={<AdminOffers />} />
+            <Route path="banners"           element={<AdminBanners />} />
+            <Route path="users"             element={<AdminUsers />} />
           </Route>
         </Routes>
       </Suspense>

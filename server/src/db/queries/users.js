@@ -66,7 +66,7 @@ export async function findUserByPhone(phone) {
 
 export async function findUserById(id) {
   const { rows } = await pool.query(
-    'SELECT id, email, full_name, phone, role, first_citizen_points, created_at FROM users WHERE id = $1',
+    'SELECT id, email, full_name, phone, role, first_citizen_points, gender, created_at FROM users WHERE id = $1',
     [id]
   );
   return rows[0];
@@ -108,7 +108,7 @@ export async function adminListUsers({ page = 1, limit = 20, search }) {
 
   const sql = `
     SELECT
-      u.id, u.email, u.full_name, u.phone, u.role, u.first_citizen_points, u.created_at,
+      u.id, u.email, u.full_name, u.phone, u.role, u.first_citizen_points, u.gender, u.created_at,
       COUNT(o.id) AS order_count,
       COUNT(*) OVER() AS total_count
     FROM users u
@@ -124,12 +124,12 @@ export async function adminListUsers({ page = 1, limit = 20, search }) {
   return rows;
 }
 
-export async function createUser({ email, passwordHash, fullName, phone }) {
+export async function createUser({ email, passwordHash, fullName, phone, gender }) {
   const { rows } = await pool.query(
-    `INSERT INTO users (email, password_hash, full_name, phone)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, email, full_name, phone, role, first_citizen_points, created_at`,
-    [email, passwordHash, fullName || null, phone || null]
+    `INSERT INTO users (email, password_hash, full_name, phone, gender)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, email, full_name, phone, role, first_citizen_points, gender, created_at`,
+    [email || null, passwordHash, fullName || null, phone || null, gender || null]
   );
   return rows[0];
 }

@@ -96,8 +96,8 @@ export default function OrderSuccessPage() {
           className="flex-1 py-3 text-center border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
           Continue Shopping
         </Link>
-        <button onClick={() => navigate(`/`)}
-          className="flex-1 py-3 bg-red-700 text-white font-semibold rounded-xl hover:bg-red-800 transition-colors">
+        <button onClick={() => navigate(`/track/${id}`)}
+          className="flex-1 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-black transition-colors">
           Track Order #{id}
         </button>
       </div>
