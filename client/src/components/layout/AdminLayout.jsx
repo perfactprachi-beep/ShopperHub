@@ -97,6 +97,15 @@ function IconUsers() {
   );
 }
 
+function IconPayments() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2"/>
+      <line x1="1" y1="10" x2="23" y2="10"/>
+    </svg>
+  );
+}
+
 function IconArrowLeft() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -125,8 +134,9 @@ const NAV_ITEMS = [
   { to: '/admin/inventory',  label: 'Inventory',  Icon: IconInventory },
   { to: '/admin/coupons',    label: 'Coupons',    Icon: IconCoupons },
   { to: '/admin/offers',     label: 'Offers',     Icon: IconOffers },
-  { to: '/admin/banners',    label: 'Banners',    Icon: IconBanners },
-  { to: '/admin/users',      label: 'Users',      Icon: IconUsers },
+  { to: '/admin/banners',          label: 'Banners',          Icon: IconBanners },
+  { to: '/admin/users',            label: 'Users',            Icon: IconUsers },
+  { to: '/admin/payment-methods',  label: 'Payment Methods',  Icon: IconPayments },
 ];
 
 const PAGE_TITLES = {
@@ -144,6 +154,7 @@ const PAGE_TITLES = {
   '/admin/offers':             'Offers',
   '/admin/banners':            'Banners',
   '/admin/users':              'Users',
+  '/admin/payment-methods':    'Payment Methods',
 };
 
 const PAGE_SUBTITLES = {
@@ -161,6 +172,7 @@ const PAGE_SUBTITLES = {
   '/admin/offers':             'Manage product page offer messages',
   '/admin/banners':            'Homepage & promotional banners',
   '/admin/users':              'Customer accounts',
+  '/admin/payment-methods':    'Configure checkout payment options',
 };
 
 export default function AdminLayout() {

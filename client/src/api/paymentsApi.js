@@ -1,7 +1,17 @@
 import api from './axios.js';
 
+export async function getPaymentMethods() {
+  const { data } = await api.get('/payments/methods');
+  return data.data;
+}
+
 export async function createOrder(payload) {
   const { data } = await api.post('/payments/create-order', payload);
+  return data.data;
+}
+
+export async function createCodOrder(payload) {
+  const { data } = await api.post('/payments/create-cod-order', payload);
   return data.data;
 }
 

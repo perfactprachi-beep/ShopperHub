@@ -18,8 +18,12 @@ import { getAllOffers, createOffer, updateOffer, deleteOffer } from '../db/queri
 import {
   adminListOrders, adminUpdateOrderStatus, adminGetDashboardStats,
 } from '../db/queries/orders.js';
+import { updatePickupStatus } from '../db/queries/stores.js';
 import { adminListUsers } from '../db/queries/users.js';
 import { createNotification } from '../db/queries/notifications.js';
+import {
+  adminListPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod,
+} from '../db/queries/paymentMethods.js';
 
 const router = Router();
 router.use(authGuard, adminGuard);
@@ -234,6 +238,18 @@ router.get('/orders', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.put('/orders/:id/pickup-status', async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['pending', 'ready', 'collected', 'expired'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid pickup status' });
+    }
+    await updatePickupStatus(req.params.id, status);
+    res.json({ success: true, message: `Pickup status updated to ${status}` });
+  } catch (err) { next(err); }
+});
+
 router.put('/orders/:id/status', async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -344,6 +360,36 @@ router.get('/users', async (req, res, next) => {
     const rows = await adminListUsers(req.query);
     const total = rows[0]?.total_count ? parseInt(rows[0].total_count, 10) : 0;
     res.json({ success: true, data: { users: rows, total } });
+  } catch (err) { next(err); }
+});
+
+// ── Payment Methods ───────────────────────────────────────────────────────────
+router.get('/payment-methods', async (_req, res, next) => {
+  try {
+    const data = await adminListPaymentMethods();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/payment-methods', async (req, res, next) => {
+  try {
+    const data = await createPaymentMethod(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.put('/payment-methods/:id', async (req, res, next) => {
+  try {
+    const data = await updatePaymentMethod(req.params.id, req.body);
+    if (!data) return res.status(404).json({ success: false, message: 'Payment method not found' });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/payment-methods/:id', async (req, res, next) => {
+  try {
+    await deletePaymentMethod(req.params.id);
+    res.json({ success: true, message: 'Payment method deleted' });
   } catch (err) { next(err); }
 });
 

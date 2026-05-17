@@ -129,3 +129,16 @@ export const deleteOffer = (id) =>
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const getAdminUsers = (params) =>
   api.get('/admin/users', { params }).then(r => r.data.data);
+
+// ── Payment Methods ───────────────────────────────────────────────────────────
+export const getAdminPaymentMethods = () =>
+  api.get('/admin/payment-methods').then(r => r.data.data);
+
+export const createPaymentMethod = (data) =>
+  api.post('/admin/payment-methods', data).then(r => r.data.data);
+
+export const updatePaymentMethod = (id, data) =>
+  api.put(`/admin/payment-methods/${id}`, data).then(r => r.data.data);
+
+export const deletePaymentMethod = (id) =>
+  api.delete(`/admin/payment-methods/${id}`).then(r => r.data);

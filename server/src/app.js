@@ -82,6 +82,7 @@ import notificationsRoutes from './routes/notifications.routes.js';
 import offersRoutes from './routes/offers.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
+import storeRoutes from './routes/stores.routes.js';
 
 app.use('/api/auth',          authLimiter, authRoutes);
 app.use('/api/products',      productRoutes);
@@ -100,6 +101,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/offers',        offersRoutes);
 app.use('/api/admin',         adminRoutes);
 app.use('/api/inventory',     inventoryRoutes);
+app.use('/api/stores',        storeRoutes);
 
 // Liveness
 app.get('/api/health', (_req, res) => {

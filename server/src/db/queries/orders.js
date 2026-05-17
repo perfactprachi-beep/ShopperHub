@@ -53,9 +53,11 @@ export async function getOrderById(orderId, userId) {
   const { rows } = await pool.query(
     `SELECT o.*,
             a.label, a.line1, a.line2, a.city, a.state, a.pincode,
-            a.full_name AS address_full_name, a.phone AS address_phone
+            a.full_name AS address_full_name, a.phone AS address_phone,
+            s.name AS store_name, s.address AS store_address, s.timing AS store_timing
      FROM orders o
      JOIN addresses a ON a.id = o.address_id
+     LEFT JOIN stores s ON s.id = o.store_id
      WHERE o.id = $1 AND o.user_id = $2`,
     [orderId, userId]
   );
@@ -236,19 +238,30 @@ export async function hasPurchasedProduct(userId, productId) {
 
 // Wrap fulfilment in a single transaction
 export async function fulfillOrder({ userId, addressId, couponId, subtotal, discount,
-  shipping, total, pointsEarned, paymentMethod, razorpayOrderId, items }) {
+  shipping, total, pointsEarned, paymentMethod, razorpayOrderId, deliveryType = 'standard',
+  deliveryMethod = 'express_delivery', storeId = null, items }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    const pickupPin = deliveryMethod === 'store_pickup'
+      ? String(Math.floor(1000 + Math.random() * 9000))
+      : null;
+    const expectedBy = new Date(
+      Date.now() + (deliveryMethod === 'store_pickup' ? 48 : 24) * 60 * 60 * 1000
+    );
+    const pickupStatus = deliveryMethod === 'store_pickup' ? 'pending' : null;
+
     const { rows: [order] } = await client.query(
       `INSERT INTO orders
          (user_id, address_id, coupon_id, subtotal, discount, shipping, total,
-          points_earned, payment_method, payment_status, razorpay_order_id, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid',$10,'confirmed')
+          points_earned, payment_method, payment_status, razorpay_order_id, status, delivery_type,
+          delivery_method, store_id, pickup_status, pickup_pin, expected_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'paid',$10,'confirmed',$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [userId, addressId, couponId || null, subtotal, discount, shipping, total,
-       pointsEarned, paymentMethod || 'razorpay', razorpayOrderId]
+       pointsEarned, paymentMethod || 'razorpay', razorpayOrderId, deliveryType,
+       deliveryMethod, storeId || null, pickupStatus, pickupPin, expectedBy]
     );
 
     if (items?.length) {
