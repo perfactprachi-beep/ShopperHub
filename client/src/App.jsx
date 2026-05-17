@@ -107,7 +107,8 @@ function AppShell() {
             <Route path="/product/:slug"  element={<ProductDetail />} />
             <Route path="/search"         element={<SearchPage />} />
             <Route path="/offers"         element={<OffersPage />} />
-            <Route path="/stores"         element={<StoreLocatorPage />} />
+            <Route path="/stores"                    element={<StoreLocatorPage />} />
+            <Route path="/account/storesandevents"   element={<StoreLocatorPage />} />
             <Route path="/faqs"           element={<FaqsPage />} />
             <Route path="/account/help"   element={<FaqsPage />} />
             <Route path="/returns"        element={<ReturnsPage />} />
