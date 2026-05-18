@@ -3,6 +3,8 @@ import {
   getAdminPaymentMethods, createPaymentMethod,
   updatePaymentMethod, deletePaymentMethod,
 } from '../../api/adminApi.js';
+import { useToastStore } from '../../store/toastStore.js';
+import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
 const ICON_OPTIONS = [
   { value: 'card',   label: 'Card / Online' },
@@ -21,6 +23,7 @@ function MethodModal({ method, onClose, onSaved }) {
   const [form, setForm] = useState(method ? { ...method } : { ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const { addToast } = useToastStore();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,6 +42,7 @@ function MethodModal({ method, onClose, onSaved }) {
       const saved = method?.id
         ? await updatePaymentMethod(method.id, payload)
         : await createPaymentMethod(payload);
+      addToast(method?.id ? 'Payment method updated' : 'Payment method added', 'success');
       onSaved(saved, !method?.id);
       onClose();
     } catch (e) {
@@ -156,10 +160,12 @@ const ICON_MAP = {
 };
 
 export default function AdminPaymentMethods() {
-  const [methods, setMethods]   = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal, setModal]       = useState(null); // null | { method } (method=undefined for add)
-  const [deleting, setDeleting] = useState(null);
+  const [methods, setMethods]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(null);
+  const [deleting, setDeleting]   = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { addToast } = useToastStore();
 
   useEffect(() => {
     getAdminPaymentMethods()
@@ -174,23 +180,24 @@ export default function AdminPaymentMethods() {
     );
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this payment method? This cannot be undone.')) return;
-    setDeleting(id);
+  async function handleDelete() {
+    setDeleting(deleteTarget.id);
     try {
-      await deletePaymentMethod(id);
-      setMethods(prev => prev.filter(m => m.id !== id));
-    } catch {
-      alert('Delete failed');
-    } finally { setDeleting(null); }
+      await deletePaymentMethod(deleteTarget.id);
+      setMethods(prev => prev.filter(m => m.id !== deleteTarget.id));
+      addToast('Payment method deleted', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setDeleting(null); setDeleteTarget(null); }
   }
 
   async function handleToggle(method) {
     try {
       const updated = await updatePaymentMethod(method.id, { is_active: !method.is_active });
       setMethods(prev => prev.map(m => (m.id === updated.id ? updated : m)));
-    } catch {
-      alert('Update failed');
+      addToast(`Payment method ${updated.is_active ? 'activated' : 'deactivated'}`, 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
     }
   }
 
@@ -273,10 +280,11 @@ export default function AdminPaymentMethods() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(m.id)}
+                        onClick={() => setDeleteTarget(m)}
                         disabled={deleting === m.id}
-                        className="text-xs text-red-500 hover:underline font-medium disabled:opacity-40"
+                        className="flex items-center gap-1 text-xs text-red-500 hover:underline font-medium disabled:opacity-40"
                       >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                         {deleting === m.id ? '…' : 'Delete'}
                       </button>
                     </div>
@@ -295,6 +303,13 @@ export default function AdminPaymentMethods() {
           onSaved={handleSaved}
         />
       )}
+      <DeleteModal
+        open={!!deleteTarget}
+        title="Delete Payment Method"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

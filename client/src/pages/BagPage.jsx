@@ -262,15 +262,17 @@ function CartItem({ item, onQty, onRemove, onMoveToWishlist }) {
             Delivery by <span className="font-semibold text-gray-600">{deliveryDate()}</span>
           </p>
         </div>
-        <button
-          onClick={() => onMoveToWishlist(item)}
-          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-[#8B1A2F] transition-colors"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-          MOVE TO WISHLIST
-        </button>
+        {onMoveToWishlist && (
+          <button
+            onClick={() => onMoveToWishlist(item)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-[#8B1A2F] transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            MOVE TO WISHLIST
+          </button>
+        )}
       </div>
     </div>
   );
@@ -808,7 +810,7 @@ function EmptyBag() {
 export default function BagPage() {
   const { items, removeItem, updateQty, setItems, subtotal, itemCount } = useCartStore();
   const { toggle: toggleWL, has: inWL } = useWishlistStore();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
   const { openLoginModal } = useUiStore();
   const navigate       = useNavigate();
@@ -941,7 +943,7 @@ export default function BagPage() {
                 item={item}
                 onQty={handleQty}
                 onRemove={handleRemove}
-                onMoveToWishlist={handleMoveToWishlist}
+                onMoveToWishlist={isAdmin ? undefined : handleMoveToWishlist}
               />
             ))}
 

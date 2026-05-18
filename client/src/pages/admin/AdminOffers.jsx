@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAdminOffers, createOffer, updateOffer, deleteOffer, getAdminCategories } from '../../api/adminApi.js';
+import { useToastStore } from '../../store/toastStore.js';
+import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
 const EMPTY = {
   title: '', description: '', code: '', image_url: '', is_active: true, sort_order: 0,
@@ -42,6 +44,7 @@ function OfferModal({ offer, onClose, onSaved }) {
   } : { ...EMPTY });
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
+  const { addToast }            = useToastStore();
   const [categories, setCategories] = useState([]);
   const [parentId, setParentId] = useState(''); // tracks selected parent independently
 
@@ -96,6 +99,7 @@ function OfferModal({ offer, onClose, onSaved }) {
       const saved = offer?.id
         ? await updateOffer(offer.id, payload)
         : await createOffer(payload);
+      addToast(offer?.id ? 'Offer updated' : 'Offer created', 'success');
       onSaved(saved, !offer?.id);
       onClose();
     } catch (err) {
@@ -271,10 +275,12 @@ function OfferModal({ offer, onClose, onSaved }) {
 }
 
 export default function AdminOffers() {
-  const [offers, setOffers]     = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal, setModal]       = useState(null); // null | 'new' | offer object
-  const [deleting, setDeleting] = useState(null);
+  const [offers, setOffers]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(null);
+  const [deleting, setDeleting]   = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { addToast } = useToastStore();
 
   const load = () => {
     setLoading(true);
@@ -294,14 +300,15 @@ export default function AdminOffers() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this offer?')) return;
-    setDeleting(id);
+  const handleDelete = async () => {
+    setDeleting(deleteTarget.id);
     try {
-      await deleteOffer(id);
-      setOffers(prev => prev.filter(o => o.id !== id));
-    } catch { alert('Delete failed'); }
-    finally { setDeleting(null); }
+      await deleteOffer(deleteTarget.id);
+      setOffers(prev => prev.filter(o => o.id !== deleteTarget.id));
+      addToast('Offer deleted', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setDeleting(null); setDeleteTarget(null); }
   };
 
   return (
@@ -426,7 +433,7 @@ export default function AdminOffers() {
                         <IconEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(offer.id)}
+                        onClick={() => setDeleteTarget(offer)}
                         disabled={deleting === offer.id}
                         title="Delete"
                         className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
@@ -451,6 +458,13 @@ export default function AdminOffers() {
           onSaved={handleSaved}
         />
       )}
+      <DeleteModal
+        open={!!deleteTarget}
+        title="Delete Offer"
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

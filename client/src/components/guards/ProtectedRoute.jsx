@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children }) {
   if (!hydrated) return null; // brief pause — no flash redirect
 
   if (!isLoggedIn) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
   return children;
 }

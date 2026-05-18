@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useWishlistStore } from '../store/wishlistStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { assetUrl } from '../utils/assetUrl.js';
 import { useToastStore } from '../store/toastStore.js';
 import { fetchWishlist, removeFromWishlist } from '../api/wishlistApi.js';
+import { addCartItem, fetchCart } from '../api/cartApi.js';
 import { formatPrice } from '../utils/formatPrice.js';
 import { calcFinalPrice } from '../utils/calcDiscount.js';
 import { Skeleton } from '../components/ui/Skeleton.jsx';
+import SizeSelectDrawer from '../components/product/SizeSelectDrawer.jsx';
 
 function IconTrash({ size = 16 }) {
   return (
@@ -24,18 +26,32 @@ function WishlistCard({ product, onRemove, onMoveToCart }) {
 
   return (
     <div className="bg-[var(--color-surface)] rounded-[var(--radius-md)] shadow-[var(--shadow-card)] overflow-hidden group">
-      <Link to={`/product/${product.slug}`} className="block relative overflow-hidden h-56 bg-gray-50">
-        {product.image_url ? (
-          <img src={assetUrl(product.image_url)} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-sm">No image</div>
-        )}
+      <div className="relative overflow-hidden h-56 bg-gray-50">
+        <Link to={`/product/${product.slug}`} className="block w-full h-full">
+          {product.image_url ? (
+            <img src={assetUrl(product.image_url)} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-sm">No image</div>
+          )}
+        </Link>
+
         {hasDiscount && (
           <span className="absolute top-2 left-2 bg-[var(--color-error)] text-white text-xs font-semibold px-2 py-0.5 rounded-[var(--radius-sm)]">
             {product.discount_pct}% OFF
           </span>
         )}
-      </Link>
+
+        {/* Remove × button */}
+        <button
+          onClick={() => onRemove(product.id)}
+          className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-gray-500 hover:text-[#8B1A2F] hover:shadow-md transition-all"
+          aria-label="Remove from wishlist"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
 
       <div className="p-3">
         <p className="text-xs text-[var(--color-muted)] mb-0.5">{product.brand_name}</p>
@@ -45,33 +61,25 @@ function WishlistCard({ product, onRemove, onMoveToCart }) {
           {hasDiscount && <span className="text-xs text-[var(--color-muted)] line-through">{formatPrice(product.base_price)}</span>}
         </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => onMoveToCart(product)}
-            className="flex-1 py-2 text-xs font-semibold bg-[var(--color-primary)] text-white rounded-[var(--radius-sm)] hover:bg-[var(--color-primary-dark)] transition-colors"
-          >
-            Move to Cart
-          </button>
-          <button
-            onClick={() => onRemove(product.id)}
-            className="p-2 text-[var(--color-muted)] hover:text-[var(--color-error)] border border-[var(--color-border)] rounded-[var(--radius-sm)] transition-colors"
-            aria-label="Remove"
-          >
-            <IconTrash />
-          </button>
-        </div>
+        <button
+          onClick={() => onMoveToCart(product)}
+          className="mt-3 w-full py-2 text-xs font-semibold bg-[var(--color-primary)] text-white rounded-[var(--radius-sm)] hover:bg-[var(--color-primary-dark)] transition-colors"
+        >
+          Move to Bag
+        </button>
       </div>
     </div>
   );
 }
 
 export default function WishlistPage() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [drawerProduct, setDrawerProduct] = useState(null);
   const { toggle: toggleWishlistStore } = useWishlistStore();
-  const { addItem } = useCartStore();
+  const { addItem, setItems } = useCartStore();
   const { addToast } = useToastStore();
-  const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
   useEffect(() => {
     fetchWishlist()
@@ -91,10 +99,30 @@ export default function WishlistPage() {
     }
   };
 
-  const handleMoveToCart = (product) => {
-    // Navigate to product page to pick variant; for products, redirect to detail
-    navigate(`/product/${product.slug}`);
-    addToast('Select a size/variant to add to cart', 'info');
+  const handleDrawerAdd = async (product, variant) => {
+    const variantId = variant?.id;
+
+    if (!variantId) {
+      addToast('Please select a size', 'error');
+      return;
+    }
+
+    try {
+      await addCartItem({ variantId, quantity: 1 });
+      // Refresh cart from server so count & items are accurate
+      const freshCart = await fetchCart();
+      setItems(freshCart.items);
+    } catch {
+      addToast('Could not add to cart. Please try again.', 'error');
+      return;
+    }
+
+    // Remove from wishlist
+    try { await removeFromWishlist(product.id); } catch { /* best effort */ }
+    toggleWishlistStore(product.id);
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    addToast('Product successfully added to cart', 'success');
+    setDrawerProduct(null);
   };
 
   return (
@@ -138,12 +166,20 @@ export default function WishlistPage() {
                 key={product.id}
                 product={product}
                 onRemove={handleRemove}
-                onMoveToCart={handleMoveToCart}
+                onMoveToCart={(p) => setDrawerProduct(p)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {drawerProduct && (
+        <SizeSelectDrawer
+          product={drawerProduct}
+          onClose={() => setDrawerProduct(null)}
+          onAddToBag={handleDrawerAdd}
+        />
+      )}
     </div>
   );
 }

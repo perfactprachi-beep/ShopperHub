@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
+import { useToastStore } from '../../store/toastStore.js';
+import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
 function WarehouseModal({ warehouse, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -9,6 +11,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
     contact_number: warehouse?.contact_number || ''
   });
   const [saving, setSaving] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,11 +22,12 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
         : await inventoryApi.createWarehouse(form);
       
       if (data.success) {
+        addToast(warehouse?.id ? 'Warehouse updated' : 'Warehouse added', 'success');
         onSaved(data.data);
         onClose();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to save warehouse');
+      addToast(err.response?.data?.message || 'Failed to save warehouse', 'error');
     } finally {
       setSaving(false);
     }
@@ -119,6 +123,8 @@ export default function Warehouses() {
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalWarehouse, setModalWarehouse] = useState(undefined); // undefined=closed, null=new, obj=edit
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { addToast } = useToastStore();
 
   useEffect(() => {
     loadWarehouses();
@@ -149,16 +155,17 @@ export default function Warehouses() {
     }
   };
 
-  const handleDeleteWarehouse = async (warehouse) => {
-    if (!confirm(`Are you sure you want to delete "${warehouse.name}"?`)) return;
-    
+  const handleDeleteWarehouse = async () => {
     try {
-      const { data } = await inventoryApi.deleteWarehouse(warehouse.id);
+      const { data } = await inventoryApi.deleteWarehouse(deleteTarget.id);
       if (data.success) {
-        setWarehouses(prev => prev.filter(w => w.id !== warehouse.id));
+        setWarehouses(prev => prev.filter(w => w.id !== deleteTarget.id));
+        addToast('Warehouse deleted', 'success');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete warehouse');
+      addToast(err.response?.data?.message || 'Failed to delete warehouse', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -282,9 +289,10 @@ export default function Warehouses() {
                 Edit
               </button>
               <button
-                onClick={() => handleDeleteWarehouse(warehouse)}
-                className="px-3 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-sm font-medium"
+                onClick={() => setDeleteTarget(warehouse)}
+                className="flex items-center gap-1.5 px-3 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-sm font-medium"
               >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                 Delete
               </button>
             </div>
@@ -300,6 +308,13 @@ export default function Warehouses() {
           onSaved={handleWarehouseSaved}
         />
       )}
+      <DeleteModal
+        open={!!deleteTarget}
+        title="Delete Warehouse"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteWarehouse}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

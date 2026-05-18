@@ -87,6 +87,9 @@ export const getAdminOrders = (params) =>
 export const updateOrderStatus = (id, status) =>
   api.put(`/admin/orders/${id}/status`, { status }).then(r => r.data.data);
 
+export const updatePickupStatus = (id, status) =>
+  api.put(`/admin/orders/${id}/pickup-status`, { status }).then(r => r.data);
+
 // ── Coupons ───────────────────────────────────────────────────────────────────
 export const getAdminCoupons = () =>
   api.get('/admin/coupons').then(r => r.data.data);
@@ -148,3 +151,29 @@ export const updatePaymentMethod = (id, data) =>
 
 export const deletePaymentMethod = (id) =>
   api.delete(`/admin/payment-methods/${id}`).then(r => r.data);
+
+// ── Delivery: stores ─────────────────────────────────────────────────────────
+export const getAdminStores = () =>
+  api.get('/admin/delivery/stores').then(r => r.data.data);
+
+export const addAdminStore = (data) =>
+  api.post('/admin/delivery/stores', data).then(r => r.data.data);
+
+export const updateAdminStore = (id, data) =>
+  api.patch(`/admin/delivery/stores/${id}`, data).then(r => r.data.data);
+
+export const deleteAdminStore = (id) =>
+  api.delete(`/admin/delivery/stores/${id}`).then(r => r.data);
+
+// ── Delivery: express pincodes ────────────────────────────────────────────────
+export const getDeliveryPincodes = () =>
+  api.get('/admin/delivery/pincodes').then(r => r.data.data);
+
+export const addDeliveryPincode = (data) =>
+  api.post('/admin/delivery/pincodes', data).then(r => r.data.data);
+
+export const updateDeliveryPincode = (pincode, data) =>
+  api.patch(`/admin/delivery/pincodes/${pincode}`, data).then(r => r.data.data);
+
+export const deleteDeliveryPincode = (pincode) =>
+  api.delete(`/admin/delivery/pincodes/${pincode}`).then(r => r.data);

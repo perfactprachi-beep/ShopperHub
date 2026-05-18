@@ -742,6 +742,9 @@ export default function CheckoutPage() {
               shipping,
               total:          grandTotal,
               deliveryType:   selectedDelivery,
+              deliveryMethod: selectedDelivery === 'express' ? 'express_delivery'
+                            : selectedDelivery === 'store_pickup' ? 'store_pickup'
+                            : 'standard',
               storeId:        selectedStore?.id ?? null,
             });
             clearCart();

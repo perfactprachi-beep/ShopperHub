@@ -4,6 +4,7 @@ import LoginModal from '../ui/LoginModal.jsx';
 import { useScrollDirection } from '../../hooks/useScrollDirection.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useCartStore } from '../../store/cartStore.js';
+import { useWishlistStore } from '../../store/wishlistStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import api from '../../api/axios.js';
 import { getNotifications, markAllRead } from '../../api/notificationsApi.js';
@@ -103,8 +104,9 @@ export default function Navbar() {
   const location  = useLocation();
   const { isLoggedIn, isAdmin, user, logout } = useAuth();
   const scrollDir = useScrollDirection();
-  const cartItems = useCartStore((s) => s.items);
-  const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const cartItems    = useCartStore((s) => s.items);
+  const cartCount    = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const wishCount    = useWishlistStore((s) => s.productIds.length);
   const { openCart, openLoginModal } = useUiStore();
 
   const [search, setSearch]           = useState('');
@@ -362,15 +364,22 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Wishlist */}
-              {isLoggedIn ? (
-                <Link to="/wishlist" className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
-                  <IconHeart size={26}/>
-                </Link>
-              ) : (
-                <button onClick={openLoginModal} className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
-                  <IconHeart size={26}/>
-                </button>
+              {/* Wishlist — hidden for admin */}
+              {!isAdmin && (
+                isLoggedIn ? (
+                  <Link to="/wishlist" className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                    <IconHeart size={26}/>
+                    {wishCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                        {wishCount > 99 ? '99+' : wishCount}
+                      </span>
+                    )}
+                  </Link>
+                ) : (
+                  <button onClick={openLoginModal} className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                    <IconHeart size={26}/>
+                  </button>
+                )
               )}
 
               {/* Cart */}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAdminBanners, createBanner, updateBanner, deleteBanner } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { useToastStore } from '../../store/toastStore.js';
+import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
 const POSITIONS = ['hero', 'mid', 'bottom'];
 const EMPTY = { title: '', link: '', position: 'hero', sort_order: 0, is_active: true };
@@ -11,6 +13,7 @@ function BannerModal({ banner, onClose, onSaved }) {
   const [preview, setPreview] = useState(banner?.image_url ? assetUrl(banner.image_url) : null);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef();
+  const { addToast } = useToastStore();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -36,10 +39,11 @@ function BannerModal({ banner, onClose, onSaved }) {
       } else {
         saved = banner?.id ? await updateBanner(banner.id, form) : await createBanner(form);
       }
+      addToast(banner?.id ? 'Banner updated' : 'Banner added', 'success');
       onSaved(saved, !banner?.id);
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Save failed');
+      addToast(err.response?.data?.message || 'Save failed', 'error');
     } finally { setSaving(false); }
   };
 
@@ -107,6 +111,8 @@ export default function AdminBanners() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(undefined);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { addToast } = useToastStore();
 
   const load = async () => {
     setLoading(true);
@@ -116,10 +122,14 @@ export default function AdminBanners() {
 
   useEffect(() => { load(); }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this banner?')) return;
-    await deleteBanner(id);
-    setBanners(bs => bs.filter(b => b.id !== id));
+  const handleDelete = async () => {
+    try {
+      await deleteBanner(deleteTarget.id);
+      setBanners(bs => bs.filter(b => b.id !== deleteTarget.id));
+      addToast('Banner deleted', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setDeleteTarget(null); }
   };
 
   const handleSaved = (saved, isNew) => {
@@ -189,7 +199,7 @@ export default function AdminBanners() {
                       <button onClick={() => setModal(b)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button onClick={() => handleDelete(b.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                      <button onClick={() => setDeleteTarget(b)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>
@@ -204,6 +214,13 @@ export default function AdminBanners() {
       {modal !== undefined && (
         <BannerModal banner={modal} onClose={() => setModal(undefined)} onSaved={handleSaved} />
       )}
+      <DeleteModal
+        open={!!deleteTarget}
+        title="Delete Banner"
+        description={`Are you sure you want to delete "${deleteTarget?.title || 'this banner'}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useToastStore } from '../../store/toastStore.js';
 
 function IconDashboard() {
   return (
@@ -106,6 +107,14 @@ function IconPayments() {
   );
 }
 
+function IconDelivery() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+  );
+}
+
 function IconArrowLeft() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,6 +146,7 @@ const NAV_ITEMS = [
   { to: '/admin/banners',          label: 'Banners',          Icon: IconBanners },
   { to: '/admin/users',            label: 'Users',            Icon: IconUsers },
   { to: '/admin/payment-methods',  label: 'Payment Methods',  Icon: IconPayments },
+  { to: '/admin/delivery',         label: 'Delivery',         Icon: IconDelivery },
 ];
 
 const PAGE_TITLES = {
@@ -155,6 +165,7 @@ const PAGE_TITLES = {
   '/admin/banners':            'Banners',
   '/admin/users':              'Users',
   '/admin/payment-methods':    'Payment Methods',
+  '/admin/delivery':           'Delivery',
 };
 
 const PAGE_SUBTITLES = {
@@ -173,11 +184,13 @@ const PAGE_SUBTITLES = {
   '/admin/banners':            'Homepage & promotional banners',
   '/admin/users':              'Customer accounts',
   '/admin/payment-methods':    'Configure checkout payment options',
+  '/admin/delivery':           'Manage express delivery pincodes',
 };
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const addToast = useToastStore((s) => s.addToast);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = window.location.pathname;
 
@@ -188,7 +201,8 @@ export default function AdminLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    addToast('You have been logged out successfully', 'success');
+    navigate('/admin/login', { replace: true });
   };
 
   return (

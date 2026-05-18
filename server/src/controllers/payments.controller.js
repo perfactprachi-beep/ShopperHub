@@ -5,6 +5,7 @@ import { validateCoupon } from '../services/coupons.service.js';
 import { createRazorpayOrder, verifySignature } from '../services/payments.service.js';
 import { fulfillOrder, getOrderById, getOrderItems } from '../db/queries/orders.js';
 import { getActivePaymentMethods } from '../db/queries/paymentMethods.js';
+import { sendOrderConfirmation } from '../services/sms.service.js';
 
 // Shared shipping calculator — single source of truth for both create & verify
 function calcShipping(deliveryType, subtotal) {
@@ -17,7 +18,13 @@ function calcShipping(deliveryType, subtotal) {
 export async function createOrder(req, res, next) {
   try {
     const { addressId, couponCode, usePoints, deliveryType = 'standard' } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    
+    console.log('[createOrder] User ID:', userId, 'Address ID:', addressId);
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
 
     if (!addressId) {
       return res.status(400).json({ success: false, message: 'addressId is required' });
@@ -151,6 +158,15 @@ export async function verifyPayment(req, res, next) {
       );
     }
 
+    // Send order confirmation SMS
+    const user = await findUserById(userId);
+    if (user?.phone) {
+      const estimatedDays = deliveryType === 'express' ? '1-2' : (deliveryType === 'store_pickup' ? '0' : '5-7');
+      sendOrderConfirmation(user.phone, order.id, total, estimatedDays).catch(err =>
+        console.error('[SMS] Failed to send order confirmation:', err.message)
+      );
+    }
+
     res.json({ success: true, data: { orderId: order.id }, message: 'Payment verified, order placed' });
   } catch (err) { next(err); }
 }
@@ -243,6 +259,15 @@ export async function createCodOrder(req, res, next) {
       await pool.query(
         'UPDATE users SET first_citizen_points = GREATEST(first_citizen_points - $1, 0) WHERE id = $2',
         [pointsDiscount, userId]
+      );
+    }
+
+    // Send order confirmation SMS for COD
+    const user = await findUserById(userId);
+    if (user?.phone) {
+      const estimatedDays = deliveryType === 'express' ? '1-2' : (deliveryType === 'store_pickup' ? '0' : '5-7');
+      sendOrderConfirmation(user.phone, order.id, total, estimatedDays).catch(err =>
+        console.error('[SMS] Failed to send order confirmation:', err.message)
       );
     }
 

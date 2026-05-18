@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getAdminOrders, updateOrderStatus } from '../../api/adminApi.js';
+import { getAdminOrders, updateOrderStatus, updatePickupStatus } from '../../api/adminApi.js';
+import DeliveryBadge from '../../components/admin/DeliveryBadge.jsx';
+import { useToastStore } from '../../store/toastStore.js';
 
 const STATUSES = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
@@ -19,6 +21,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
   const limit = 20;
+  const { addToast } = useToastStore();
 
   const load = async (tab = activeTab, pg = page) => {
     setLoading(true);
@@ -36,8 +39,20 @@ export default function AdminOrders() {
     try {
       await updateOrderStatus(orderId, status);
       await load();
+      addToast(`Order status updated to ${status}`, 'success');
     } catch (err) {
-      alert(err.response?.data?.message || 'Update failed');
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    } finally { setUpdating(null); }
+  };
+
+  const handlePickupStatusChange = async (orderId, status) => {
+    setUpdating(orderId);
+    try {
+      await updatePickupStatus(orderId, status);
+      await load();
+      addToast(`Pickup status updated to ${status}`, 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
     } finally { setUpdating(null); }
   };
 
@@ -78,21 +93,24 @@ export default function AdminOrders() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Items</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Delivery</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Delivery</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Update</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(7)].map((_, j) => (
+                    {[...Array(9)].map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : orders.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center">
+                <tr><td colSpan={9} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2 text-gray-300">
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                     <p className="text-sm text-gray-400">No orders found</p>
@@ -111,6 +129,9 @@ export default function AdminOrders() {
                   <td className="px-4 py-3 text-right">{order.item_count}</td>
                   <td className="px-4 py-3 text-right font-medium">
                     ₹{parseFloat(order.total).toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-4 py-3">
+                    <DeliveryBadge method={order.delivery_method} />
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-500'}`}>
@@ -133,6 +154,27 @@ export default function AdminOrders() {
                           ))}
                         </select>
                       </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    {order.delivery_method === 'store_pickup' ? (
+                      updating === order.id ? (
+                        <span className="text-xs text-gray-400 italic">Updating…</span>
+                      ) : (
+                        <div className="select-wrap w-32">
+                          <select
+                            value={order.pickup_status || 'pending'}
+                            onChange={e => handlePickupStatusChange(order.id, e.target.value)}
+                            className="text-xs"
+                          >
+                            {['pending','ready','collected','expired'].map(s => (
+                              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
                     )}
                   </td>
                 </tr>

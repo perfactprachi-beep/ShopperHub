@@ -9,13 +9,13 @@ import LoginModal from './components/ui/LoginModal.jsx';
 import Spinner from './components/ui/Spinner.jsx';
 import ProtectedRoute from './components/guards/ProtectedRoute.jsx';
 import AdminRoute from './components/guards/AdminRoute.jsx';
+import AdminBlockedRoute from './components/guards/AdminBlockedRoute.jsx';
 import AdminLayout from './components/layout/AdminLayout.jsx';
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 import { useCartSync } from './hooks/useCartSync.js';
 import { useUiStore } from './store/uiStore.js';
 
 const Home              = lazy(() => import('./pages/Home.jsx'));
-const LoginPage         = lazy(() => import('./pages/LoginPage.jsx'));
 const RegisterPage      = lazy(() => import('./pages/RegisterPage.jsx'));
 const CategoryPage      = lazy(() => import('./pages/CategoryPage.jsx'));
 const BrandPage         = lazy(() => import('./pages/BrandPage.jsx'));
@@ -57,6 +57,7 @@ const LowStockAlerts     = lazy(() => import('./pages/admin/LowStockAlerts.jsx')
 const Warehouses         = lazy(() => import('./pages/admin/Warehouses.jsx'));
 const InventoryLogs      = lazy(() => import('./pages/admin/InventoryLogs.jsx'));
 const AdminPaymentMethods = lazy(() => import('./pages/admin/AdminPaymentMethods.jsx'));
+const AdminDelivery       = lazy(() => import('./pages/admin/AdminDelivery.jsx'));
 
 const NotFoundPage       = lazy(() => import('./pages/NotFoundPage.jsx'));
 
@@ -99,7 +100,6 @@ function AppShell() {
           <Routes>
             {/* Public */}
             <Route path="/"               element={<Home />} />
-            <Route path="/login"          element={<LoginPage />} />
             <Route path="/register"       element={<RegisterPage />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/brands"         element={<BrandsPage />} />
@@ -117,7 +117,7 @@ function AppShell() {
 
             {/* Protected */}
             <Route path="/cart"     element={<BagPage />} />
-            <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+            <Route path="/wishlist" element={<AdminBlockedRoute><ProtectedRoute><WishlistPage /></ProtectedRoute></AdminBlockedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/order-success/:id" element={<ProtectedRoute><OrderSuccessPage /></ProtectedRoute>} />
             <Route path="/orders"    element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
@@ -158,6 +158,7 @@ function AdminShell() {
             <Route path="banners"           element={<AdminBanners />} />
             <Route path="users"             element={<AdminUsers />} />
             <Route path="payment-methods"   element={<AdminPaymentMethods />} />
+            <Route path="delivery"          element={<AdminDelivery />} />
           </Route>
         </Routes>
       </Suspense>

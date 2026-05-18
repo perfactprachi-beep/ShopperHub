@@ -3,6 +3,7 @@ import { inventoryApi } from '../../api/inventoryApi.js';
 import { getAdminCategories, getAdminBrands } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
+import { useToastStore } from '../../store/toastStore.js';
 
 function StockEditModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -11,6 +12,7 @@ function StockEditModal({ item, onClose, onSaved }) {
     notes: ''
   });
   const [saving, setSaving] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,11 +20,12 @@ function StockEditModal({ item, onClose, onSaved }) {
     try {
       const { data } = await inventoryApi.updateInventoryItem(item.id, form);
       if (data.success) {
+        addToast('Stock updated successfully', 'success');
         onSaved(data.data);
         onClose();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update stock');
+      addToast(err.response?.data?.message || 'Failed to update stock', 'error');
     } finally {
       setSaving(false);
     }
@@ -109,6 +112,7 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
     }))
   );
   const [saving, setSaving] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleQuantityChange = (id, quantity) => {
     setUpdates(prev => prev.map(item => 
@@ -122,11 +126,12 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
     try {
       const { data } = await inventoryApi.bulkUpdateInventory(updates);
       if (data.success) {
+        addToast(`${updates.length} item${updates.length > 1 ? 's' : ''} stock updated`, 'success');
         onSaved(data.data);
         onClose();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update stock');
+      addToast(err.response?.data?.message || 'Failed to update stock', 'error');
     } finally {
       setSaving(false);
     }

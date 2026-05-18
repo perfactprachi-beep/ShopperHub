@@ -63,3 +63,88 @@ export async function updatePickupStatus(orderId, status) {
     [status, orderId]
   );
 }
+
+// ── Admin: store management ───────────────────────────────────────────────────
+
+export async function adminListStores() {
+  const { rows } = await pool.query(
+    'SELECT * FROM stores ORDER BY city, name'
+  );
+  return rows;
+}
+
+export async function adminToggleStore(id, is_active) {
+  const { rows } = await pool.query(
+    'UPDATE stores SET is_active = $2 WHERE id = $1 RETURNING *',
+    [id, is_active]
+  );
+  return rows[0];
+}
+
+export async function adminAddStore({ name, city, state, address, pincode, lat, lng, phone, timing }) {
+  const { rows } = await pool.query(
+    `INSERT INTO stores (name, city, state, address, pincode, lat, lng, phone, timing)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [name, city, state, address, pincode, lat || null, lng || null, phone || null, timing || '10:00 AM – 10:00 PM']
+  );
+  return rows[0];
+}
+
+export async function adminUpdateStore(id, { name, city, state, address, pincode, phone, timing, is_active }) {
+  const { rows } = await pool.query(
+    `UPDATE stores SET
+       name    = COALESCE($2, name),
+       city    = COALESCE($3, city),
+       state   = COALESCE($4, state),
+       address = COALESCE($5, address),
+       pincode = COALESCE($6, pincode),
+       phone   = COALESCE($7, phone),
+       timing  = COALESCE($8, timing),
+       is_active = COALESCE($9, is_active)
+     WHERE id = $1 RETURNING *`,
+    [id, name, city, state, address, pincode, phone, timing, is_active ?? null]
+  );
+  return rows[0];
+}
+
+export async function adminDeleteStore(id) {
+  await pool.query('DELETE FROM stores WHERE id = $1', [id]);
+}
+
+// ── Admin: express pincode management ─────────────────────────────────────────
+
+export async function adminListPincodes() {
+  const { rows } = await pool.query(
+    'SELECT * FROM express_pincodes ORDER BY city, pincode'
+  );
+  return rows;
+}
+
+export async function adminAddPincode({ pincode, city, is_express = true, delivery_hrs = 24 }) {
+  const { rows } = await pool.query(
+    `INSERT INTO express_pincodes (pincode, city, is_express, delivery_hrs)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (pincode) DO UPDATE
+       SET city = EXCLUDED.city, is_express = EXCLUDED.is_express, delivery_hrs = EXCLUDED.delivery_hrs
+     RETURNING *`,
+    [pincode, city, is_express, delivery_hrs]
+  );
+  return rows[0];
+}
+
+export async function adminUpdatePincode(pincode, { city, is_express, delivery_hrs }) {
+  const { rows } = await pool.query(
+    `UPDATE express_pincodes
+     SET city = COALESCE($2, city),
+         is_express = COALESCE($3, is_express),
+         delivery_hrs = COALESCE($4, delivery_hrs)
+     WHERE pincode = $1
+     RETURNING *`,
+    [pincode, city ?? null, is_express ?? null, delivery_hrs ?? null]
+  );
+  return rows[0];
+}
+
+export async function adminDeletePincode(pincode) {
+  await pool.query('DELETE FROM express_pincodes WHERE pincode = $1', [pincode]);
+}
