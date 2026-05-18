@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getAdminUsers, updateUserStatus, deleteAdminUser } from '../../api/adminApi.js';
+import { useToastStore } from '../../store/toastStore.js';
 
 const STATUS_FILTERS = [
   { label: 'All', value: '' },
@@ -18,6 +19,7 @@ export default function AdminUsers() {
   const [actionLoading, setActionLoading] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [error, setError] = useState(null);
+  const { addToast } = useToastStore();
   const limit = 20;
 
   const load = useCallback(async () => {
@@ -54,8 +56,9 @@ export default function AdminUsers() {
     try {
       await updateUserStatus(user.id, !currentActive);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_active: !currentActive } : u));
+      addToast(`User ${!currentActive ? 'activated' : 'deactivated'}`, 'success');
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to update status');
+      addToast(err?.response?.data?.message || 'Failed to update status', 'error');
     } finally { setActionLoading(null); }
   };
 
@@ -65,8 +68,9 @@ export default function AdminUsers() {
       await deleteAdminUser(user.id);
       setUsers(prev => prev.filter(u => u.id !== user.id));
       setTotal(t => t - 1);
+      addToast('User deleted', 'success');
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to delete user');
+      addToast(err?.response?.data?.message || 'Failed to delete user', 'error');
     } finally {
       setActionLoading(null);
       setDeleteConfirm(null);

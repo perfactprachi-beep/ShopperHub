@@ -18,7 +18,11 @@ import { getAllOffers, createOffer, updateOffer, deleteOffer } from '../db/queri
 import {
   adminListOrders, adminUpdateOrderStatus, adminGetDashboardStats,
 } from '../db/queries/orders.js';
-import { updatePickupStatus } from '../db/queries/stores.js';
+import {
+  updatePickupStatus,
+  adminListStores, adminToggleStore, adminAddStore, adminUpdateStore, adminDeleteStore,
+  adminListPincodes, adminAddPincode, adminUpdatePincode, adminDeletePincode,
+} from '../db/queries/stores.js';
 import { adminListUsers, adminUpdateUserStatus, adminDeleteUser } from '../db/queries/users.js';
 import { createNotification } from '../db/queries/notifications.js';
 import {
@@ -410,6 +414,80 @@ router.delete('/payment-methods/:id', async (req, res, next) => {
   try {
     await deletePaymentMethod(req.params.id);
     res.json({ success: true, message: 'Payment method deleted' });
+  } catch (err) { next(err); }
+});
+
+// ── Delivery: store management ────────────────────────────────────────────────
+
+router.get('/delivery/stores', async (_req, res, next) => {
+  try {
+    const data = await adminListStores();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/delivery/stores', async (req, res, next) => {
+  try {
+    const { name, city, state, address, pincode } = req.body;
+    if (!name?.trim() || !city?.trim() || !state?.trim() || !address?.trim() || !pincode?.trim()) {
+      return res.status(400).json({ success: false, message: 'name, city, state, address, pincode are required' });
+    }
+    const data = await adminAddStore(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.patch('/delivery/stores/:id', async (req, res, next) => {
+  try {
+    const data = await adminUpdateStore(req.params.id, req.body);
+    if (!data) return res.status(404).json({ success: false, message: 'Store not found' });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/delivery/stores/:id', async (req, res, next) => {
+  try {
+    await adminDeleteStore(req.params.id);
+    res.json({ success: true, message: 'Store removed' });
+  } catch (err) { next(err); }
+});
+
+// ── Delivery: express pincode management ──────────────────────────────────────
+
+router.get('/delivery/pincodes', async (_req, res, next) => {
+  try {
+    const data = await adminListPincodes();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/delivery/pincodes', async (req, res, next) => {
+  try {
+    const { pincode, city, is_express, delivery_hrs } = req.body;
+    if (!pincode || !/^\d{6}$/.test(pincode)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid 6-digit pincode' });
+    }
+    if (!city?.trim()) {
+      return res.status(400).json({ success: false, message: 'City is required' });
+    }
+    const data = await adminAddPincode({ pincode, city: city.trim(), is_express, delivery_hrs });
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.patch('/delivery/pincodes/:pincode', async (req, res, next) => {
+  try {
+    const { city, is_express, delivery_hrs } = req.body;
+    const data = await adminUpdatePincode(req.params.pincode, { city, is_express, delivery_hrs });
+    if (!data) return res.status(404).json({ success: false, message: 'Pincode not found' });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/delivery/pincodes/:pincode', async (req, res, next) => {
+  try {
+    await adminDeletePincode(req.params.pincode);
+    res.json({ success: true, message: 'Pincode removed' });
   } catch (err) { next(err); }
 });
 

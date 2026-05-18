@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAdminCoupons, createCoupon, updateCoupon, deleteCoupon } from '../../api/adminApi.js';
+import { useToastStore } from '../../store/toastStore.js';
+import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
 const EMPTY = {
   code: '', type: 'flat', value: '', min_order: 0,
@@ -12,6 +14,7 @@ function CouponModal({ coupon, onClose, onSaved }) {
     expires_at: coupon.expires_at ? coupon.expires_at.slice(0, 10) : '',
   } : { ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -29,10 +32,11 @@ function CouponModal({ coupon, onClose, onSaved }) {
         expires_at: form.expires_at || null,
       };
       const saved = coupon?.id ? await updateCoupon(coupon.id, payload) : await createCoupon(payload);
+      addToast(coupon?.id ? 'Coupon updated' : 'Coupon created', 'success');
       onSaved(saved, !coupon?.id);
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Save failed');
+      addToast(err.response?.data?.message || 'Save failed', 'error');
     } finally { setSaving(false); }
   };
 
@@ -97,6 +101,8 @@ export default function AdminCoupons() {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(undefined);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { addToast } = useToastStore();
 
   const load = async () => {
     setLoading(true);
@@ -107,14 +113,14 @@ export default function AdminCoupons() {
 
   useEffect(() => { load(); }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this coupon?')) return;
+  const handleDelete = async () => {
     try {
-      await deleteCoupon(id);
-      setCoupons(cs => cs.filter(c => c.id !== id));
+      await deleteCoupon(deleteTarget.id);
+      setCoupons(cs => cs.filter(c => c.id !== deleteTarget.id));
+      addToast('Coupon deleted', 'success');
     } catch (err) {
-      alert(err.response?.data?.message || 'Delete failed');
-    }
+      addToast(err.response?.data?.message || 'Delete failed', 'error');
+    } finally { setDeleteTarget(null); }
   };
 
   const handleSaved = (saved, isNew) => {
@@ -183,7 +189,7 @@ export default function AdminCoupons() {
                       <button onClick={() => setModal(c)} title="Edit" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button onClick={() => handleDelete(c.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                      <button onClick={() => setDeleteTarget(c)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>
@@ -198,6 +204,13 @@ export default function AdminCoupons() {
       {modal !== undefined && (
         <CouponModal coupon={modal} onClose={() => setModal(undefined)} onSaved={handleSaved} />
       )}
+      <DeleteModal
+        open={!!deleteTarget}
+        title="Delete Coupon"
+        description={`Are you sure you want to delete coupon "${deleteTarget?.code}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

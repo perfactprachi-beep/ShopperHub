@@ -88,14 +88,16 @@ export default function ProductCard({ product, dark = false, showNew = false, on
             )}
           </div>
 
-          {/* Wishlist */}
-          <button
-            onClick={handleWishlist}
-            aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-            className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110 transition-all ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}
-          >
-            <IconHeart filled={wished} />
-          </button>
+          {/* Wishlist — hidden for admin */}
+          {!isAdmin && (
+            <button
+              onClick={handleWishlist}
+              aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+              className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110 transition-all ${dark ? 'bg-[#2A2A2A]' : 'bg-white'}`}
+            >
+              <IconHeart filled={wished} />
+            </button>
+          )}
 
           {stock === 0 && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">

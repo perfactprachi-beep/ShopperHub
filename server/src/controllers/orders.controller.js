@@ -1,5 +1,7 @@
 import { getOrdersByUser, getOrderById, getOrderItems, cancelOrder } from '../db/queries/orders.js';
 import { createNotification } from '../db/queries/notifications.js';
+import { findUserById } from '../db/queries/users.js';
+import { sendReturnApprovedNotification } from '../services/sms.service.js';
 
 export async function listOrders(req, res, next) {
   try {

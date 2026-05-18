@@ -122,6 +122,47 @@ export default function OrderDetailPage() {
         <OrderStatusStepper status={order.status} />
       </div>
 
+      {/* Store Pickup Details */}
+      {order.delivery_method === 'store_pickup' && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-4 mb-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text)] mb-3">Store Pickup Details</h2>
+          <div className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+            {order.store_name && (
+              <div className="flex gap-2"><span>Store:</span><span className="text-[var(--color-text)] font-medium">{order.store_name}</span></div>
+            )}
+            {order.store_address && (
+              <div className="flex gap-2"><span>Address:</span><span>{order.store_address}</span></div>
+            )}
+            {order.store_timing && (
+              <div className="flex gap-2"><span>Timing:</span><span>{order.store_timing}</span></div>
+            )}
+            {order.pickup_pin && (
+              <div className="flex items-center gap-2 mt-1">
+                <span>Pickup PIN:</span>
+                <span className="text-[var(--color-primary)] font-bold text-xl tracking-widest">{order.pickup_pin}</span>
+                <span className="text-xs">(show this at store)</span>
+              </div>
+            )}
+            {order.pickup_status && (
+              <div className="flex items-center gap-2 mt-1">
+                <span>Status:</span>
+                <span className={`font-semibold capitalize px-2 py-0.5 rounded text-xs ${
+                  order.pickup_status === 'ready'     ? 'bg-green-50 text-green-700' :
+                  order.pickup_status === 'collected' ? 'bg-gray-100 text-gray-600' :
+                  order.pickup_status === 'expired'   ? 'bg-red-50 text-red-600' :
+                  'bg-yellow-50 text-yellow-700'
+                }`}>{order.pickup_status}</span>
+              </div>
+            )}
+          </div>
+          {order.pickup_status !== 'ready' && order.pickup_status !== 'collected' && (
+            <p className="text-xs text-[var(--color-muted)] mt-3 leading-relaxed">
+              We'll notify you when your order is ready for pickup. Orders held for 7 days from confirmation.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Delivery Address */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-4 mb-4">
         <h2 className="text-sm font-semibold text-[var(--color-text)] mb-2">Delivery Address</h2>

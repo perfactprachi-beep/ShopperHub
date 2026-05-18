@@ -170,6 +170,7 @@ export async function adminListOrders({ page = 1, limit = 20, status }) {
     SELECT
       o.id, o.status, o.total, o.subtotal, o.discount, o.payment_method,
       o.payment_status, o.created_at, o.points_earned,
+      o.delivery_method, o.pickup_status,
       u.full_name AS customer_name, u.email AS customer_email,
       COUNT(oi.id) AS item_count,
       COUNT(*) OVER() AS total_count

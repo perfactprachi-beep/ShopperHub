@@ -19,6 +19,7 @@ import { addCartItem } from '../api/cartApi.js';
 import { toggleWishlist } from '../api/wishlistApi.js';
 import { assetUrl } from '../utils/assetUrl.js';
 import { getActiveOffers } from '../api/offersApi.js';
+import { PincodeChecker } from '../components/checkout/PincodeChecker.jsx';
 
 /* ── Offers section ─────────────────────────────────────────────────────── */
 /* Percent SVG — fallback when no image_url (mirrors SS percentIcon.svg) */
@@ -123,41 +124,13 @@ function OffersSection({ categoryId }) {
 
 /* ── Pincode checker ───────────────────────────────────────────────────── */
 function PincodeCheck() {
-  const [pin, setPin] = useState('');
-  const [result, setResult] = useState(null);
-
-  const check = () => {
-    if (pin.length === 6) setResult({ ok: true });
-  };
-
   return (
     <div className="border border-gray-200 rounded p-4">
       <p className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        Check Delivery
+        Check Delivery &amp; Express Pickup
       </p>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          maxLength={6}
-          value={pin}
-          onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setResult(null); }}
-          placeholder="Enter Pincode"
-          className="flex-1 border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
-        />
-        <button
-          onClick={check}
-          className="px-4 py-2 border border-[#8B1A2F] text-[#8B1A2F] text-sm font-semibold hover:bg-[#8B1A2F] hover:text-white transition-colors"
-        >
-          Check
-        </button>
-      </div>
-      {result && (
-        <p className="mt-2 text-xs text-green-600 flex items-center gap-1">
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-          Delivery available in 2–4 business days
-        </p>
-      )}
+      <PincodeChecker onResult={() => {}} />
     </div>
   );
 }
@@ -933,15 +906,17 @@ export default function ProductDetail() {
                     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                   </svg>
                 </button>
-                <button
-                  onClick={handleWishlist}
-                  className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
-                    wished ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50' : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
-                  }`}
-                  aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-                >
-                  <IconHeart filled={wished} />
-                </button>
+                {!isAdmin && (
+                  <button
+                    onClick={handleWishlist}
+                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
+                      wished ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50' : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
+                    }`}
+                    aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+                  >
+                    <IconHeart filled={wished} />
+                  </button>
+                )}
               </div>
             </div>
 

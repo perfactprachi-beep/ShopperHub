@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../../api/authApi.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useToastStore } from '../../store/toastStore.js';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -24,6 +26,7 @@ export default function AdminLoginPage() {
         return;
       }
       login(data.user, data.accessToken);
+      addToast(`Welcome back, ${data.user.full_name || 'Admin'}!`, 'success');
       navigate('/admin', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials');
@@ -66,7 +69,7 @@ export default function AdminLoginPage() {
                 onChange={handleChange}
                 required
                 placeholder="admin@example.com"
-                className="w-full px-4 py-2.5 bg-[#0F3460]/50 border border-white/10 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#8B1A2F] transition-colors"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#8B1A2F] transition-colors"
               />
             </div>
 
@@ -79,7 +82,7 @@ export default function AdminLoginPage() {
                 onChange={handleChange}
                 required
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 bg-[#0F3460]/50 border border-white/10 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#8B1A2F] transition-colors"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#8B1A2F] transition-colors"
               />
             </div>
 

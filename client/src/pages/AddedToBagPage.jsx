@@ -315,7 +315,7 @@ export default function AddedToBagPage() {
   const { has, toggle } = useWishlistStore();
   const { addToast } = useToastStore();
   const { openLoginModal } = useUiStore();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
 
   const { data, loading } = useFetch(
     () => cartSlug ? productsApi.detail(cartSlug) : Promise.resolve(null),
@@ -409,11 +409,13 @@ export default function AddedToBagPage() {
                       <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                     </svg>
                   </button>
-                  <button onClick={handleWishlist}
-                    className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${wished ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50' : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'}`}
-                    aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}>
-                    <IconHeart filled={wished} />
-                  </button>
+                  {!isAdmin && (
+                    <button onClick={handleWishlist}
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${wished ? 'border-[#8B1A2F] text-[#8B1A2F] bg-red-50' : 'border-gray-200 text-gray-400 hover:text-[#8B1A2F] hover:border-[#8B1A2F]'}`}
+                      aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}>
+                      <IconHeart filled={wished} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

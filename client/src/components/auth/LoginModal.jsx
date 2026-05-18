@@ -27,7 +27,7 @@ export default function LoginModal({ isOpen, onClose }) {
   const handleContinue = (e) => {
     e.preventDefault();
     onClose();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
@@ -85,7 +85,7 @@ export default function LoginModal({ isOpen, onClose }) {
           <p className="text-[12px] text-gray-500 mt-5 text-center">
             Having trouble logging in?{' '}
             <button
-              onClick={() => { onClose(); navigate('/login'); }}
+              onClick={() => { onClose(); navigate('/'); }}
               className="text-[#8B1A2F] font-semibold hover:underline"
             >
               Get Help

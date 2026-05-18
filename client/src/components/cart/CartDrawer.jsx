@@ -33,7 +33,7 @@ function IconHeart({ size = 16, filled }) {
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQty, itemCount, subtotal } = useCartStore();
   const { toggle: toggleWishlistStore, has: inWishlist } = useWishlistStore();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin } = useAuth();
   const { addToast } = useToastStore();
 
   useEffect(() => {
@@ -146,14 +146,16 @@ export default function CartDrawer({ isOpen, onClose }) {
                           </p>
                         )}
                       </div>
-                      {/* Move to wishlist */}
-                      <button
-                        onClick={() => handleMoveToWishlist(item)}
-                        className={`shrink-0 p-1 transition-colors ${inWishlist(item.productId) ? 'text-[var(--color-primary)]' : 'text-[var(--color-muted)] hover:text-[var(--color-primary)]'}`}
-                        title="Move to wishlist"
-                      >
-                        <IconHeart size={15} filled={inWishlist(item.productId)} />
-                      </button>
+                      {/* Move to wishlist — hidden for admin */}
+                      {!isAdmin && (
+                        <button
+                          onClick={() => handleMoveToWishlist(item)}
+                          className={`shrink-0 p-1 transition-colors ${inWishlist(item.productId) ? 'text-[var(--color-primary)]' : 'text-[var(--color-muted)] hover:text-[var(--color-primary)]'}`}
+                          title="Move to wishlist"
+                        >
+                          <IconHeart size={15} filled={inWishlist(item.productId)} />
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between mt-2">

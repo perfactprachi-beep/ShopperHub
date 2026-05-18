@@ -15,7 +15,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 const EMPTY_PRODUCT = {
   title: '', slug: '', brand_id: '', category_id: '', gender: '',
   base_price: '', discount_pct: 10, description: '', status: 'active', stock: 0,
-  is_deal: false, is_returnable: true,
+  is_deal: false, is_returnable: true, express_eligible: false, store_pickup_eligible: false,
 };
 
 const EMPTY_VARIANT   = { size: '', color: '', sku: '', stock: 0, extra_price: 0 };
