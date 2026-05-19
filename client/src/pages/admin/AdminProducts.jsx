@@ -637,7 +637,7 @@ export default function AdminProducts() {
     try {
       await deleteProduct(confirmId);
       addToast('Product deactivated', 'success');
-      load();
+      setProducts(ps => ps.map(p => p.id === confirmId ? { ...p, status: 'inactive' } : p));
     } catch (err) {
       addToast(err.response?.data?.message || 'Delete failed', 'error');
     } finally { setConfirmId(null); }
@@ -867,7 +867,7 @@ export default function AdminProducts() {
       {confirmId && (
         <ConfirmDialog
           title="Deactivate this product?"
-          message="The product will be hidden from the store."
+          message="The product will be hidden from the store but kept in the database."
           confirmLabel="Deactivate"
           onConfirm={doDelete}
           onCancel={() => setConfirmId(null)}

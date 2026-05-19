@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
-import { getAdminCategories, getAdminBrands } from '../../api/adminApi.js';
+import { getAdminCategories, getAdminBrands, deleteProduct } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 
@@ -13,10 +13,11 @@ function RestockModal({ item, onClose, onRestocked }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await inventoryApi.adjustStock(item.id, {
-        quantity_change: quantity,
-        action_type: 'stock_added',
-        notes: notes || 'Restock from low stock alert'
+      const currentStock = item.live_stock ?? item.stock_quantity ?? 0;
+      const newStock = currentStock + quantity;
+      const { data } = await inventoryApi.updateVariantStock(item.variant_id, {
+        stock_quantity: newStock,
+        low_stock_threshold: item.low_stock_threshold
       });
       if (data.success) {
         onRestocked(data.data);
@@ -48,7 +49,7 @@ function RestockModal({ item, onClose, onRestocked }) {
               <span className="text-sm font-medium">Low Stock Alert</span>
             </div>
             <p className="text-sm text-yellow-700 mt-1">
-              Current stock: {item?.stock_quantity} • Threshold: {item?.low_stock_threshold}
+              Current stock: {item?.live_stock ?? item?.stock_quantity} • Threshold: {item?.low_stock_threshold}
             </p>
           </div>
           
@@ -65,7 +66,7 @@ function RestockModal({ item, onClose, onRestocked }) {
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              New stock will be: {(item?.stock_quantity || 0) + quantity}
+              New stock will be: {((item?.live_stock ?? item?.stock_quantity) || 0) + quantity}
             </p>
           </div>
           
@@ -115,6 +116,9 @@ export default function LowStockAlerts() {
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [restockingItem, setRestockingItem] = useState(null);
+  const [discontinuingItem, setDiscontinuingItem] = useState(null);
+  const [discontinuing, setDiscontinuing] = useState(false);
+  const [successToast, setSuccessToast] = useState(null);
 
   const limit = 20;
 
@@ -148,21 +152,43 @@ export default function LowStockAlerts() {
     }
   };
 
+  const showToast = (message) => {
+    setSuccessToast(message);
+    setTimeout(() => setSuccessToast(null), 3000);
+  };
+
   const handleItemRestocked = (updatedItem) => {
-    // Remove item from low stock list if it's no longer low stock
-    if (updatedItem.stock_quantity > updatedItem.low_stock_threshold) {
-      setItems(prev => prev.filter(item => item.id !== updatedItem.id));
+    const currentStock = updatedItem.live_stock ?? updatedItem.stock_quantity;
+    if (currentStock > updatedItem.low_stock_threshold) {
+      setItems(prev => prev.filter(item => item.variant_id !== updatedItem.variant_id));
       setTotal(prev => prev - 1);
     } else {
-      // Update the item in the list
-      setItems(prev => prev.map(item => 
-        item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+      setItems(prev => prev.map(item =>
+        item.variant_id === updatedItem.variant_id ? { ...item, ...updatedItem } : item
       ));
+    }
+    showToast('Stock updated successfully!');
+  };
+
+  const handleDiscontinue = async () => {
+    if (!discontinuingItem) return;
+    setDiscontinuing(true);
+    try {
+      await deleteProduct(discontinuingItem.product_id);
+      const removed = items.filter(i => i.product_id === discontinuingItem.product_id).length;
+      setItems(prev => prev.filter(i => i.product_id !== discontinuingItem.product_id));
+      setTotal(prev => prev - removed);
+      setDiscontinuingItem(null);
+    } catch {
+      alert('Failed to discontinue product. Please try again.');
+    } finally {
+      setDiscontinuing(false);
     }
   };
 
   const getUrgencyLevel = (item) => {
-    const ratio = item.stock_quantity / item.low_stock_threshold;
+    const stock = item.live_stock ?? item.stock_quantity;
+    const ratio = stock / item.low_stock_threshold;
     if (ratio === 0) return { level: 'critical', color: 'red', label: 'Out of Stock' };
     if (ratio <= 0.5) return { level: 'high', color: 'orange', label: 'Very Low' };
     return { level: 'medium', color: 'yellow', label: 'Low Stock' };
@@ -250,142 +276,224 @@ export default function LowStockAlerts() {
         </div>
       </div>
 
-      {/* Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          [...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-lg animate-pulse" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3 animate-pulse" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="h-3 bg-gray-100 rounded animate-pulse" />
-                <div className="h-8 bg-gray-100 rounded animate-pulse" />
-              </div>
-            </div>
-          ))
-        ) : items.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">All Good!</h3>
-            <p className="text-gray-500">No items are currently running low on stock.</p>
-          </div>
-        ) : items.map((item) => {
-          const urgency = getUrgencyLevel(item);
-          return (
-            <div key={item.id} className={`bg-white rounded-xl border shadow-sm p-6 ${
-              urgency.level === 'critical' ? 'border-red-200 bg-red-50/30' :
-              urgency.level === 'high' ? 'border-orange-200 bg-orange-50/30' :
-              'border-yellow-200 bg-yellow-50/30'
-            }`}>
-              <div className="flex items-start gap-4 mb-4">
-                {item.image_url ? (
-                  <img
-                    src={assetUrl(item.image_url)}
-                    alt=""
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21,15 16,10 5,21"/>
-                    </svg>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">{item.product_title}</h3>
-                  <p className="text-sm text-gray-500">{item.category_name}</p>
-                  {(item.size || item.color) && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {item.size && `Size: ${item.size}`}
-                      {item.size && item.color && ' • '}
-                      {item.color && `Color: ${item.color}`}
-                    </p>
-                  )}
-                </div>
-                {getUrgencyBadge(item)}
-              </div>
+      {/* Items Table */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Product</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Variant</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600">Current Stock</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600">Threshold</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Stock Level</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Warehouse</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                [...Array(8)].map((_, i) => (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg animate-pulse shrink-0" />
+                        <div className="h-4 bg-gray-100 rounded animate-pulse w-32" />
+                      </div>
+                    </td>
+                    {[...Array(7)].map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="text-center py-16">
+                    <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <p className="text-base font-medium text-gray-900">All Good!</p>
+                    <p className="text-gray-500 text-sm mt-1">No items are currently running low on stock.</p>
+                  </td>
+                </tr>
+              ) : items.map((item) => {
+                const urgency = getUrgencyLevel(item);
+                const stock = item.live_stock ?? item.stock_quantity;
+                const pct = Math.min(100, Math.round((stock / item.low_stock_threshold) * 100));
+                return (
+                  <tr key={item.variant_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    {/* Product */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {item.image_url ? (
+                          <img src={assetUrl(item.image_url)} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/>
+                            </svg>
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-900 max-w-[180px] truncate">{item.product_title}</span>
+                      </div>
+                    </td>
 
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Current Stock:</span>
-                  <span className={`font-medium ${urgency.level === 'critical' ? 'text-red-600' : 'text-gray-900'}`}>
-                    {item.stock_quantity}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Threshold:</span>
-                  <span className="font-medium text-gray-900">{item.low_stock_threshold}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Warehouse:</span>
-                  <span className="font-medium text-gray-900">{item.warehouse_name}</span>
-                </div>
+                    {/* Category */}
+                    <td className="px-4 py-3 text-gray-500">{item.category_name || '—'}</td>
 
-                {/* Stock Level Bar */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Stock Level</span>
-                    <span>{Math.round((item.stock_quantity / item.low_stock_threshold) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${
-                        urgency.level === 'critical' ? 'bg-red-500' :
-                        urgency.level === 'high' ? 'bg-orange-500' :
-                        'bg-yellow-500'
+                    {/* Variant */}
+                    <td className="px-4 py-3 text-gray-500">
+                      {item.size || item.color ? (
+                        <span>
+                          {item.size && <span>{item.size}</span>}
+                          {item.size && item.color && <span className="text-gray-300 mx-1">•</span>}
+                          {item.color && <span>{item.color}</span>}
+                        </span>
+                      ) : '—'}
+                    </td>
+
+                    {/* Current Stock */}
+                    <td className="px-4 py-3 text-center">
+                      <span className={`font-semibold text-base ${
+                        urgency.level === 'critical' ? 'text-red-600' :
+                        urgency.level === 'high' ? 'text-orange-600' : 'text-yellow-600'
+                      }`}>
+                        {stock}
+                      </span>
+                    </td>
+
+                    {/* Threshold */}
+                    <td className="px-4 py-3 text-center text-gray-600">{item.low_stock_threshold}</td>
+
+                    {/* Stock Level Bar */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-[100px]">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              urgency.level === 'critical' ? 'bg-red-500' :
+                              urgency.level === 'high' ? 'bg-orange-500' : 'bg-yellow-500'
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-400 w-8 text-right">{pct}%</span>
+                      </div>
+                    </td>
+
+                    {/* Warehouse */}
+                    <td className="px-4 py-3 text-gray-500">{item.warehouse_name || <span className="text-gray-300 italic">Not assigned</span>}</td>
+
+                    {/* Status Badge */}
+                    <td className="px-4 py-3 text-center">{getUrgencyBadge(item)}</td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setRestockingItem(item)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors whitespace-nowrap ${
+                            urgency.level === 'critical'
+                              ? 'bg-red-600 hover:bg-red-700'
+                              : 'bg-[#8B1A2F] hover:bg-[#6d1424]'
+                          }`}
+                        >
+                          {urgency.level === 'critical' ? 'Urgent Restock' : 'Quick Restock'}
+                        </button>
+                        {urgency.level === 'critical' && (
+                          <button
+                            onClick={() => setDiscontinuingItem(item)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors whitespace-nowrap"
+                          >
+                            Discontinue
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination footer */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500">
+              Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total} items
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                        page === p
+                          ? 'bg-[#8B1A2F] text-white border-[#8B1A2F]'
+                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
                       }`}
-                      style={{ width: `${Math.min(100, (item.stock_quantity / item.low_stock_threshold) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setRestockingItem(item)}
-                  className={`w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
-                    urgency.level === 'critical' 
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  {urgency.level === 'critical' ? 'Urgent Restock' : 'Quick Restock'}
-                </button>
-              </div>
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
             </div>
-          );
-        })}
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="px-4 py-2 text-sm font-medium">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-          >
-            Next
-          </button>
+      {/* Success Toast */}
+      {successToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg animate-fade-in">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span className="text-sm font-medium">{successToast}</span>
         </div>
       )}
 
@@ -396,6 +504,43 @@ export default function LowStockAlerts() {
           onClose={() => setRestockingItem(null)}
           onRestocked={handleItemRestocked}
         />
+      )}
+
+      {/* Discontinue Confirmation */}
+      {discontinuingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm shadow-xl p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Discontinue Product?</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  <span className="font-medium text-gray-700">{discontinuingItem.product_title}</span> will be hidden from the catalog immediately. You can re-activate it anytime from Admin → Products.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setDiscontinuingItem(null)}
+                disabled={discontinuing}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDiscontinue}
+                disabled={discontinuing}
+                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
+              >
+                {discontinuing ? 'Discontinuing…' : 'Yes, Discontinue'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

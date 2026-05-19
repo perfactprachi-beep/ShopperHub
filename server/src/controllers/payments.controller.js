@@ -44,6 +44,17 @@ export async function createOrder(req, res, next) {
     }
 
     const subtotal = cartItems.reduce((sum, i) => sum + Number(i.lineTotal), 0);
+
+    // Stock pre-check before creating Razorpay order (prevents paying for OOS items)
+    for (const item of cartItems) {
+      if (!item.variantId) continue;
+      const { rows } = await pool.query('SELECT stock FROM product_variants WHERE id = $1', [item.variantId]);
+      const available = rows[0]?.stock ?? 0;
+      if (available < item.quantity) {
+        return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+      }
+    }
+
     let discount = 0;
     let couponId = null;
 
@@ -80,9 +91,14 @@ export async function createOrder(req, res, next) {
     try {
       rzpOrder = await createRazorpayOrder(total, 'INR', `order_${userId}_${Date.now()}`);
     } catch (rzpErr) {
-      console.error('[Razorpay] createOrder failed:', rzpErr);
-      const msg = rzpErr?.error?.description || rzpErr?.message || 'Razorpay order creation failed';
-      return res.status(502).json({ success: false, message: msg });
+      console.error('[Razorpay] createOrder failed — full error:', JSON.stringify(rzpErr, null, 2));
+      console.error('[Razorpay] KEY_ID in use:', process.env.RAZORPAY_KEY_ID);
+      const httpStatus = rzpErr?.statusCode;
+      const isAuthError = httpStatus === 401;
+      const msg = isAuthError
+        ? 'Razorpay authentication failed — please check your API keys in .env (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)'
+        : rzpErr?.error?.description || rzpErr?.message || 'Razorpay order creation failed';
+      return res.status(502).json({ success: false, message: msg, debug: rzpErr?.error });
     }
 
     res.json({
@@ -110,7 +126,7 @@ export async function verifyPayment(req, res, next) {
       razorpayOrderId, razorpayPaymentId, razorpaySignature,
       addressId, couponId, subtotal, discount, pointsDiscount, total,
       deliveryType = 'standard',
-      deliveryMethod = 'express_delivery',
+      deliveryMethod = 'standard_delivery',
       storeId = null,
     } = req.body;
     const userId = req.user.id;
@@ -185,7 +201,7 @@ export async function createCodOrder(req, res, next) {
     const {
       addressId, couponCode, usePoints,
       deliveryType = 'standard',
-      deliveryMethod = 'express_delivery',
+      deliveryMethod = 'standard_delivery',
       storeId = null,
     } = req.body;
     const userId = req.user.id;
@@ -203,6 +219,16 @@ export async function createCodOrder(req, res, next) {
     const cartItems = await getCartByUser(userId);
     if (!cartItems.length) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
+    }
+
+    // Stock pre-check before placing COD order
+    for (const item of cartItems) {
+      if (!item.variantId) continue;
+      const { rows } = await pool.query('SELECT stock FROM product_variants WHERE id = $1', [item.variantId]);
+      const available = rows[0]?.stock ?? 0;
+      if (available < item.quantity) {
+        return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+      }
     }
 
     const subtotal = cartItems.reduce((sum, i) => sum + Number(i.lineTotal), 0);

@@ -19,7 +19,7 @@ const OFFERS = [
     code: 'LUXE',
     title: 'Flat ₹2,500 Off',
     desc: 'On luxury purchases above ₹20,000',
-    link: '/category/luxe',
+    link: '/luxe',
     color: '#C9A84C',
   },
 ];

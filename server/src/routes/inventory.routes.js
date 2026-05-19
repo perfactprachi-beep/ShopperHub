@@ -8,7 +8,7 @@ import {
   addWarehouse,
   editWarehouse,
   removeWarehouse,
-  
+
   // Inventory
   listInventory,
   getInventoryItem,
@@ -16,13 +16,14 @@ import {
   updateInventoryItem,
   bulkUpdateInventory,
   adjustInventoryStock,
-  
+  updateVariantStock,
+
   // Low stock
   listLowStockItems,
-  
+
   // Dashboard
   getDashboardStats,
-  
+
   // Logs
   listInventoryLogs,
   addInventoryLog
@@ -50,6 +51,9 @@ router.post('/inventory', addInventoryItem);
 router.put('/inventory/:id', updateInventoryItem);
 router.post('/inventory/bulk-update', bulkUpdateInventory);
 router.post('/inventory/:id/adjust', adjustInventoryStock);
+
+// ── Variant stock (works with or without an inventory record) ─────────────────
+router.put('/variants/:variantId/stock', updateVariantStock);
 
 // ── Low stock routes ──────────────────────────────────────────────────────────
 router.get('/low-stock', listLowStockItems);

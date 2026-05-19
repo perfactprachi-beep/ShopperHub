@@ -14,67 +14,80 @@ const TREE = [
   {
     name: 'Men', children: [
       { name: 'Casual Wear', children: [
-        'T-Shirts', 'Polos', 'Shirts', 'Sweatshirts & Pullovers',
-        'Jackets', 'Jeans', 'Casual Trousers & Chinos', 'Shorts',
-        'Cargos Track Pants & Joggers', 'Co-Ords',
+        'T-Shirts', 'Polos', 'Jackets', 'Casual Trousers & Chinos',
+        'Cargos Track Pants & Joggers', 'Co-Ords', 'Shorts', 'Sweatshirts & Pullovers',
       ]},
       { name: 'Formal Wear', children: [
-        'Shirts', 'Trousers', 'Suit Sets', 'Blazers & Coats',
+        'Trousers', 'Suit Sets', 'Blazers & Coats',
       ]},
+      'Shirts',
       { name: 'Athleisure', children: [
-        'Active T-Shirts', 'Jackets & Sweatshirts', 'Shorts',
-        'Track Pants & Joggers', 'Cargos', 'Tracksuits & Sets',
+        'Active T-Shirts', 'Jackets & Sweatshirts', 'Track Pants & Joggers',
+        'Cargos', 'Tracksuits & Sets',
       ]},
-      { name: 'Innerwear & Sleepwear', children: [
-        'Vests', 'Loungewear T-Shirts', 'Shorts Pyjamas & Loose Pants', 'Briefs & Trunks',
-      ]},
-      { name: 'Indian & Festive Wear', children: [
-        'Kurtas', 'Kurta Sets', 'Nehru Jackets', 'Dhotis & Pyjamas',
-      ]},
-      { name: 'Winterwear', children: [
-        'Sweaters & Cardigans', 'Sweatshirts & Pullovers', 'Jackets & Coats', 'Thermals',
-      ]},
+      'Jeans',
       { name: 'Footwear', children: [
         'Casual Shoes & Loafers', 'Sports Shoes', 'Formal Shoes',
         'Sandals & Floaters', 'Flip Flops & Sliders', 'Boots', 'Socks',
       ]},
-      { name: 'Watches', children: [
-        'Smart Watches & Fitness Bands', 'Analog Watches', 'Chronograph Watches', 'Digital Watches',
+      { name: 'Indian & Festive Wear', children: [
+        'Kurtas', 'Kurta Sets', 'Nehru Jackets', 'Dhotis & Pyjamas',
       ]},
       { name: 'Accessories', children: [
         'Belts', 'Caps & Hats', 'Handkerchiefs', 'Wallets', 'Sunglasses', 'Ties & Pocket Squares',
+      ]},
+      { name: 'Innerwear & Sleepwear', children: [
+        'Vests', 'Loungewear T-Shirts', 'Shorts Pyjamas & Loose Pants', 'Briefs & Trunks',
+      ]},
+      { name: 'Winterwear', children: [
+        'Sweaters & Cardigans', 'Sweatshirts & Pullovers', 'Jackets & Coats', 'Thermals',
+      ]},
+      { name: 'Watches', children: [
+        'Smart Watches & Fitness Bands', 'Analog Watches', 'Chronograph Watches', 'Digital Watches',
       ]},
     ],
   },
   {
     name: 'Women', children: [
-      { name: 'Western Wear', children: [
-        'Tops & T-Shirts', 'Shirts & Blouses', 'Sweatshirts & Hoodies',
-        'Jackets & Coats', 'Jeans', 'Trousers & Palazzos', 'Shorts & Skirts', 'Co-Ord Sets',
+      { name: 'Westernwear', slug: 'western-wear', children: [
+        'Dresses', 'Tops', 'T-Shirts', 'Shirts',
+        'Jeans & Jeggings', 'Trousers', 'Shorts & Capris',
+        'Pallazo & Cullotes', 'Co-Ords', 'Playsuits & Jumpsuits',
+        'Capes & Shrugs', 'Sweatshirts & Pullovers', 'Jackets & Coats', 'Skirts',
       ]},
-      { name: 'Ethnic Wear', children: [
-        'Kurtas & Kurtis', 'Kurta Sets', 'Sarees', 'Lehengas',
-        'Salwar Suits', 'Dupattas & Stoles', 'Ethnic Jackets',
+      { name: 'Indian & Fusion Wear', slug: 'indian-fusion-wear', children: [
+        'Kurtas & Kurtis', 'Kurta Suit Sets', 'Tops & Tunics',
+        'Leggings & Churidars', 'Salwars Palazzos & Pants', 'Ethnic Skirts',
+        'Dupattas', 'Jackets & Shrugs', 'Lehenga Cholis', 'Sarees',
+        'Blouses', 'Ethnic Dresses & Gowns',
       ]},
-      { name: 'Dresses & Jumpsuits', children: [
-        'Casual Dresses', 'Party Dresses', 'Maxi Dresses', 'Jumpsuits & Playsuits',
+      { name: 'Sleepwear & Loungewear', slug: 'sleepwear-loungewear', children: [
+        'Nightwear', 'Loungewear', 'Pyjama Sets', 'Robes',
       ]},
-      { name: 'Activewear', children: [
-        'Sports Tops', 'Sports Bras', 'Yoga Pants & Leggings', 'Track Pants', 'Joggers',
+      { name: 'Lingerie & Innerwear', slug: 'innerwear-sleepwear', children: [
+        'Bras', 'Beginner Bras', 'Padded Bras', 'Non-Padded Bras',
+        'Panties', 'Shapewear', 'Camisoles',
       ]},
-      { name: 'Innerwear & Sleepwear', children: [
-        'Bras', 'Panties', 'Nightwear & Loungewear', 'Shapewear',
+      { name: 'Winterwear', slug: 'womens-winterwear', children: [
+        'Sweaters & Cardigans', 'Sweatshirts & Pullovers', 'Thermals', 'Shawls & Wraps',
       ]},
-      { name: 'Winterwear', children: [
-        'Sweaters & Cardigans', 'Sweatshirts', 'Jackets & Coats', 'Shawls & Wraps',
+      { name: 'Footwear', slug: 'womens-footwear', children: [
+        'Flats', 'Ballerinas', 'Heels', 'Boots',
+        'Flip Flops & Sliders', 'Casual Shoes & Loafers', 'Sports Shoes',
       ]},
-      { name: 'Footwear', children: [
-        'Heels', 'Flats & Ballerinas', 'Sneakers', 'Boots',
-        'Sandals', 'Ethnic Footwear', 'Sports Shoes',
+      { name: 'Watches', slug: 'womens-watches', children: [
+        'Smart Watches & Fitness Bands', 'Analog Watches', 'Chronograph Watches',
       ]},
-      { name: 'Handbags & Accessories', children: [
-        'Handbags', 'Clutches', 'Backpacks', 'Wallets',
-        'Belts', 'Sunglasses', 'Scarves & Stoles', 'Jewellery',
+      { name: 'Athleisure', slug: 'womens-athleisure', children: [
+        'T-Shirts & Tanks', 'Sports Bras', 'Leggings & Tights',
+        'Track Pants & Joggers', 'Track Suits', 'Shorts & Skirts',
+      ]},
+      { name: 'Jewellery & Accessories', slug: 'handbags-accessories', children: [
+        'Fashion Jewellery', 'Hair Accessories', 'Belts',
+        'Handbags', 'Clutches', 'Wallets',
+      ]},
+      { name: 'Sunglasses & Frames', slug: 'womens-sunglasses', children: [
+        'Rectangles', 'Asymmetric Shapes', 'Frames & Contact Lenses',
       ]},
     ],
   },

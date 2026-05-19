@@ -4,8 +4,8 @@ import { assetUrl } from '../../utils/assetUrl.js';
 import { useToastStore } from '../../store/toastStore.js';
 import DeleteModal from '../../components/admin/DeleteModal.jsx';
 
-const POSITIONS = ['hero', 'mid', 'bottom'];
-const EMPTY = { title: '', link: '', position: 'hero', sort_order: 0, is_active: true };
+const POSITIONS = ['hero', 'mid', 'bottom', 'men', 'women', 'kids', 'luxe'];
+const EMPTY = { title: '', eyebrow: '', subtitle: '', link: '', position: 'hero', align: 'left', sort_order: 0, is_active: true };
 
 function BannerModal({ banner, onClose, onSaved }) {
   const [form, setForm] = useState(banner ? { ...banner } : { ...EMPTY });
@@ -74,6 +74,14 @@ function BannerModal({ banner, onClose, onSaved }) {
             <input name="title" value={form.title || ''} onChange={handleChange} className="input" />
           </div>
           <div>
+            <label className="label">Eyebrow <span className="text-gray-400 font-normal">(small text above title, e.g. "Luxe Watches")</span></label>
+            <input name="eyebrow" value={form.eyebrow || ''} onChange={handleChange} placeholder="Luxe Watches" className="input" />
+          </div>
+          <div>
+            <label className="label">Subtitle <span className="text-gray-400 font-normal">(brand names, e.g. "Tissot · Coach")</span></label>
+            <input name="subtitle" value={form.subtitle || ''} onChange={handleChange} placeholder="Tissot · Michael Kors · Coach" className="input" />
+          </div>
+          <div>
             <label className="label">Link URL</label>
             <input name="link" value={form.link || ''} onChange={handleChange} placeholder="/category/women" className="input" />
           </div>
@@ -87,9 +95,18 @@ function BannerModal({ banner, onClose, onSaved }) {
               </div>
             </div>
             <div>
-              <label className="label">Sort Order</label>
-              <input type="number" name="sort_order" value={form.sort_order} onChange={handleChange} min="0" className="input" />
+              <label className="label">Text Align <span className="text-gray-400 font-normal">(Luxe banner)</span></label>
+              <div className="select-wrap">
+                <select name="align" value={form.align || 'left'} onChange={handleChange}>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
             </div>
+          </div>
+          <div>
+            <label className="label">Sort Order</label>
+            <input type="number" name="sort_order" value={form.sort_order} onChange={handleChange} min="0" className="input" />
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} className="w-4 h-4 accent-[#8B1A2F]" />

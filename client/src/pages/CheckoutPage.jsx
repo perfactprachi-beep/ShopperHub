@@ -6,6 +6,7 @@ import { useToastStore } from '../store/toastStore.js';
 import { fetchAddresses, createAddress, deleteAddress } from '../api/addressApi.js';
 import { createOrder, verifyPayment } from '../api/paymentsApi.js';
 import { openRazorpayModal } from '../utils/razorpayHelper.js';
+import { checkPincode } from '../api/storesApi.js';
 import AddressForm from '../components/address/AddressForm.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
 import { PincodeChecker } from '../components/checkout/PincodeChecker.jsx';
@@ -173,27 +174,6 @@ function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDeli
         </div>
       )}
 
-      {/* Test-mode credentials — shown in sidebar on payment step */}
-      {step === 1 && import.meta.env.MODE !== 'production' && (
-        <div className="mx-5 mb-4 px-3 py-2.5 bg-amber-50 border border-amber-300">
-          <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-2">Test Credentials</p>
-          <div className="space-y-1.5 text-[10px] text-amber-900">
-            <div>
-              <p className="font-bold text-amber-700">UPI (easiest):</p>
-              <p className="font-mono font-bold">success@razorpay</p>
-            </div>
-            <div>
-              <p className="font-bold text-amber-700">Card:</p>
-              <p className="font-mono font-bold">4111 1111 1111 1111</p>
-              <p>Expiry: 12/26 · CVV: 123 · OTP: 1234</p>
-            </div>
-            <div>
-              <p className="font-bold text-amber-700">Net Banking:</p>
-              <p>Select any bank → auto-succeeds</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* CTA */}
       <div className="px-5 pb-5">
@@ -264,7 +244,7 @@ const DELIVERY_CONFIG = [
 ];
 
 // ── Delivery Options section ──────────────────────────────────────────────────
-function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect }) {
+function DeliveryOptions({ subtotal, selected, onChange, onStoreSelect, expressAvailable }) {
   const [pickupPincode, setPickupPincode] = useState('');
   const [confirmedPincode, setConfirmedPincode] = useState('');
 
@@ -286,11 +266,17 @@ function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect })
       <div className="space-y-2">
         {DELIVERY_CONFIG.map((opt) => {
           let available = opt.alwaysAvailable;
-          let ineligibleItems = [];
+          let unavailableReason = '';
 
-          if (!opt.alwaysAvailable && opt.eligibilityKey) {
-            ineligibleItems = items.filter((i) => !i[opt.eligibilityKey]);
-            available = ineligibleItems.length === 0;
+          if (!opt.alwaysAvailable) {
+            if (opt.id === 'express') {
+              available = expressAvailable === true;
+              unavailableReason = expressAvailable === null
+                ? 'Checking availability for your pincode…'
+                : 'Not available at your delivery pincode';
+            } else if (opt.id === 'store_pickup') {
+              available = true; // always show store pickup; handled separately
+            }
           }
 
           const shippingCost = calcShipping(opt.id, subtotal);
@@ -340,11 +326,7 @@ function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect })
                   {available ? (
                     <p className="text-[11px] text-gray-400 mt-0.5">{opt.days}</p>
                   ) : (
-                    <p className="text-[11px] text-gray-400 italic mt-0.5">
-                      {ineligibleItems.length > 0
-                        ? `${ineligibleItems.length} item${ineligibleItems.length > 1 ? 's are' : ' is'} not eligible`
-                        : 'Not available for some items'}
-                    </p>
+                    <p className="text-[11px] text-gray-400 italic mt-0.5">{unavailableReason}</p>
                   )}
                 </div>
 
@@ -360,13 +342,12 @@ function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect })
                 )}
               </div>
 
-              {/* ── Express: inline pincode checker ── */}
+              {/* ── Express: show delivery time info when selected ── */}
               {isSelected && opt.id === 'express' && available && (
-                <div className="border border-t-0 border-gray-900 bg-gray-50 px-4 pb-4">
-                  <p className="text-[11px] text-gray-500 pt-3 mb-1">
-                    Check if express delivery is available at your pincode:
+                <div className="border border-t-0 border-gray-900 bg-green-50 px-4 py-3">
+                  <p className="text-[12px] text-green-700 font-semibold">
+                    Express Delivery available at your pincode — estimated 1–2 business days
                   </p>
-                  <PincodeChecker onResult={() => {}} />
                 </div>
               )}
 
@@ -414,7 +395,7 @@ function DeliveryOptions({ items, subtotal, selected, onChange, onStoreSelect })
 }
 
 // ── Address step ──────────────────────────────────────────────────────────────
-function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, selectedId, onSelect, onStoreSelect }) {
+function AddressStep({ subtotal, selectedDelivery, onDeliveryChange, selectedId, onSelect, onStoreSelect, expressAvailable }) {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
@@ -426,7 +407,7 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
       .then((list) => {
         setAddresses(list);
         const def = list.find((a) => a.is_default) || list[0];
-        if (def) onSelect(def.id);
+        if (def) onSelect(def.id, def.pincode);
       })
       .catch(() => addToast('Failed to load addresses', 'error'))
       .finally(() => setLoading(false));
@@ -437,7 +418,7 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
     try {
       const addr = await createAddress(form);
       setAddresses((prev) => [...prev, addr]);
-      onSelect(addr.id);
+      onSelect(addr.id, addr.pincode);
       setShowForm(false);
       addToast('Address added', 'success');
     } catch {
@@ -448,8 +429,12 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
   async function handleDelete(id) {
     try {
       await deleteAddress(id);
-      setAddresses((prev) => prev.filter((a) => a.id !== id));
-      if (selectedId === id) onSelect(addresses.find((a) => a.id !== id)?.id ?? null);
+      const remaining = addresses.filter((a) => a.id !== id);
+      setAddresses(remaining);
+      if (selectedId === id) {
+        const next = remaining[0] ?? null;
+        onSelect(next?.id ?? null, next?.pincode ?? null);
+      }
       addToast('Address removed', 'success');
     } catch {
       addToast('Failed to delete address', 'error');
@@ -460,11 +445,11 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
     <div>
       {/* Dynamic delivery options */}
       <DeliveryOptions
-        items={items}
         subtotal={subtotal}
         selected={selectedDelivery}
         onChange={onDeliveryChange}
         onStoreSelect={onStoreSelect}
+        expressAvailable={expressAvailable}
       />
 
       {/* Warning — no address yet */}
@@ -508,7 +493,7 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
                 return (
                   <div
                     key={addr.id}
-                    onClick={() => onSelect(addr.id)}
+                    onClick={() => onSelect(addr.id, addr.pincode)}
                     className={`border p-4 cursor-pointer transition-all ${
                       isSelected ? 'border-gray-900 bg-white' : 'border-gray-200 bg-white hover:border-gray-400'
                     }`}
@@ -586,8 +571,46 @@ function AddressStep({ items, subtotal, selectedDelivery, onDeliveryChange, sele
   );
 }
 
+// ── Delivery Estimates ────────────────────────────────────────────────────────
+function DeliveryEstimates({ items, deliveryType }) {
+  const daysMap = { express: 2, store_pickup: 0, standard: 7 };
+  const days = daysMap[deliveryType] ?? 7;
+  const estDate = new Date();
+  estDate.setDate(estDate.getDate() + days);
+  const label = estDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  return (
+    <div className="mb-7">
+      <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+        Delivery Estimates
+      </h2>
+      <div className="divide-y divide-gray-100 border border-gray-100">
+        {items.map((item) => (
+          <div key={item.variantId} className="flex items-center gap-3 px-4 py-3">
+            <img
+              src={item.image}
+              alt={item.title}
+              className="w-14 h-14 object-cover shrink-0 bg-gray-50"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-medium text-gray-700 line-clamp-1">{item.title}</p>
+              {(item.size || item.color) && (
+                <p className="text-[11px] text-gray-400">{[item.size, item.color].filter(Boolean).join(' · ')}</p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Estimated Delivery</p>
+              <p className="text-[12px] font-semibold text-gray-800">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Payment step ──────────────────────────────────────────────────────────────
-function PaymentStep({ onBack }) {
+function PaymentStep({ onBack, items, deliveryType }) {
   return (
     <div>
       {/* Back */}
@@ -600,6 +623,9 @@ function PaymentStep({ onBack }) {
         </svg>
         Back to Address
       </button>
+
+      {/* Delivery Estimates */}
+      <DeliveryEstimates items={items} deliveryType={deliveryType} />
 
       {/* Page heading */}
       <div className="mb-7">
@@ -665,17 +691,6 @@ function PaymentStep({ onBack }) {
         </div>
       </div>
 
-      {/* Dev-mode test credentials hint */}
-      {import.meta.env.MODE !== 'production' && (
-        <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200">
-          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Test Mode — Use these credentials:</p>
-          <div className="space-y-1 text-[11px] text-amber-800 font-mono">
-            <p><span className="font-bold">Card:</span> 4111 1111 1111 1111 · any expiry · any CVV · OTP: 1234</p>
-            <p><span className="font-bold">UPI:</span> success@razorpay</p>
-            <p><span className="font-bold">Net Banking:</span> Select any bank → auto-succeeds</p>
-          </div>
-        </div>
-      )}
 
       {/* Powered by Razorpay */}
       <div className="flex items-center justify-center gap-2">
@@ -701,11 +716,40 @@ export default function CheckoutPage() {
 
   const [step, setStep]                           = useState(0);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [selectedAddressPincode, setSelectedAddressPincode] = useState(null);
   const [selectedDelivery, setSelectedDelivery]   = useState('standard');
   const [selectedStore, setSelectedStore]         = useState(null);
   const [paying, setPaying]                       = useState(false);
+  const [expressAvailable, setExpressAvailable]   = useState(null);
 
   const couponData = navState?.coupon ?? null;
+
+  // Auto-check express availability whenever selected address changes
+  useEffect(() => {
+    const pin = selectedAddressPincode ? String(selectedAddressPincode).trim() : null;
+    if (!pin) { setExpressAvailable(null); return; }
+
+    let cancelled = false;
+    setExpressAvailable(null);
+    checkPincode(pin)
+      .then((res) => {
+        if (cancelled) return;
+        const available = res.data?.data?.available ?? false;
+        setExpressAvailable(available);
+        // Reset to standard if express was selected but pincode doesn't support it
+        if (!available) setSelectedDelivery((d) => d === 'express' ? 'standard' : d);
+      })
+      .catch(() => {
+        if (!cancelled) setExpressAvailable(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedAddressPincode]);
+
+  function handleAddressSelect(addressId, pincode) {
+    setSelectedAddressId(addressId);
+    setSelectedAddressPincode(pincode ? String(pincode).trim() : null);
+  }
 
   const subtotal       = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const couponDiscount = Number(couponData?.discount ?? couponData?.discountAmount ?? 0);
@@ -744,7 +788,7 @@ export default function CheckoutPage() {
               deliveryType:   selectedDelivery,
               deliveryMethod: selectedDelivery === 'express' ? 'express_delivery'
                             : selectedDelivery === 'store_pickup' ? 'store_pickup'
-                            : 'standard',
+                            : 'standard_delivery',
               storeId:        selectedStore?.id ?? null,
             });
             clearCart();
@@ -803,17 +847,21 @@ export default function CheckoutPage() {
           <div className="flex-1 min-w-0 bg-white border border-gray-200 p-6">
             {step === 0 && (
               <AddressStep
-                items={items}
                 subtotal={subtotal}
                 selectedDelivery={selectedDelivery}
                 onDeliveryChange={setSelectedDelivery}
                 selectedId={selectedAddressId}
-                onSelect={setSelectedAddressId}
+                onSelect={handleAddressSelect}
                 onStoreSelect={setSelectedStore}
+                expressAvailable={expressAvailable}
               />
             )}
             {step === 1 && (
-              <PaymentStep onBack={() => setStep(0)} />
+              <PaymentStep
+                onBack={() => setStep(0)}
+                items={items}
+                deliveryType={selectedDelivery}
+              />
             )}
           </div>
 

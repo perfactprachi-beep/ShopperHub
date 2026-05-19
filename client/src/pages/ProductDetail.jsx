@@ -18,6 +18,7 @@ import { useWishlistStore } from '../store/wishlistStore.js';
 import { addCartItem } from '../api/cartApi.js';
 import { toggleWishlist } from '../api/wishlistApi.js';
 import { assetUrl } from '../utils/assetUrl.js';
+import { getProductPlaceholder } from '../utils/getProductPlaceholder.js';
 import { getActiveOffers } from '../api/offersApi.js';
 import { PincodeChecker } from '../components/checkout/PincodeChecker.jsx';
 
@@ -608,9 +609,12 @@ function SizeChartDrawer({ open, onClose, product, onAddToBag }) {
             <>
               {/* Product strip */}
               <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
-                {primaryImage && (
-                  <img src={assetUrl(primaryImage)} alt={product?.title} className="w-14 h-16 object-cover rounded shrink-0"/>
-                )}
+                <img
+                  src={primaryImage ? assetUrl(primaryImage) : getProductPlaceholder(product)}
+                  alt={product?.title}
+                  className="w-14 h-16 object-cover rounded shrink-0"
+                  onError={(e) => { e.currentTarget.src = getProductPlaceholder(product); }}
+                />
                 <div className="min-w-0">
                   {product?.brand_name && (
                     <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">{product.brand_name}</p>
@@ -874,7 +878,7 @@ export default function ProductDetail() {
 
           {/* ── Left: Image gallery ── */}
           <div className="w-full lg:w-[52%]">
-            <ImageGallery images={product.images} />
+            <ImageGallery images={product.images} fallbackUrl={getProductPlaceholder(product)} />
           </div>
 
           {/* ── Right: Product info ── */}
@@ -949,13 +953,18 @@ export default function ProductDetail() {
 
             {/* 5. Add To Bag / Go to Bag */}
             {!isAdmin && (
-              <button
-                onClick={inCart ? () => navigate('/cart') : handleAddToBag}
-                disabled={product.stock === 0 && !inCart}
-                className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-[15px] tracking-wide hover:bg-[#6d1424] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {product.stock === 0 && !inCart ? 'Out of Stock' : inCart ? 'Go to Bag' : 'Add To Bag'}
-              </button>
+              product.stock === 0 && !inCart ? (
+                <div className="w-full py-4 text-center font-bold text-[15px] tracking-wide text-gray-400 uppercase">
+                  Out of Stock
+                </div>
+              ) : (
+                <button
+                  onClick={inCart ? () => navigate('/cart') : handleAddToBag}
+                  className="w-full py-4 bg-[#8B1A2F] text-white font-bold text-[15px] tracking-wide hover:bg-[#6d1424] transition-colors"
+                >
+                  {inCart ? 'Go to Bag' : 'Add To Bag'}
+                </button>
+              )
             )}
 
             {/* 6. Delivery check */}

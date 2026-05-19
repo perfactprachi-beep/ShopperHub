@@ -28,6 +28,7 @@ import { createNotification } from '../db/queries/notifications.js';
 import {
   adminListPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod,
 } from '../db/queries/paymentMethods.js';
+import { getAllPages, createPage, updatePage, deletePage } from '../db/queries/pages.js';
 
 const router = Router();
 router.use(authGuard, adminGuard);
@@ -72,7 +73,7 @@ router.put('/products/:id', async (req, res, next) => {
 router.delete('/products/:id', async (req, res, next) => {
   try {
     await deleteProduct(req.params.id);
-    res.json({ success: true, message: 'Product deleted' });
+    res.json({ success: true, message: 'Product deactivated' });
   } catch (err) { next(err); }
 });
 
@@ -488,6 +489,37 @@ router.delete('/delivery/pincodes/:pincode', async (req, res, next) => {
   try {
     await adminDeletePincode(req.params.pincode);
     res.json({ success: true, message: 'Pincode removed' });
+  } catch (err) { next(err); }
+});
+
+// ── CMS Pages ─────────────────────────────────────────────────────────────────
+router.get('/pages', async (_req, res, next) => {
+  try {
+    const data = await getAllPages();
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.post('/pages', async (req, res, next) => {
+  try {
+    const data = await createPage(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.put('/pages/:id', async (req, res, next) => {
+  try {
+    const data = await updatePage(Number(req.params.id), req.body);
+    if (!data) return res.status(404).json({ success: false, message: 'Page not found' });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+router.delete('/pages/:id', async (req, res, next) => {
+  try {
+    const data = await deletePage(Number(req.params.id));
+    if (!data) return res.status(404).json({ success: false, message: 'Page not found' });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 });
 

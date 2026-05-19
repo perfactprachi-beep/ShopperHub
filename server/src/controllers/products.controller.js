@@ -42,7 +42,7 @@ export async function listProductsByCategory(req, res, next) {
     const { sort, page, limit, gender, minPrice, maxPrice, brand } = req.query;
     const rows = await getProducts({ category: req.params.slug, brand, gender, minPrice, maxPrice, sort, page, limit });
     const total = rows[0]?.total_count ? Number(rows[0].total_count) : 0;
-    res.json({ success: true, category: cat, data: rows, total, page: Number(page || 1) });
+    res.json({ success: true, category: cat, subcategories: cat.children ?? [], data: rows, total, page: Number(page || 1) });
   } catch (err) { next(err); }
 }
 

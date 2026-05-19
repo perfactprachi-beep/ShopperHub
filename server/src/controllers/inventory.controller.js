@@ -14,7 +14,8 @@ import {
   getRecentInventoryActivity,
   getInventoryLogs,
   createInventoryLog,
-  adjustStock
+  adjustStock,
+  setVariantStock
 } from '../db/queries/inventory.js';
 
 // ── Warehouse controllers ─────────────────────────────────────────────────────
@@ -231,6 +232,25 @@ export async function addInventoryLog(req, res, next) {
       admin_id: req.user.id
     });
     res.status(201).json({ success: true, data: log });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Variant stock controller (works with or without an inventory record) ───────
+export async function updateVariantStock(req, res, next) {
+  try {
+    const { stock_quantity, low_stock_threshold } = req.body;
+    if (stock_quantity == null || stock_quantity < 0) {
+      return res.status(400).json({ success: false, message: 'stock_quantity is required and must be >= 0' });
+    }
+    const item = await setVariantStock(
+      Number(req.params.variantId),
+      Number(stock_quantity),
+      low_stock_threshold != null ? Number(low_stock_threshold) : null
+    );
+    if (!item) return res.status(404).json({ success: false, message: 'Variant not found' });
+    res.json({ success: true, data: item });
   } catch (err) {
     next(err);
   }

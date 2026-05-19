@@ -278,13 +278,20 @@ export async function fulfillOrder({ userId, addressId, couponId, subtotal, disc
         ps
       );
 
+      // Lock rows first, then validate stock before deducting
       for (const { variantId, quantity } of items) {
-        if (variantId) {
-          await client.query(
-            'UPDATE product_variants SET stock = GREATEST(stock - $1, 0) WHERE id = $2',
-            [quantity, variantId]
-          );
+        if (!variantId) continue;
+        const { rows: [v] } = await client.query(
+          'SELECT stock FROM product_variants WHERE id = $1 FOR UPDATE',
+          [variantId]
+        );
+        if (!v || v.stock < quantity) {
+          throw Object.assign(new Error('One or more items are out of stock'), { statusCode: 409 });
         }
+        await client.query(
+          'UPDATE product_variants SET stock = stock - $1 WHERE id = $2',
+          [quantity, variantId]
+        );
       }
     }
 

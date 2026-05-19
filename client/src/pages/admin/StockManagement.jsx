@@ -18,7 +18,7 @@ function StockEditModal({ item, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await inventoryApi.updateInventoryItem(item.id, form);
+      const { data } = await inventoryApi.updateVariantStock(item.variant_id, form);
       if (data.success) {
         addToast('Stock updated successfully', 'success');
         onSaved(data.data);
@@ -106,8 +106,8 @@ function StockEditModal({ item, onClose, onSaved }) {
 function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
   const [updates, setUpdates] = useState(
     selectedItems.map(item => ({
-      id: item.id,
-      stock_quantity: item.stock_quantity,
+      id: item.variant_id,
+      stock_quantity: item.live_stock ?? item.stock_quantity,
       product_title: item.product_title
     }))
   );
@@ -124,12 +124,13 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await inventoryApi.bulkUpdateInventory(updates);
-      if (data.success) {
-        addToast(`${updates.length} item${updates.length > 1 ? 's' : ''} stock updated`, 'success');
-        onSaved(data.data);
-        onClose();
-      }
+      const results = await Promise.all(
+        updates.map(u => inventoryApi.updateVariantStock(u.id, { stock_quantity: u.stock_quantity }))
+      );
+      const saved = results.map(r => r.data.data);
+      addToast(`${updates.length} item${updates.length > 1 ? 's' : ''} stock updated`, 'success');
+      onSaved(saved);
+      onClose();
     } catch (err) {
       addToast(err.response?.data?.message || 'Failed to update stock', 'error');
     } finally {
@@ -246,24 +247,24 @@ export default function StockManagement() {
   };
 
   const handleItemUpdated = (updatedItem) => {
-    setInventory(prev => prev.map(item => 
-      item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+    setInventory(prev => prev.map(item =>
+      item.variant_id === updatedItem.variant_id ? { ...item, ...updatedItem } : item
     ));
   };
 
   const handleBulkUpdated = (updatedItems) => {
-    const updatedMap = new Map(updatedItems.map(item => [item.id, item]));
-    setInventory(prev => prev.map(item => 
-      updatedMap.has(item.id) ? { ...item, ...updatedMap.get(item.id) } : item
+    const updatedMap = new Map(updatedItems.map(item => [item.variant_id, item]));
+    setInventory(prev => prev.map(item =>
+      updatedMap.has(item.variant_id) ? { ...item, ...updatedMap.get(item.variant_id) } : item
     ));
     setSelectedItems([]);
   };
 
   const toggleSelectItem = (item) => {
     setSelectedItems(prev => {
-      const exists = prev.find(i => i.id === item.id);
+      const exists = prev.find(i => i.variant_id === item.variant_id);
       if (exists) {
-        return prev.filter(i => i.id !== item.id);
+        return prev.filter(i => i.variant_id !== item.variant_id);
       } else {
         return [...prev, item];
       }
@@ -403,7 +404,7 @@ export default function StockManagement() {
                     type="checkbox"
                     checked={inventory.length > 0 && selectedItems.length === inventory.length}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 accent-[#8B1A2F] rounded"
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Product</th>
@@ -434,13 +435,13 @@ export default function StockManagement() {
                   </td>
                 </tr>
               ) : inventory.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+                <tr key={item.variant_id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
-                      checked={selectedItems.some(i => i.id === item.id)}
+                      checked={selectedItems.some(i => i.variant_id === item.variant_id)}
                       onChange={() => toggleSelectItem(item)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-4 h-4 accent-[#8B1A2F] rounded"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -476,7 +477,7 @@ export default function StockManagement() {
                     {item.warehouse_name}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="font-medium text-gray-900">{item.stock_quantity}</span>
+                    <span className="font-medium text-gray-900">{item.live_stock ?? item.stock_quantity}</span>
                     <span className="text-xs text-gray-400 ml-1">/ {item.low_stock_threshold}</span>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-600">

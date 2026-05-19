@@ -5,6 +5,7 @@ import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { useWishlistStore } from '../../store/wishlistStore.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { getProductPlaceholder } from '../../utils/getProductPlaceholder.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import { toggleWishlist } from '../../api/wishlistApi.js';
@@ -19,11 +20,10 @@ function IconHeart({ filled }) {
 
 export default function ProductCard({ product, dark = false, showNew = false, onAddToBag, openInNewTab = false, withDrawer = false }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
-  const [imgErr, setImgErr] = useState(false);
+  const [imgSrc, setImgSrc] = useState(image_url ? assetUrl(image_url) : getProductPlaceholder(product));
 
-  const imageAvailable = !!image_url && !imgErr;
-  const finalPrice     = imageAvailable ? calcFinalPrice(base_price, discount_pct) : base_price;
-  const hasDiscount    = discount_pct > 0 && imageAvailable;
+  const finalPrice  = calcFinalPrice(base_price, discount_pct);
+  const hasDiscount = discount_pct > 0;
 
   const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
@@ -66,16 +66,12 @@ export default function ProductCard({ product, dark = false, showNew = false, on
       <Link to={`/product/${slug}`} className="block flex-1" target={openInNewTab ? '_blank' : undefined} rel={openInNewTab ? 'noopener noreferrer' : undefined}>
         {/* Image */}
         <div className={`relative overflow-hidden ${dark ? 'bg-[#222]' : 'bg-gray-50'}`} style={{ aspectRatio: '3/4' }}>
-          {image_url && !imgErr ? (
-            <img
-              src={assetUrl(image_url)}
-              alt={title}
-              onError={() => setImgErr(true)}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center text-sm ${dark ? 'text-gray-600' : 'text-gray-300'}`}>No image</div>
-          )}
+          <img
+            src={imgSrc}
+            alt={title}
+            onError={() => setImgSrc(getProductPlaceholder(product))}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
 
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {showNew && (
@@ -122,18 +118,23 @@ export default function ProductCard({ product, dark = false, showNew = false, on
       </Link>
 
       {/* CTA area */}
-      {onAddToBag && !isAdmin && (
-        <button
-          onClick={handleAddToBag}
-          disabled={stock === 0}
-          className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            dark
-              ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
-              : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
-          }`}
-        >
-          {stock === 0 ? 'Out of Stock' : 'Add To Bag'}
-        </button>
+      {!isAdmin && (
+        stock === 0 ? (
+          <div className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest text-center ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Out of Stock
+          </div>
+        ) : onAddToBag && (
+          <button
+            onClick={handleAddToBag}
+            className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${
+              dark
+                ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
+                : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+            }`}
+          >
+            Add To Bag
+          </button>
+        )
       )}
     </div>
   );

@@ -22,11 +22,20 @@ export async function getCategoriesTree() {
 }
 
 export async function getCategoryBySlug(slug) {
-  const { rows } = await pool.query(
-    'SELECT * FROM categories WHERE slug = $1',
-    [slug]
+  const { rows } = await pool.query(`
+    SELECT c.*, p.name AS parent_name, p.slug AS parent_slug
+    FROM categories c
+    LEFT JOIN categories p ON p.id = c.parent_id
+    WHERE c.slug = $1
+  `, [slug]);
+  if (!rows[0]) return null;
+
+  const cat = rows[0];
+  const { rows: children } = await pool.query(
+    'SELECT id, name, slug FROM categories WHERE parent_id = $1 ORDER BY sort_order, name',
+    [cat.id]
   );
-  return rows[0];
+  return { ...cat, children };
 }
 
 export async function getAllCategories() {

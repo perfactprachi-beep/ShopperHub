@@ -51,7 +51,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
               type="text"
               value={form.name}
               onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#8B1A2F]"
               required
               placeholder="Main Warehouse"
             />
@@ -65,7 +65,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
               type="text"
               value={form.location}
               onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#8B1A2F]"
               required
               placeholder="Mumbai, Maharashtra"
             />
@@ -79,7 +79,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
               type="text"
               value={form.manager_name}
               onChange={(e) => setForm(f => ({ ...f, manager_name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#8B1A2F]"
               placeholder="John Doe"
             />
           </div>
@@ -92,7 +92,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
               type="tel"
               value={form.contact_number}
               onChange={(e) => setForm(f => ({ ...f, contact_number: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#8B1A2F]"
               placeholder="+91 9876543210"
             />
           </div>
@@ -108,7 +108,7 @@ function WarehouseModal({ warehouse, onClose, onSaved }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-[#8B1A2F] text-white rounded-lg hover:bg-[#6d1424] disabled:opacity-50"
             >
               {saving ? 'Saving...' : warehouse?.id ? 'Update' : 'Create'}
             </button>
@@ -179,7 +179,7 @@ export default function Warehouses() {
         </div>
         <button
           onClick={() => setModalWarehouse(null)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-[#8B1A2F] text-white rounded-lg hover:bg-[#6d1424] flex items-center gap-2"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -226,7 +226,7 @@ export default function Warehouses() {
             <p className="text-gray-500 mb-4">Get started by adding your first warehouse location.</p>
             <button
               onClick={() => setModalWarehouse(null)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-[#8B1A2F] text-white rounded-lg hover:bg-[#6d1424]"
             >
               Add Warehouse
             </button>
@@ -234,7 +234,7 @@ export default function Warehouses() {
         ) : warehouses.map((warehouse) => (
           <div key={warehouse.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#8B1A2F]/10 text-[#8B1A2F] rounded-lg flex items-center justify-center">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 21h18"/>
                   <path d="M5 21V7l8-4v18"/>
@@ -271,7 +271,7 @@ export default function Warehouses() {
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{warehouse.inventory_count || 0}</p>
+                  <p className="text-2xl font-bold text-[#8B1A2F]">{warehouse.inventory_count || 0}</p>
                   <p className="text-xs text-gray-500">Products</p>
                 </div>
                 <div className="text-center">
@@ -284,7 +284,7 @@ export default function Warehouses() {
             <div className="flex gap-2">
               <button
                 onClick={() => setModalWarehouse(warehouse)}
-                className="flex-1 px-3 py-2 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 text-sm font-medium"
+                className="flex-1 px-3 py-2 text-[#8B1A2F] border border-[#8B1A2F]/30 rounded-lg hover:bg-[#8B1A2F]/5 text-sm font-medium"
               >
                 Edit
               </button>

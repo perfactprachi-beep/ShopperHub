@@ -199,9 +199,9 @@ export default function InventoryDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/admin/inventory/stocks"
-            className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group"
+            className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-[#8B1A2F]/40 hover:bg-[#8B1A2F]/5 transition-colors group"
           >
-            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-200">
+            <div className="w-10 h-10 bg-[#8B1A2F]/10 text-[#8B1A2F] rounded-lg flex items-center justify-center group-hover:bg-[#8B1A2F]/20">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
               </svg>
@@ -231,9 +231,9 @@ export default function InventoryDashboard() {
 
           <Link
             to="/admin/inventory/warehouses"
-            className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors group"
+            className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-[#8B1A2F]/40 hover:bg-[#8B1A2F]/5 transition-colors group"
           >
-            <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-200">
+            <div className="w-10 h-10 bg-[#8B1A2F]/10 text-[#8B1A2F] rounded-lg flex items-center justify-center group-hover:bg-[#8B1A2F]/20">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 21h18"/>
                 <path d="M5 21V7l8-4v18"/>
@@ -273,7 +273,7 @@ export default function InventoryDashboard() {
           <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
           <Link
             to="/admin/inventory/logs"
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            className="text-sm text-[#8B1A2F] hover:text-[#6d1424] font-medium"
           >
             View All
           </Link>

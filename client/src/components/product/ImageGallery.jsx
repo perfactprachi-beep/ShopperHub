@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { assetUrl } from '../../utils/assetUrl.js';
 
-export default function ImageGallery({ images = [] }) {
+export default function ImageGallery({ images = [], fallbackUrl = '' }) {
   const [active, setActive] = useState(0);
 
   if (!images.length) {
@@ -27,7 +27,7 @@ export default function ImageGallery({ images = [] }) {
               active === i ? 'border-[#8B1A2F]' : 'border-gray-200 hover:border-gray-400'
             }`}
           >
-            <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" />
+            <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" onError={(e) => { if (fallbackUrl) e.currentTarget.src = fallbackUrl; }} />
           </button>
         ))}
       </div>
@@ -39,6 +39,7 @@ export default function ImageGallery({ images = [] }) {
             src={assetUrl(images[active].url)}
             alt=""
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 cursor-zoom-in"
+            onError={(e) => { if (fallbackUrl) e.currentTarget.src = fallbackUrl; }}
           />
         </div>
 

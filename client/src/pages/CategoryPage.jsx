@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
@@ -36,9 +36,10 @@ export default function CategoryPage() {
   const { data: brandsData } = useFetch(() => productsApi.brands(), []);
   const brands = brandsData?.data ?? [];
 
-  const category     = data?.category;
-  const categoryName = category?.name || toTitleCase(slug || '');
-  const total        = data?.total ?? 0;
+  const category      = data?.category;
+  const categoryName  = category?.name || toTitleCase(slug || '');
+  const total         = data?.total ?? 0;
+  const subcategories = data?.subcategories ?? [];
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -77,6 +78,21 @@ export default function CategoryPage() {
               page={page}
               limit={LIMIT}
             />
+
+            {/* Subcategory navigation chips */}
+            {subcategories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {subcategories.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    to={`/category/${sub.slug}`}
+                    className="px-3 py-1.5 border border-gray-200 rounded-full text-[13px] text-gray-700 hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors bg-white whitespace-nowrap"
+                  >
+                    {sub.name}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             <ProductGrid products={data?.data} loading={loading} />
 

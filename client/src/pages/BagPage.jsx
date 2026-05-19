@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore.js';
 import { useWishlistStore } from '../store/wishlistStore.js';
@@ -10,8 +10,11 @@ import { toggleWishlist } from '../api/wishlistApi.js';
 import { validateCoupon, getActiveCoupons } from '../api/couponsApi.js';
 import { fetchAddresses, createAddress } from '../api/addressApi.js';
 import { formatPrice } from '../utils/formatPrice.js';
+import { calcFinalPrice } from '../utils/calcDiscount.js';
+import { assetUrl } from '../utils/assetUrl.js';
 import AddressForm from '../components/address/AddressForm.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
+import api from '../api/axios.js';
 
 const FREE_SHIPPING_THRESHOLD = 999;
 const DELIVERY_FEE = 99;
@@ -780,6 +783,234 @@ function AddressDrawer({ open, onClose, addresses, selectedId, onSelect, onAddAd
   );
 }
 
+/* ── Recommended for You ──────────────────────────────────────────────────── */
+function RecommendedForYou({ onAddToCart }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/home')
+      .then(({ data }) => setProducts(data.data?.recommended?.slice(0, 10) ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const scroll = (dir) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: dir * 600, behavior: 'smooth' });
+    }
+  };
+
+  if (!loading && !products.length) return null;
+
+  return (
+    <section className="max-w-6xl mx-auto px-4 py-8">
+      <div className="mb-5">
+        <h2 className="text-[15px] font-bold text-gray-900 uppercase tracking-widest">
+          Recommended for You
+        </h2>
+        <div className="mt-1.5 w-10 h-[3px] bg-[#8B1A2F]" />
+      </div>
+
+      <div className="relative">
+        {/* Left arrow */}
+        <button
+          onClick={() => scroll(-1)}
+          className="absolute left-0 top-[40%] -translate-y-1/2 -translate-x-3 z-10 w-9 h-9 bg-white border border-gray-200 shadow-md flex items-center justify-center hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors"
+          aria-label="Scroll left"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        {/* Scroll container */}
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
+                  <div className="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded" />
+                  <div className="mt-2 h-3 bg-gray-100 animate-pulse rounded w-3/4" />
+                  <div className="mt-1.5 h-3 bg-gray-100 animate-pulse rounded w-1/2" />
+                </div>
+              ))
+            : products.map((p) => {
+                const finalPrice = calcFinalPrice(p.base_price, p.discount_pct);
+                const discountPct = p.discount_pct > 0 ? Math.round(p.discount_pct) : 0;
+                return (
+                  <div key={p.id} className="shrink-0 w-[160px] sm:w-[180px] group">
+                    {/* Image */}
+                    <Link to={`/product/${p.slug}`} className="block relative overflow-hidden bg-gray-50 aspect-[3/4]">
+                      {p.image_url
+                        ? <img
+                            src={assetUrl(p.image_url)}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-400"
+                          />
+                        : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+                      }
+                      {discountPct > 0 && (
+                        <span className="absolute top-2 left-2 bg-[#8B1A2F] text-white text-[10px] font-bold px-1.5 py-0.5">
+                          {discountPct}% OFF
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Info */}
+                    <div className="mt-2">
+                      {p.brand_name && (
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide truncate">{p.brand_name}</p>
+                      )}
+                      <p className="text-[12px] text-gray-700 line-clamp-1 mt-0.5">{p.title}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[13px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+                        {discountPct > 0 && (
+                          <span className="text-[11px] text-gray-400 line-through">{formatPrice(p.base_price)}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Add to Bag */}
+                    <button
+                      onClick={() => onAddToCart(p, finalPrice)}
+                      className="mt-2 w-full py-2 border border-[#8B1A2F] text-[#8B1A2F] text-[11px] font-bold uppercase tracking-wider hover:bg-[#8B1A2F] hover:text-white transition-colors"
+                    >
+                      Add to Bag
+                    </button>
+                  </div>
+                );
+              })}
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={() => scroll(1)}
+          className="absolute right-0 top-[40%] -translate-y-1/2 translate-x-3 z-10 w-9 h-9 bg-white border border-gray-200 shadow-md flex items-center justify-center hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors"
+          aria-label="Scroll right"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* ── Add More to Save More ────────────────────────────────────────────────── */
+function AddMoreToSaveMore({ onAddToCart }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/home')
+      .then(({ data }) => setProducts(data.data?.deals?.slice(0, 10) ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const scroll = (dir) => {
+    if (scrollRef.current) scrollRef.current.scrollBy({ left: dir * 600, behavior: 'smooth' });
+  };
+
+  if (!loading && !products.length) return null;
+
+  return (
+    <section className="max-w-6xl mx-auto px-4 pb-10">
+      {/* Title */}
+      <div className="mb-5">
+        <h2 className="text-[15px] font-bold text-gray-900 uppercase tracking-widest">
+          Add More to Save More
+        </h2>
+        <div className="mt-1.5 w-10 h-[3px] bg-[#8B1A2F]" />
+      </div>
+
+      <div className="relative">
+        {/* Left arrow */}
+        <button
+          onClick={() => scroll(-1)}
+          className="absolute left-0 top-[40%] -translate-y-1/2 -translate-x-3 z-10 w-9 h-9 bg-white border border-gray-200 shadow-md flex items-center justify-center hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors"
+          aria-label="Scroll left"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        {/* Scroll container */}
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
+                  <div className="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded" />
+                  <div className="mt-2 h-3 bg-gray-100 animate-pulse rounded w-3/4" />
+                  <div className="mt-1.5 h-3 bg-gray-100 animate-pulse rounded w-1/2" />
+                </div>
+              ))
+            : products.map((p) => {
+                const finalPrice  = calcFinalPrice(p.base_price, p.discount_pct);
+                const discountPct = p.discount_pct > 0 ? Math.round(p.discount_pct) : 0;
+                return (
+                  <div key={p.id} className="shrink-0 w-[160px] sm:w-[180px] group">
+                    <Link to={`/product/${p.slug}`} className="block relative overflow-hidden bg-gray-50 aspect-[3/4]">
+                      {p.image_url
+                        ? <img src={assetUrl(p.image_url)} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-400" />
+                        : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+                      }
+                      {discountPct > 0 && (
+                        <span className="absolute top-2 left-2 bg-[#8B1A2F] text-white text-[10px] font-bold px-1.5 py-0.5">
+                          {discountPct}% OFF
+                        </span>
+                      )}
+                    </Link>
+                    <div className="mt-2">
+                      {p.brand_name && (
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide truncate">{p.brand_name}</p>
+                      )}
+                      <p className="text-[12px] text-gray-700 line-clamp-1 mt-0.5">{p.title}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[13px] font-bold text-gray-900">{formatPrice(finalPrice)}</span>
+                        {discountPct > 0 && (
+                          <span className="text-[11px] text-gray-400 line-through">{formatPrice(p.base_price)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onAddToCart(p, finalPrice)}
+                      className="mt-2 w-full py-2 border border-[#8B1A2F] text-[#8B1A2F] text-[11px] font-bold uppercase tracking-wider hover:bg-[#8B1A2F] hover:text-white transition-colors"
+                    >
+                      Add to Bag
+                    </button>
+                  </div>
+                );
+              })}
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={() => scroll(1)}
+          className="absolute right-0 top-[40%] -translate-y-1/2 translate-x-3 z-10 w-9 h-9 bg-white border border-gray-200 shadow-md flex items-center justify-center hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors"
+          aria-label="Scroll right"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+  );
+}
+
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 function EmptyBag() {
   return (
@@ -808,7 +1039,7 @@ function EmptyBag() {
 
 /* ── Main page ────────────────────────────────────────────────────────────── */
 export default function BagPage() {
-  const { items, removeItem, updateQty, setItems, subtotal, itemCount } = useCartStore();
+  const { items, addItem, removeItem, updateQty, setItems, subtotal, itemCount } = useCartStore();
   const { toggle: toggleWL, has: inWL } = useWishlistStore();
   const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
@@ -890,6 +1121,21 @@ export default function BagPage() {
     addToast('Moved to wishlist', 'success');
   };
 
+  const handleRecommendedAddToCart = (product, finalPrice) => {
+    addItem({
+      variantId: product.id,
+      productId: product.id,
+      title: product.title,
+      brand: product.brand_name,
+      image: assetUrl(product.image_url || ''),
+      size: null,
+      color: null,
+      price: finalPrice,
+      quantity: 1,
+    });
+    addToast('Added to bag!', 'success');
+  };
+
   const handlePlaceOrder = () => {
     if (!isLoggedIn) {
       openLoginModal(() => navigate('/checkout', { state: { coupon: appliedCoupon || null } }));
@@ -964,6 +1210,12 @@ export default function BagPage() {
 
         </div>
       </div>
+
+      {/* Recommended for You */}
+      <RecommendedForYou onAddToCart={handleRecommendedAddToCart} />
+
+      {/* Add More to Save More */}
+      <AddMoreToSaveMore onAddToCart={handleRecommendedAddToCart} />
 
       <AddressDrawer
         open={addrDrawerOpen}
