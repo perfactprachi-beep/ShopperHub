@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchOrder } from '../api/paymentsApi.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../utils/getProductPlaceholder.js';
 
 function addDays(n) {
   const d = new Date();
@@ -64,10 +65,12 @@ export default function OrderSuccessPage() {
               <div className="flex flex-col gap-3">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
-                    {item.image && (
-                      <img src={item.image} alt={item.title}
-                        className="w-12 h-12 object-cover rounded-lg bg-gray-50 shrink-0" />
-                    )}
+                    <img
+                      src={item.image || DEFAULT_PRODUCT_IMAGE}
+                      alt={item.title}
+                      onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                      className="w-12 h-12 object-cover rounded-lg bg-gray-50 shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
                       <p className="text-xs text-gray-500">

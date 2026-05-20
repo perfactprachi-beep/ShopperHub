@@ -12,7 +12,7 @@ function Toggle({ on, onToggle, title }) {
       type="button"
       onClick={onToggle}
       title={title}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${on ? 'bg-blue-600' : 'bg-gray-300'}`}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${on ? 'bg-[#8B1A2F]' : 'bg-gray-300'}`}
     >
       <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ${on ? 'translate-x-4' : 'translate-x-0'}`} />
     </button>
@@ -79,14 +79,20 @@ function ExpressDeliveryTab() {
     try {
       await updateDeliveryPincode(pincode, { is_express: !is_express });
       setPincodes(prev => prev.map(p => p.pincode === pincode ? { ...p, is_express: !is_express } : p));
-    } catch { /* silent */ }
+      addToast(`Express delivery ${!is_express ? 'enabled' : 'disabled'} for ${pincode}`, 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    }
   }
 
   async function handleUpdateHrs(pincode, delivery_hrs) {
     try {
       await updateDeliveryPincode(pincode, { delivery_hrs: Number(delivery_hrs) });
       setPincodes(prev => prev.map(p => p.pincode === pincode ? { ...p, delivery_hrs } : p));
-    } catch { /* silent */ }
+      addToast(`Delivery hours updated for ${pincode}`, 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    }
   }
 
   function handleDelete(pincode) {
@@ -141,6 +147,7 @@ function ExpressDeliveryTab() {
               <input type="text" placeholder="e.g. Mumbai"
                 value={form.city}
                 onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                maxLength={100}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
               />
             </div>
@@ -279,8 +286,9 @@ function StorePickupTab() {
     setFormErr('');
     const required = ['name', 'city', 'state', 'address', 'pincode'];
     const missing  = required.find(k => !form[k]?.trim());
-    if (missing) { setFormErr(`${missing} is required`); return; }
+    if (missing) { setFormErr(`${missing.charAt(0).toUpperCase() + missing.slice(1)} is required`); return; }
     if (!/^\d{6}$/.test(form.pincode)) { setFormErr('Pincode must be exactly 6 digits'); return; }
+    if (form.phone && !/^[+\d][\d\s\-().]{6,14}$/.test(form.phone)) { setFormErr('Enter a valid phone number'); return; }
     setSaving(true);
     try {
       await addAdminStore(form);
@@ -297,7 +305,10 @@ function StorePickupTab() {
     try {
       await updateAdminStore(id, { is_active: !is_active });
       setStores(prev => prev.map(s => s.id === id ? { ...s, is_active: !is_active } : s));
-    } catch { /* silent */ }
+      addToast(`Store ${!is_active ? 'activated' : 'deactivated'}`, 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    }
   }
 
   function handleDelete(id, name) {
@@ -353,18 +364,18 @@ function StorePickupTab() {
             <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">New Store</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
               {[
-                { key: 'name',    label: 'Store Name *',  placeholder: 'ShoppersHub – Phoenix Mall' },
-                { key: 'city',    label: 'City *',         placeholder: 'Mumbai'      },
-                { key: 'state',   label: 'State *',        placeholder: 'Maharashtra' },
-                { key: 'address', label: 'Address *',      placeholder: 'Lower Parel, Mumbai' },
-                { key: 'pincode', label: 'Pincode *',      placeholder: '400013'      },
-                { key: 'phone',   label: 'Phone',          placeholder: '+91 9999999999' },
-              ].map(({ key, label, placeholder }) => (
+                { key: 'name',    label: 'Store Name *',  placeholder: 'ShoppersHub – Phoenix Mall', maxLen: 200 },
+                { key: 'city',    label: 'City *',         placeholder: 'Mumbai',                   maxLen: 100 },
+                { key: 'state',   label: 'State *',        placeholder: 'Maharashtra',               maxLen: 100 },
+                { key: 'address', label: 'Address *',      placeholder: 'Lower Parel, Mumbai',      maxLen: 300 },
+                { key: 'pincode', label: 'Pincode *',      placeholder: '400013',                   maxLen: 6   },
+                { key: 'phone',   label: 'Phone',          placeholder: '+91 9999999999',            maxLen: 20  },
+              ].map(({ key, label, placeholder, maxLen }) => (
                 <div key={key}>
                   <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
                   <input type="text" placeholder={placeholder} value={form[key]}
                     onChange={e => setField(key, e.target.value)}
-                    maxLength={key === 'pincode' ? 6 : undefined}
+                    maxLength={maxLen}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
                   />
                 </div>

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { assetUrl } from '../../utils/assetUrl.js';
+import { getProductPlaceholder } from '../../utils/getProductPlaceholder.js';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import LoginModal from '../ui/LoginModal.jsx';
 import { useScrollDirection } from '../../hooks/useScrollDirection.js';
@@ -10,16 +12,30 @@ import api from '../../api/axios.js';
 import { getNotifications, markAllRead } from '../../api/notificationsApi.js';
 import { checkPincode } from '../../api/storesApi.js';
 
-const MEGA_SLUGS = new Set(['men', 'women', 'kids', 'beauty']);
+const MEGA_SLUGS = new Set(['men', 'women', 'kids', 'beauty', 'home', 'luxe']);
+
+const TRENDING_SEARCHES = ['Kids', 'Shirts', 'T-Shirts', 'Formals', 'Watches', 'Sunglasses', 'Dresses', 'Jeans'];
+
+const BEST_SELLING_CATEGORIES = [
+  { label: 'Men',    href: '/category/men' },
+  { label: 'Women',  href: '/category/women' },
+  { label: 'Kids',   href: '/category/kids' },
+  { label: 'Beauty', href: '/category/beauty' },
+  { label: 'Home',   href: '/category/home' },
+  { label: 'Gifts',  href: '/gifts' },
+];
 
 const NAV_LINKS = [
+  { label: 'Bargains',   href: '/offers',              accent: '#E8223A' },
   { label: 'Men',        slug: 'men' },
   { label: 'Women',      slug: 'women' },
   { label: 'Kids',       slug: 'kids' },
   { label: 'Beauty',     slug: 'beauty' },
+  { label: 'Watches',    href: '/category/watches' },
   { label: 'Home',       slug: 'home' },
+  { label: 'Gifts',      href: '/gifts' },
+  { label: 'Luxe',       slug: 'luxe', href: '/luxe',    accent: '#C9A84C' },
   { label: 'Brands',     href: '/brands' },
-  { label: 'Offers',     href: '/offers' },
 ];
 
 /* ── Icons ──────────────────────────────────────────────────────────── */
@@ -121,9 +137,18 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread]           = useState(0);
 
-  const accountRef  = useRef(null);
-  const notifRef    = useRef(null);
-  const megaTimer   = useRef(null);
+  const [searchOpen, setSearchOpen]           = useState(false);
+  const [suggestionProducts, setSuggestionProducts] = useState([]);
+  const [popularBrands, setPopularBrands]     = useState([]);
+  const [recentSearches, setRecentSearches]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ss_recent_searches') || '[]'); } catch { return []; }
+  });
+
+  const accountRef      = useRef(null);
+  const notifRef        = useRef(null);
+  const megaTimer       = useRef(null);
+  const searchRef       = useRef(null);
+  const debounceRef     = useRef(null);
 
   const [savedLocation, setSavedLocation] = useState(() => {
     try { return JSON.parse(localStorage.getItem('shoppers_location')); } catch { return null; }
@@ -157,6 +182,30 @@ export default function Navbar() {
 
   useEffect(() => {
     const h = (e) => { if (!notifRef.current?.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const fetchSuggestions = useCallback((q) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/search/suggestions', { params: { q: q || '' } });
+        if (data.success) setSuggestionProducts(data.data.products);
+      } catch {}
+    }, q ? 300 : 0);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen && popularBrands.length === 0) {
+      api.get('/brands').then(({ data }) => {
+        if (data.success) setPopularBrands(data.data.slice(0, 5));
+      }).catch(() => {});
+    }
+  }, [searchOpen, popularBrands.length]);
+
+  useEffect(() => {
+    const h = (e) => { if (!searchRef.current?.contains(e.target)) setSearchOpen(false); };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
@@ -203,11 +252,35 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!search.trim()) return;
-    navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+    const q = search.trim();
+    if (!q) return;
+    const updated = [q, ...recentSearches.filter(s => s !== q)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('ss_recent_searches', JSON.stringify(updated));
+    navigate(`/search?q=${encodeURIComponent(q)}`);
     setSearch('');
+    setSearchOpen(false);
     setMobileSearch(false);
     setMobileOpen(false);
+  };
+
+  const handleTrendingClick = (term) => {
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+    setSearchOpen(false);
+    setSearch('');
+  };
+
+  const handleRecentClick = (term) => {
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+    setSearchOpen(false);
+    setSearch('');
+  };
+
+  const removeRecent = (term, e) => {
+    e.stopPropagation();
+    const updated = recentSearches.filter(s => s !== term);
+    setRecentSearches(updated);
+    localStorage.setItem('ss_recent_searches', JSON.stringify(updated));
   };
 
   const getChildren = useCallback(
@@ -215,8 +288,14 @@ export default function Navbar() {
     [categories]
   );
 
+  const isLuxe = location.pathname === '/luxe';
+
+  // Close mega menu on route change
+  useEffect(() => { setMegaSlug(null); }, [location.pathname]);
+
   const showMega = (slug) => {
     clearTimeout(megaTimer.current);
+    if (isLuxe && slug === 'luxe') return;
     if (MEGA_SLUGS.has(slug)) setMegaSlug(slug);
     else setMegaSlug(null);
   };
@@ -224,7 +303,11 @@ export default function Navbar() {
   const keepMega = () => clearTimeout(megaTimer.current);
 
   const isActive = (link) => {
-    if (link.href) return location.pathname === link.href;
+    if (link.href) {
+      const [path, qs] = link.href.split('?');
+      if (qs) return location.pathname === path && location.search === `?${qs}`;
+      return location.pathname === path;
+    }
     return location.pathname.startsWith(`/category/${link.slug}`);
   };
 
@@ -255,7 +338,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop ─────────────────────────────────────────────── */}
-      <header className="hidden lg:block bg-white sticky top-0 z-40">
+      <header className={`hidden lg:block sticky top-0 z-40 ${isLuxe ? 'bg-[#0D0D0D]' : 'bg-white'}`}>
 
         {/* Announcement bar */}
         <div className="bg-[#111820] px-6 text-xs text-white xl:px-10">
@@ -272,24 +355,29 @@ export default function Navbar() {
         </div>
 
         {/* Row 1 — Logo | Search | Actions */}
-        <div className="border-b border-gray-200">
+        <div className={`border-b ${isLuxe ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="mx-auto flex h-[76px] max-w-[1920px] items-center gap-4 px-6 xl:gap-5 xl:px-10">
             {/* Logo */}
             <Link to="/" className="shrink-0 leading-none">
               <span
-                className="text-[34px] font-bold text-[#8B1A2F]"
-                style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontVariant: 'small-caps', letterSpacing: '0.05em' }}
+                className="text-[34px] font-bold"
+                style={{
+                  fontFamily: '"Cormorant Garamond", Georgia, serif',
+                  fontVariant: 'small-caps',
+                  letterSpacing: '0.05em',
+                  color: isLuxe ? '#C9A84C' : '#8B1A2F',
+                }}
               >
-                Shoppers<span className="text-[#1A1A1A]">Hub</span>
+                Shoppers<span style={{ color: isLuxe ? '#fff' : '#1A1A1A' }}>Hub</span>
               </span>
             </Link>
 
             {/* Location trigger */}
             <div className="flex min-w-0 shrink-0 items-center">
-              <div className="mr-4 h-7 w-px bg-gray-200" />
+              <div className={`mr-4 h-7 w-px ${isLuxe ? 'bg-white/15' : 'bg-gray-200'}`} />
               <button
                 onClick={() => { setLocationOpen(true); setPinInput(''); setPinResult(null); }}
-                className="flex h-10 items-center gap-1.5 text-gray-600 hover:text-[#8B1A2F] transition-colors"
+                className={`flex h-10 items-center gap-1.5 transition-colors ${isLuxe ? 'text-white/60 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}
               >
                 <IconPin size={15} />
                 <span className="max-w-[150px] truncate text-[14px] font-medium xl:max-w-[210px]">
@@ -300,27 +388,187 @@ export default function Navbar() {
             </div>
 
             {/* Search */}
-            <form onSubmit={handleSearch} className="ml-auto w-[clamp(300px,34vw,600px)] shrink-0">
-              <div className="relative flex h-[50px] items-center border border-gray-200 bg-gray-50 hover:border-gray-300 transition-colors focus-within:border-[#8B1A2F] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8B1A2F]/10">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <IconSearch size={18} />
-                </span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search products, brands and more..."
-                  className="h-full w-full bg-transparent pl-12 pr-4 text-[15px] text-gray-800 outline-none placeholder:text-gray-500"
-                />
-                <button
-                  type="submit"
-                  className="sr-only"
-                  aria-label="Search"
+            <div ref={searchRef} className="ml-auto relative w-[clamp(300px,34vw,600px)] shrink-0">
+              <form onSubmit={handleSearch}>
+                <div className={`relative flex h-[50px] items-center border transition-colors ${
+                  isLuxe
+                    ? 'border-white/15 bg-white/5 hover:border-white/30 focus-within:border-[#C9A84C] focus-within:ring-2 focus-within:ring-[#C9A84C]/10'
+                    : searchOpen
+                      ? 'border-[#8B1A2F] bg-white ring-2 ring-[#8B1A2F]/10'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300 focus-within:border-[#8B1A2F] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8B1A2F]/10'
+                }`}>
+                  <span className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${isLuxe ? 'text-white/30' : 'text-gray-400'}`}>
+                    <IconSearch size={18} />
+                  </span>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); fetchSuggestions(e.target.value); }}
+                    onFocus={() => { setSearchOpen(true); fetchSuggestions(search); }}
+                    onKeyDown={(e) => e.key === 'Escape' && setSearchOpen(false)}
+                    placeholder="Search products, brands and more..."
+                    className={`h-full w-full bg-transparent pl-12 pr-4 text-[15px] outline-none ${isLuxe ? 'text-white placeholder:text-white/30' : 'text-gray-800 placeholder:text-gray-500'}`}
+                  />
+                  <button type="submit" className="sr-only" aria-label="Search">Search</button>
+                </div>
+              </form>
+
+              {/* ── Search Dropdown ── */}
+              {searchOpen && !isLuxe && (
+                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[1020px] bg-white shadow-2xl border border-gray-200 overflow-hidden"
+                  style={{ borderRadius: '0 0 12px 12px' }}
                 >
-                  Search
-                </button>
-              </div>
-            </form>
+                  <div className="flex min-h-[340px]">
+
+                    {/* ── Left: Recent + Trending ── */}
+                    <div className="w-[270px] shrink-0 border-r border-gray-100 py-6 px-5">
+
+                      {/* Recent Searches */}
+                      {recentSearches.length > 0 && (
+                        <div className="mb-6">
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Recent Search</p>
+                          <div className="flex flex-wrap gap-2">
+                            {recentSearches.map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => handleRecentClick(s)}
+                                className="group flex items-center gap-1 pl-3 pr-2 py-1.5 border border-gray-300 rounded-full text-[13px] text-gray-700 hover:border-gray-800 hover:text-gray-900 transition-colors bg-white"
+                              >
+                                {s}
+                                <span
+                                  onClick={(e) => removeRecent(s, e)}
+                                  className="text-gray-300 hover:text-red-400 ml-1 text-xs leading-none transition-colors"
+                                >✕</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Trending Searches */}
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Trending Searches</p>
+                      <ul className="space-y-0">
+                        {TRENDING_SEARCHES.map((s) => (
+                          <li key={s}>
+                            <button
+                              onClick={() => handleTrendingClick(s)}
+                              className="w-full text-left py-2 text-[14px] text-gray-800 hover:text-[#8B1A2F] transition-colors"
+                            >
+                              {s}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Best Selling Categories */}
+                      <div className="mt-6">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Best Selling Categories</p>
+                        <div className="flex flex-wrap gap-2">
+                          {BEST_SELLING_CATEGORIES.map((cat) => (
+                            <Link
+                              key={cat.label}
+                              to={cat.href}
+                              onClick={() => setSearchOpen(false)}
+                              className="px-3 py-1.5 border border-gray-300 rounded-full text-[13px] text-gray-700 hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors bg-white"
+                            >
+                              {cat.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Popular Brands */}
+                      {popularBrands.length > 0 && (
+                        <div className="mt-5">
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Popular Brands</p>
+                          <div className="flex flex-wrap gap-2">
+                            {popularBrands.map((b) => (
+                              <Link
+                                key={b.id}
+                                to={`/brands/${b.slug}`}
+                                onClick={() => setSearchOpen(false)}
+                                className="px-3 py-1.5 border border-gray-200 rounded-full text-[13px] font-semibold text-gray-800 hover:border-[#8B1A2F] hover:text-[#8B1A2F] transition-colors bg-white"
+                              >
+                                {b.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Right: Trending Products ── */}
+                    <div className="flex-1 py-6 px-6">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Trending Products</p>
+
+                      {suggestionProducts.length === 0 ? (
+                        <div className="h-48 flex flex-col items-center justify-center gap-2 text-gray-300">
+                          <IconSearch size={32} />
+                          <p className="text-sm text-gray-400">Start typing to find products</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-5 gap-3">
+                          {suggestionProducts.map((p) => {
+                            const sp = Math.round(p.base_price * (1 - p.discount_pct / 100));
+                            return (
+                              <Link
+                                key={p.id}
+                                to={`/product/${p.slug}`}
+                                onClick={() => setSearchOpen(false)}
+                                className="group block"
+                              >
+                                {/* Portrait image */}
+                                <div className="aspect-[3/4] rounded-md overflow-hidden bg-gray-100 mb-2">
+                                  <img
+                                    src={p.image_url ? assetUrl(p.image_url) : getProductPlaceholder(p)}
+                                    alt={p.title}
+                                    onError={(e) => { e.currentTarget.src = getProductPlaceholder(p); }}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+
+                                {/* Brand + Title */}
+                                <p className="text-[11px] text-gray-800 leading-snug line-clamp-2">
+                                  <span className="font-bold">{p.brand_name} </span>
+                                  {p.title}
+                                </p>
+
+                                {/* Pricing */}
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  <span className="text-[12px] font-bold text-gray-900">₹{sp.toLocaleString('en-IN')}</span>
+                                  {p.discount_pct > 0 && (
+                                    <span className="text-[11px] font-semibold text-[#E8223A]">{p.discount_pct}% Off</span>
+                                  )}
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* View all results */}
+                      {search.trim().length > 0 && (
+                        <Link
+                          to={`/search?q=${encodeURIComponent(search.trim())}`}
+                          onClick={() => {
+                            const q = search.trim();
+                            const updated = [q, ...recentSearches.filter(s => s !== q)].slice(0, 5);
+                            setRecentSearches(updated);
+                            localStorage.setItem('ss_recent_searches', JSON.stringify(updated));
+                            setSearch('');
+                            setSearchOpen(false);
+                          }}
+                          className="mt-5 flex items-center justify-center gap-2 w-full py-2.5 border-t border-gray-100 text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors"
+                        >
+                          <IconSearch size={14} />
+                          View all results for "<span className="font-semibold text-gray-800">{search.trim()}</span>"
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Actions */}
             <div className="flex shrink-0 items-center gap-3 xl:gap-4">
@@ -328,7 +576,7 @@ export default function Navbar() {
               <div ref={accountRef} className="relative">
                 <button
                   onClick={() => isLoggedIn ? setAccountOpen((v) => !v) : setLoginModal(true)}
-                  className="flex h-10 items-center justify-center gap-1 text-gray-600 hover:text-[#8B1A2F] transition-colors"
+                  className={`flex h-10 items-center justify-center gap-1 transition-colors ${isLuxe ? 'text-white/70 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}
                 >
                   <IconUser size={26} />
                   <IconChevronDown size={12} />
@@ -367,39 +615,41 @@ export default function Navbar() {
               {/* Wishlist — hidden for admin */}
               {!isAdmin && (
                 isLoggedIn ? (
-                  <Link to="/wishlist" className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                  <Link to="/wishlist" className={`relative flex h-10 w-10 items-center justify-center transition-colors ${isLuxe ? 'text-white/70 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}>
                     <IconHeart size={26}/>
                     {wishCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                      <span className="absolute -top-1 -right-1 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center leading-none">
                         {wishCount > 99 ? '99+' : wishCount}
                       </span>
                     )}
                   </Link>
                 ) : (
-                  <button onClick={openLoginModal} className="flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                  <button onClick={openLoginModal} className={`flex h-10 w-10 items-center justify-center transition-colors ${isLuxe ? 'text-white/70 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}>
                     <IconHeart size={26}/>
                   </button>
                 )
               )}
 
-              {/* Cart */}
-              <Link to="/cart" className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
-                <IconCart size={26}/>
-                {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </span>
-                )}
-              </Link>
+              {/* Cart — hidden for admin */}
+              {!isAdmin && (
+                <Link to="/cart" className={`relative flex h-10 w-10 items-center justify-center transition-colors ${isLuxe ? 'text-white/70 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}>
+                  <IconCart size={26}/>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center leading-none">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               {/* Notifications */}
               {isLoggedIn && (
                 <div ref={notifRef} className="relative">
-                  <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-10 w-10 items-center justify-center text-gray-600 hover:text-[#8B1A2F] transition-colors">
+                  <button onClick={() => setNotifOpen((v) => !v)} className={`relative flex h-10 w-10 items-center justify-center transition-colors ${isLuxe ? 'text-white/70 hover:text-[#C9A84C]' : 'text-gray-600 hover:text-[#8B1A2F]'}`}>
                     <IconBell size={26}/>
                     {unread > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                        {unread > 9 ? '9+' : unread}
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center leading-none">
+                        {unread > 99 ? '99+' : unread}
                       </span>
                     )}
                   </button>
@@ -432,12 +682,12 @@ export default function Navbar() {
         </div>
 
         {/* Row 2 — Category nav */}
-        <div className={`border-b border-gray-200 bg-white transition-all duration-300 ${scrollDir === 'down' ? 'shadow-none' : ''}`}>
+        <div className={`border-b transition-all duration-300 ${isLuxe ? 'border-white/10 bg-[#0D0D0D]' : 'border-gray-200 bg-white'}`}>
           <nav className="mx-auto flex h-[62px] max-w-[1920px] items-center justify-center px-6 xl:px-10">
             {NAV_LINKS.map((link) => {
               const href    = link.href ?? `/category/${link.slug}`;
               const active  = isActive(link);
-              const hasMega = MEGA_SLUGS.has(link.slug);
+              const color   = active ? (link.accent ?? (isLuxe ? '#C9A84C' : '#8B1A2F')) : (link.accent ?? null);
               return (
                 <div
                   key={link.label}
@@ -447,10 +697,16 @@ export default function Navbar() {
                 >
                   <Link
                     to={href}
-                    className={`inline-flex h-[62px] items-center px-5 text-[15px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 xl:px-6 ${
-                      active
-                        ? 'text-[#8B1A2F] border-[#8B1A2F]'
-                        : 'text-gray-700 border-transparent hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
+                    onClick={() => setMegaSlug(null)}
+                    style={color ? { color, borderColor: active ? color : 'transparent' } : undefined}
+                    className={`inline-flex h-[62px] items-center px-4 text-[14px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 xl:px-5 ${
+                      color
+                        ? 'hover:opacity-80'
+                        : active
+                          ? isLuxe ? 'text-[#C9A84C] border-[#C9A84C]' : 'text-[#8B1A2F] border-[#8B1A2F]'
+                          : isLuxe
+                            ? 'text-white/60 border-transparent hover:text-white hover:border-white/40'
+                            : 'text-gray-700 border-transparent hover:text-[#8B1A2F] hover:border-[#8B1A2F]'
                     }`}
                   >
                     {link.label}
@@ -463,83 +719,110 @@ export default function Navbar() {
 
         {/* Mega Menu */}
         {megaSlug && (
-          <div
-            className="absolute left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-30"
-            onMouseEnter={keepMega}
-            onMouseLeave={hideMega}
-          >
-            <div className="max-w-7xl mx-auto px-6 py-7">
-              {getChildren(megaSlug).length > 0 ? (
-                <div className="flex gap-16">
-                  {/* Parent category link */}
-                  <div className="min-w-[160px]">
-                    <Link
-                      to={`/category/${megaSlug}`}
-                      onClick={() => setMegaSlug(null)}
-                      className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3 uppercase tracking-wide"
+          megaSlug === 'luxe' ? (
+            /* ── Luxe Mega Menu (dark/gold) ── */
+            <div
+              className="absolute left-0 right-0 z-30 shadow-2xl"
+              style={{ background: '#111' }}
+              onMouseEnter={keepMega}
+              onMouseLeave={hideMega}
+            >
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                {/* Category columns only — no header, no footer CTA */}
+                <div className="grid grid-cols-4 lg:grid-cols-7 gap-6">
+                  {getChildren('luxe').map((sub) => (
+                    <div key={sub.id}>
+                      <Link
+                        to={`/category/${sub.slug}`}
+                        onClick={() => setMegaSlug(null)}
+                        className="flex items-center gap-1 text-[12px] font-bold uppercase tracking-wider mb-3 transition-opacity hover:opacity-70"
+                        style={{ color: '#C9A84C' }}
+                      >
+                        {sub.name} <IconChevronRight size={11} />
+                      </Link>
+                      <div className="flex flex-col gap-1.5">
+                        {(sub.children ?? []).map((child) => (
+                          <Link
+                            key={child.id}
+                            to={`/category/${child.slug}`}
+                            onClick={() => setMegaSlug(null)}
+                            className="text-[13px] text-white/60 hover:text-white transition-colors py-0.5"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── Standard Mega Menu (white) ── */
+            <div
+              className="absolute left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-30"
+              onMouseEnter={keepMega}
+              onMouseLeave={hideMega}
+            >
+              <div className="max-w-[1920px] mx-auto px-6 xl:px-10 py-7">
+                {(() => {
+                  const kids = getChildren(megaSlug);
+                  if (kids.length === 0) return (
+                    <div>
+                      <Link
+                        to={`/category/${megaSlug}`}
+                        onClick={() => setMegaSlug(null)}
+                        className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3 uppercase tracking-wide"
+                      >
+                        {NAV_LINKS.find(l => l.slug === megaSlug)?.label}
+                        <IconChevronRight size={14}/>
+                      </Link>
+                      <p className="text-sm text-gray-400">No subcategories yet.</p>
+                    </div>
+                  );
+                  const cols = kids.length <= 7 ? kids.length : Math.ceil(kids.length / 2);
+                  const gapX = cols >= 8 ? 'gap-x-5' : 'gap-x-8';
+                  return (
+                    <div
+                      className={`grid gap-y-6 ${gapX}`}
+                      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
                     >
-                      {NAV_LINKS.find(l => l.slug === megaSlug)?.label}
-                      <IconChevronRight size={14}/>
-                    </Link>
-                    <div className="flex flex-col gap-1.5">
-                      {getChildren(megaSlug).slice(0, 8).map((sub) => (
-                        <Link
-                          key={sub.id}
-                          to={`/category/${sub.slug}`}
-                          onClick={() => setMegaSlug(null)}
-                          className="text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors py-0.5"
-                        >
-                          {sub.name}
-                        </Link>
+                      {kids.map((sub) => (
+                        <div key={sub.id} className="min-w-0">
+                          <Link
+                            to={`/category/${sub.slug}`}
+                            onClick={() => setMegaSlug(null)}
+                            className="flex items-center gap-1 text-[12px] font-bold text-gray-900 hover:text-[#8B1A2F] mb-2 uppercase tracking-wide group"
+                          >
+                            {sub.name}
+                            {sub.children?.length > 0 && (
+                              <span className="text-gray-400 group-hover:text-[#8B1A2F] transition-colors">
+                                <IconChevronRight size={11}/>
+                              </span>
+                            )}
+                          </Link>
+                          {sub.children && sub.children.length > 0 && (
+                            <div className="flex flex-col">
+                              {sub.children.map((child) => (
+                                <Link
+                                  key={child.id}
+                                  to={`/category/${child.slug}`}
+                                  onClick={() => setMegaSlug(null)}
+                                  className="text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors py-[3px] leading-snug"
+                                >
+                                  {child.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Sub-category children columns */}
-                  {getChildren(megaSlug)
-                    .filter(sub => sub.children?.length > 0)
-                    .map((sub) => (
-                      <div key={sub.id} className="min-w-[150px]">
-                        <Link
-                          to={`/category/${sub.slug}`}
-                          onClick={() => setMegaSlug(null)}
-                          className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3"
-                        >
-                          {sub.name} <IconChevronRight size={13}/>
-                        </Link>
-                        <div className="flex flex-col gap-1.5">
-                          {sub.children.map((child) => (
-                            <Link
-                              key={child.id}
-                              to={`/category/${child.slug}`}
-                              onClick={() => setMegaSlug(null)}
-                              className="text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors py-0.5"
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  }
-                </div>
-              ) : (
-                <div className="flex gap-16">
-                  <div>
-                    <Link
-                      to={`/category/${megaSlug}`}
-                      onClick={() => setMegaSlug(null)}
-                      className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3 uppercase tracking-wide"
-                    >
-                      {NAV_LINKS.find(l => l.slug === megaSlug)?.label}
-                      <IconChevronRight size={14}/>
-                    </Link>
-                    <p className="text-sm text-gray-400">No subcategories yet.</p>
-                  </div>
-                </div>
-              )}
+                  );
+                })()}
+              </div>
             </div>
-          </div>
+          )
         )}
       </header>
 
@@ -563,14 +846,16 @@ export default function Navbar() {
             <button onClick={() => setMobileSearch((v) => !v)} className="text-gray-700 p-1" aria-label="Search">
               <IconSearch/>
             </button>
-            <Link to="/cart" className="relative text-gray-700 p-1" aria-label="Cart">
-              <IconCart/>
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </Link>
+            {!isAdmin && (
+              <Link to="/cart" className="relative text-gray-700 p-1" aria-label="Cart">
+                <IconCart/>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#8B1A2F] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center leading-none">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -638,6 +923,7 @@ export default function Navbar() {
                 const hasMega   = MEGA_SLUGS.has(link.slug);
                 const children  = hasMega ? getChildren(link.slug) : [];
                 const isOpen    = openAccordion === link.slug;
+                const labelStyle = link.accent ? { color: link.accent } : undefined;
                 return (
                   <div key={link.label} className="border-b border-gray-100 last:border-b-0">
                     {hasMega && children.length > 0 ? (
@@ -645,6 +931,7 @@ export default function Navbar() {
                         <button
                           onClick={() => setOpenAccordion(isOpen ? null : link.slug)}
                           className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-semibold text-gray-800 uppercase tracking-wider"
+                          style={labelStyle}
                         >
                           {link.label}
                           <span className={`transition-transform text-gray-400 ${isOpen ? 'rotate-180' : ''}`}>
@@ -665,7 +952,7 @@ export default function Navbar() {
                         )}
                       </>
                     ) : (
-                      <Link to={href} onClick={() => setMobileOpen(false)} className="block px-5 py-3.5 text-sm font-semibold text-gray-800 uppercase tracking-wider hover:text-[#8B1A2F]">
+                      <Link to={href} onClick={() => setMobileOpen(false)} className="block px-5 py-3.5 text-sm font-semibold text-gray-800 uppercase tracking-wider hover:text-[#8B1A2F]" style={labelStyle}>
                         {link.label}
                       </Link>
                     )}

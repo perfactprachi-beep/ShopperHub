@@ -18,7 +18,7 @@ function swatchStyle(color) {
   return { background: `linear-gradient(135deg, ${hexes[0]} 50%, ${hexes[1]} 50%)` };
 }
 
-export default function VariantPicker({ variants = [], selected, onSelect, onSizeChart }) {
+export default function VariantPicker({ variants = [], selected, onSelect, onSizeChart, showSize = true }) {
   const sizes  = [...new Set(variants.map((v) => v.size).filter(Boolean))];
   const colors = [...new Set(variants.map((v) => v.color).filter(Boolean))];
 
@@ -69,8 +69,8 @@ export default function VariantPicker({ variants = [], selected, onSelect, onSiz
         </div>
       )}
 
-      {/* Size chips */}
-      {sizes.length > 0 && (
+      {/* Size chips — hidden for beauty/nail/fragrance categories */}
+      {showSize && sizes.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-gray-800">

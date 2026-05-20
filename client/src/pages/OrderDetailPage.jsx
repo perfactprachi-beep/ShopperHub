@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { getOrderById, cancelOrder } from '../api/ordersApi.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../utils/getProductPlaceholder.js';
 import OrderStatusStepper from '../components/order/OrderStatusStepper.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
 import { useToastStore } from '../store/toastStore.js';
@@ -185,10 +186,12 @@ export default function OrderDetailPage() {
           {(order.items ?? []).map((item) => (
             <div key={item.id} className="flex gap-3 items-start">
               <div className="w-14 h-14 shrink-0 rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg)]">
-                {item.image
-                  ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-[var(--color-border)]" />
-                }
+                <img
+                  src={item.image || DEFAULT_PRODUCT_IMAGE}
+                  alt={item.title}
+                  onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--color-text)] truncate">{item.title}</p>
@@ -246,12 +249,6 @@ export default function OrderDetailPage() {
             <span>Status</span>
             <span className={`font-medium capitalize ${PAYMENT_STATUS_COLORS[order.payment_status] ?? ''}`}>{order.payment_status}</span>
           </div>
-          {order.razorpay_order_id && (
-            <div className="flex justify-between">
-              <span>Razorpay ID</span>
-              <span className="text-[var(--color-text)] font-mono text-xs">{order.razorpay_order_id}</span>
-            </div>
-          )}
         </div>
       </div>
 

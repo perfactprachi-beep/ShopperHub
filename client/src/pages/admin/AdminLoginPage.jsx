@@ -81,6 +81,8 @@ export default function AdminLoginPage() {
                 value={form.password}
                 onChange={handleChange}
                 required
+                minLength={8}
+                maxLength={128}
                 placeholder="••••••••"
                 className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#8B1A2F] transition-colors"
               />

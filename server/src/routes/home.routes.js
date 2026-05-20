@@ -1,26 +1,59 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { getActiveBanners } from '../db/queries/banners.js';
+import { searchProducts } from '../db/queries/products.js';
 
 const router = Router();
 
 const PRODUCT_FIELDS = `
-  p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock,
+  p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender,
+  COALESCE(
+    (SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id),
+    p.stock
+  ) AS stock,
   b.name AS brand_name, b.slug AS brand_slug,
   (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url
 `;
 
+// Reusable WHERE clause that excludes out-of-stock products
+const IN_STOCK = `COALESCE((SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id), p.stock) > 0`;
+
 router.get('/', async (_req, res, next) => {
   try {
-    const [banners, catResult, trendingResult, brandResult, newArrivalsResult, dealsResult, luxeResult, recommendedResult] = await Promise.all([
+    const [
+      banners,
+      collectionBannersResult,
+      catResult,
+      trendingResult,
+      brandResult,
+      newArrivalsResult,
+      dealsResult,
+      luxeResult,
+      recommendedResult,
+      fragranceBrandsResult,
+      watchBrandsResult,
+      ethnicBrandsResult,
+    ] = await Promise.all([
       getActiveBanners(),
+
+      // Shop the Collection cards (position='collection')
+      pool.query(`
+        SELECT id, title, image_url, link
+        FROM banners
+        WHERE position = 'collection' AND is_active = true
+        ORDER BY sort_order
+      `),
+
+      // Top-level categories for "Shop by Category"
       pool.query(`
         SELECT id, name, slug, image_url
         FROM categories
         WHERE parent_id IS NULL
         ORDER BY sort_order, name
-        LIMIT 6
+        LIMIT 9
       `),
+
+      // Trending Now grid
       pool.query(`
         SELECT DISTINCT ON (c.name) c.id, c.name, c.slug, c.image_url
         FROM categories c
@@ -37,34 +70,43 @@ router.get('/', async (_req, res, next) => {
           c.sort_order
         LIMIT 8
       `),
+
+      // Top Brands strip
       pool.query(`
         SELECT id, name, slug, logo_url
         FROM brands
         WHERE logo_url IS NOT NULL
         ORDER BY name
-        LIMIT 12
+        LIMIT 16
       `),
+
+      // New Arrivals
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active'
+        WHERE p.status = 'active' AND ${IN_STOCK}
         ORDER BY p.created_at DESC
         LIMIT 12
       `),
+
+      // Top Deals
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.is_deal = true
+        WHERE p.status = 'active' AND p.is_deal = true AND ${IN_STOCK}
         ORDER BY p.discount_pct DESC, p.created_at DESC
         LIMIT 12
       `),
+
+      // Luxe Collection
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
         WHERE p.status = 'active'
+          AND ${IN_STOCK}
           AND (
             p.category_id IN (SELECT id FROM categories WHERE slug LIKE 'luxe%')
             OR p.base_price >= 2000
@@ -72,13 +114,51 @@ router.get('/', async (_req, res, next) => {
         ORDER BY p.base_price DESC
         LIMIT 12
       `),
+
+      // Recommended
       pool.query(`
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.discount_pct >= 10
+        WHERE p.status = 'active' AND p.discount_pct >= 10 AND ${IN_STOCK}
         ORDER BY p.discount_pct DESC, p.id % 17
         LIMIT 12
+      `),
+
+      // Fragrance & Beauty brands
+      pool.query(`
+        SELECT DISTINCT br.id, br.name, br.slug, br.logo_url
+        FROM brands br
+        JOIN products p ON p.brand_id = br.id
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active'
+          AND (LOWER(c.name) LIKE '%fragrance%' OR LOWER(c.name) LIKE '%skin%' OR LOWER(c.name) LIKE '%beauty%')
+        ORDER BY br.name
+        LIMIT 10
+      `),
+
+      // Watch brands
+      pool.query(`
+        SELECT DISTINCT br.id, br.name, br.slug, br.logo_url
+        FROM brands br
+        JOIN products p ON p.brand_id = br.id
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active'
+          AND LOWER(c.name) LIKE '%watch%'
+        ORDER BY br.name
+        LIMIT 10
+      `),
+
+      // Ethnic & Festive brands
+      pool.query(`
+        SELECT DISTINCT br.id, br.name, br.slug, br.logo_url
+        FROM brands br
+        JOIN products p ON p.brand_id = br.id
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active'
+          AND (LOWER(c.name) LIKE '%kurta%' OR LOWER(c.name) LIKE '%ethnic%' OR LOWER(c.name) LIKE '%salwar%')
+        ORDER BY br.name
+        LIMIT 10
       `),
     ]);
 
@@ -86,6 +166,7 @@ router.get('/', async (_req, res, next) => {
       success: true,
       data: {
         banners,
+        collectionBanners: collectionBannersResult.rows,
         featuredCategories: catResult.rows,
         trendingCategories: trendingResult.rows,
         brands: brandResult.rows,
@@ -93,8 +174,37 @@ router.get('/', async (_req, res, next) => {
         deals: dealsResult.rows,
         luxeProducts: luxeResult.rows,
         recommended: recommendedResult.rows,
+        brandStrips: {
+          fragrances: fragranceBrandsResult.rows,
+          watches: watchBrandsResult.rows,
+          ethnic: ethnicBrandsResult.rows,
+        },
       },
     });
+  } catch (err) { next(err); }
+});
+
+// ── Search suggestions ────────────────────────────────────────────────────────
+router.get('/search/suggestions', async (req, res, next) => {
+  try {
+    const q = (req.query.q || '').trim();
+    let products;
+    if (q.length >= 2) {
+      products = await searchProducts(q, 10);
+    } else {
+      const { rows } = await pool.query(`
+        SELECT p.id, p.title, p.slug, p.base_price, p.discount_pct,
+               b.name AS brand_name,
+               (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url
+        FROM products p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        WHERE p.status = 'active' AND p.discount_pct > 0
+        ORDER BY p.discount_pct DESC, p.created_at DESC
+        LIMIT 10
+      `);
+      products = rows;
+    }
+    res.json({ success: true, data: { products } });
   } catch (err) { next(err); }
 });
 

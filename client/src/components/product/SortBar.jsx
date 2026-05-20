@@ -1,3 +1,5 @@
+import SearchableSelect from '../ui/SearchableSelect.jsx';
+
 const SORT_OPTIONS = [
   { value: 'newest',     label: 'Newest First' },
   { value: 'popularity', label: 'Popularity' },
@@ -15,18 +17,22 @@ function toTitleCase(str) {
 export default function SortBar({ value, onChange, total, title, subtitle, filters, onFilterChange, page, limit }) {
   const activeChips = [];
 
-  if (filters?.gender) {
+  /* Department — one chip per selected gender */
+  (filters?.genders ?? []).forEach(g => {
     activeChips.push({
-      label: filters.gender.charAt(0).toUpperCase() + filters.gender.slice(1),
-      onRemove: () => onFilterChange({ ...filters, gender: '' }),
+      label: g.charAt(0).toUpperCase() + g.slice(1),
+      onRemove: () => onFilterChange({ ...filters, genders: (filters.genders ?? []).filter(x => x !== g) }),
     });
-  }
-  if (filters?.brand) {
+  });
+
+  /* Brand — one chip per selected brand */
+  (filters?.brands ?? []).forEach(slug => {
     activeChips.push({
-      label: toTitleCase(filters.brand),
-      onRemove: () => onFilterChange({ ...filters, brand: '' }),
+      label: toTitleCase(slug),
+      onRemove: () => onFilterChange({ ...filters, brands: (filters.brands ?? []).filter(s => s !== slug) }),
     });
-  }
+  });
+
   if (filters?.minPrice || filters?.maxPrice) {
     const label = filters.minPrice && filters.maxPrice
       ? `₹${filters.minPrice} – ₹${filters.maxPrice}`
@@ -70,25 +76,15 @@ export default function SortBar({ value, onChange, total, title, subtitle, filte
         </div>
 
         {/* Sort */}
-        <div className="flex items-center gap-2 shrink-0 border border-gray-200 rounded px-3 py-2 bg-white">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Sort by</span>
-          <div className="relative">
-            <select
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="appearance-none text-xs font-semibold text-gray-900 bg-transparent border-none outline-none cursor-pointer pr-4"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <svg
-              className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-500"
-              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            >
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </div>
+          <SearchableSelect
+            value={value}
+            onChange={val => onChange(val || 'newest')}
+            options={SORT_OPTIONS}
+            placeholder="Select sort"
+            className="w-44"
+          />
         </div>
       </div>
 
@@ -113,7 +109,7 @@ export default function SortBar({ value, onChange, total, title, subtitle, filte
           ))}
           {activeChips.length > 1 && (
             <button
-              onClick={() => onFilterChange({ gender: '', minPrice: '', maxPrice: '', brand: '', minDiscount: '' })}
+              onClick={() => onFilterChange({ genders: [], minPrice: '', maxPrice: '', brands: [], minDiscount: '' })}
               className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 underline"
             >
               Clear all

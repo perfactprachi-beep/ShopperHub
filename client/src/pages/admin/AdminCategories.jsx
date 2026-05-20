@@ -5,6 +5,7 @@ import {
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 import { useToastStore } from '../../store/toastStore.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 
 function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -22,6 +23,7 @@ function CategoryModal({ category, categories, showParentField, onClose, onSaved
     parent_id: category?.parent_id ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [formErr, setFormErr] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,6 +35,9 @@ function CategoryModal({ category, categories, showParentField, onClose, onSaved
   };
 
   const handleSave = async () => {
+    setFormErr('');
+    if (!form.name.trim()) { setFormErr('Name is required'); return; }
+    if (!form.slug.trim()) { setFormErr('Slug is required'); return; }
     setSaving(true);
     try {
       const payload = { ...form, parent_id: form.parent_id || null };
@@ -77,33 +82,27 @@ function CategoryModal({ category, categories, showParentField, onClose, onSaved
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
         </div>
         <div className="px-6 py-4 space-y-4">
+          {formErr && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formErr}</p>
+          )}
           <div>
-            <label className="label">Name</label>
-            <input name="name" value={form.name} onChange={handleChange} className="input" placeholder="e.g. Casual Wear" />
+            <label className="label">Name *</label>
+            <input name="name" value={form.name} onChange={handleChange} className="input" placeholder="e.g. Casual Wear" required maxLength={100} />
           </div>
           <div>
-            <label className="label">Slug</label>
-            <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" />
+            <label className="label">Slug *</label>
+            <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" required maxLength={100} />
           </div>
           {showParentField && (
             <div>
               <label className="label">Parent Category</label>
-              <div className="select-wrap">
-                <select
-                  name="parent_id"
-                  value={form.parent_id || ''}
-                  onChange={handleChange}
-                  disabled={!category?.id && !!form.parent_id}
-                  className="disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                >
-                  <option value="">— None (top-level) —</option>
-                  {groupedParents.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.parent_id ? `    ↳ ${c.name}` : c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                value={form.parent_id || ''}
+                onChange={val => setForm(f => ({ ...f, parent_id: val }))}
+                options={groupedParents.map(c => ({ value: c.id, label: c.name, indent: !!c.parent_id }))}
+                placeholder="— None (top-level) —"
+                disabled={!category?.id && !!form.parent_id}
+              />
             </div>
           )}
           <div>

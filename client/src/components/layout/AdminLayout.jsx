@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToastStore } from '../../store/toastStore.js';
+import ToastContainer from '../ui/Toast.jsx';
 
 function IconDashboard() {
   return (
@@ -115,6 +116,18 @@ function IconDelivery() {
   );
 }
 
+function IconPages() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+}
+
 function IconArrowLeft() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -147,6 +160,7 @@ const NAV_ITEMS = [
   { to: '/admin/users',            label: 'Users',            Icon: IconUsers },
   { to: '/admin/payment-methods',  label: 'Payment Methods',  Icon: IconPayments },
   { to: '/admin/delivery',         label: 'Delivery',         Icon: IconDelivery },
+  { to: '/admin/pages',            label: 'CMS Pages',        Icon: IconPages },
 ];
 
 const PAGE_TITLES = {
@@ -166,6 +180,7 @@ const PAGE_TITLES = {
   '/admin/users':              'Users',
   '/admin/payment-methods':    'Payment Methods',
   '/admin/delivery':           'Delivery',
+  '/admin/pages':              'CMS Pages',
 };
 
 const PAGE_SUBTITLES = {
@@ -185,6 +200,7 @@ const PAGE_SUBTITLES = {
   '/admin/users':              'Customer accounts',
   '/admin/payment-methods':    'Configure checkout payment options',
   '/admin/delivery':           'Manage express delivery pincodes',
+  '/admin/pages':              'Create and manage static content pages',
 };
 
 export default function AdminLayout() {
@@ -317,6 +333,7 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

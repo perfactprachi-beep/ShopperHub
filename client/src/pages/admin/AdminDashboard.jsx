@@ -72,7 +72,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     getDashboardStats()
-      .then(setStats)
+      .then(res => setStats(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);

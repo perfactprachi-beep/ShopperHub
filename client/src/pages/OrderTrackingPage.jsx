@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getOrderById } from '../api/ordersApi.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../utils/getProductPlaceholder.js';
 import Spinner from '../components/ui/Spinner.jsx';
 
 function formatDate(iso) {
@@ -207,10 +208,12 @@ export default function OrderTrackingPage() {
                   <div key={item.id} className="flex gap-3 px-5 py-4 items-start">
                     {/* Image */}
                     <div className="w-[70px] h-[88px] shrink-0 bg-gray-100 overflow-hidden">
-                      {item.image
-                        ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full bg-gray-200" />
-                      }
+                      <img
+                        src={item.image || DEFAULT_PRODUCT_IMAGE}
+                        alt={item.title}
+                        onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     {/* Details */}
                     <div className="flex-1 min-w-0">

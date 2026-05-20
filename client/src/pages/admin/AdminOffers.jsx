@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getAdminOffers, createOffer, updateOffer, deleteOffer, getAdminCategories } from '../../api/adminApi.js';
 import { useToastStore } from '../../store/toastStore.js';
 import DeleteModal from '../../components/admin/DeleteModal.jsx';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 
 const EMPTY = {
   title: '', description: '', code: '', image_url: '', is_active: true, sort_order: 0,
@@ -73,16 +74,14 @@ function OfferModal({ offer, onClose, onSaved }) {
     setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  const handleParentChange = (e) => {
-    const pid = e.target.value;
+  const handleParentChange = (pid) => {
     setParentId(pid);
     const hasSubs = categories.some(c => c.parent_id && String(c.parent_id) === pid);
-    // if no subs → save parent as the category; if has subs → wait for sub selection
     setForm(f => ({ ...f, category_id: pid && !hasSubs ? pid : '' }));
   };
 
-  const handleSubChange = (e) => {
-    setForm(f => ({ ...f, category_id: e.target.value }));
+  const handleSubChange = (val) => {
+    setForm(f => ({ ...f, category_id: val }));
   };
 
   const handleSave = async () => {
@@ -132,6 +131,7 @@ function OfferModal({ offer, onClose, onSaved }) {
               onChange={handleChange}
               placeholder="e.g. 10% Off For First-Time Users"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
+              required maxLength={200}
             />
           </div>
 
@@ -144,6 +144,7 @@ function OfferModal({ offer, onClose, onSaved }) {
               rows={3}
               placeholder="e.g. On orders above ₹3,000. Use code NEW10 at checkout."
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F] resize-none"
+              maxLength={1000}
             />
           </div>
 
@@ -158,6 +159,7 @@ function OfferModal({ offer, onClose, onSaved }) {
               onChange={handleChange}
               placeholder="e.g. NEW10"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F] uppercase tracking-widest"
+              maxLength={50}
             />
           </div>
 
@@ -194,12 +196,12 @@ function OfferModal({ offer, onClose, onSaved }) {
               Category
               <span className="text-gray-400 font-normal ml-1">(optional — blank = all products)</span>
             </label>
-            <select value={parentId} onChange={handleParentChange} className={sel}>
-              <option value="">All Categories</option>
-              {parentCategories.map(c => (
-                <option key={c.id} value={String(c.id)}>{c.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={parentId}
+              onChange={handleParentChange}
+              options={parentCategories.map(c => ({ value: String(c.id), label: c.name }))}
+              placeholder="All Categories"
+            />
           </div>
 
           {/* Subcategory — always rendered when a parent is chosen */}
@@ -207,12 +209,12 @@ function OfferModal({ offer, onClose, onSaved }) {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Subcategory</label>
               {subCategories.length > 0 ? (
-                <select value={String(form.category_id)} onChange={handleSubChange} className={sel}>
-                  <option value="">All subcategories of this category</option>
-                  {subCategories.map(c => (
-                    <option key={c.id} value={String(c.id)}>{c.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  value={String(form.category_id || '')}
+                  onChange={handleSubChange}
+                  options={subCategories.map(c => ({ value: String(c.id), label: c.name }))}
+                  placeholder="All subcategories of this category"
+                />
               ) : (
                 <p className="text-xs text-gray-400 py-2 px-3 border border-gray-100 rounded-lg bg-gray-50">
                   No subcategories — offer will apply to the whole category.
@@ -240,6 +242,7 @@ function OfferModal({ offer, onClose, onSaved }) {
                 name="expires_at"
                 value={form.expires_at}
                 onChange={handleChange}
+                min={new Date().toISOString().slice(0, 10)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8B1A2F]"
               />
             </div>
@@ -285,7 +288,7 @@ export default function AdminOffers() {
   const load = () => {
     setLoading(true);
     getAdminOffers()
-      .then(setOffers)
+      .then(res => setOffers(res))
       .catch(() => {})
       .finally(() => setLoading(false));
   };

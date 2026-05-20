@@ -4,21 +4,24 @@ import {
   getProductVariants, addVariant, updateVariant, deleteVariant,
   getProductImages, uploadImages, deleteImage, setPrimaryImage,
   getProductAttributes, addProductAttribute, updateProductAttribute, deleteProductAttribute,
+  addImageByUrl, fillMissingImages,
 } from '../../api/adminApi.js';
 import { getAdminCategories } from '../../api/adminApi.js';
 import { getAdminBrands } from '../../api/adminApi.js';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { getProductPlaceholder, DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 import { useToastStore } from '../../store/toastStore.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 
 const EMPTY_PRODUCT = {
-  title: '', slug: '', brand_id: '', category_id: '', gender: '',
+  title: '', slug: '', brand_id: '', category_id: '', sub_category_id: '', gender: '',
   base_price: '', discount_pct: 10, description: '', status: 'active', stock: 0,
   is_deal: false, is_returnable: true, express_eligible: false, store_pickup_eligible: false,
 };
 
-const EMPTY_VARIANT   = { size: '', color: '', sku: '', stock: 0, extra_price: 0 };
+const EMPTY_VARIANT   = { size: '', color: '', sku: '', stock: 0 };
 const EMPTY_ATTRIBUTE = { label: '', value: '', sort_order: 0, section: 'highlights' };
 
 function slugify(str) {
@@ -34,18 +37,57 @@ function ProductFormModal({ product, onClose, onSaved }) {
   const [images, setImages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [parentCatId, setParentCatId] = useState('');
+  const [subCatId, setSubCatId] = useState('');
   const [saving, setSaving] = useState(false);
   const [variantForm, setVariantForm] = useState(null);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [addingUrl, setAddingUrl] = useState(false);
   const [attributes, setAttributes] = useState([]);
   const [attrForm, setAttrForm] = useState(null);
   const [attrEditing, setAttrEditing] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const fileRef = useRef();
 
+  // Derived: top-level, level-2, and level-3 categories
+  const topCategories = categories.filter(c => !c.parent_id);
+  const subCategories = parentCatId
+    ? categories.filter(c => Number(c.parent_id) === Number(parentCatId))
+    : [];
+  const sub2Categories = subCatId
+    ? categories.filter(c => Number(c.parent_id) === Number(subCatId))
+    : [];
+  const sub2Value = sub2Categories.some(c => Number(c.id) === Number(form.category_id))
+    ? form.category_id
+    : '';
+
   useEffect(() => {
     Promise.all([getAdminCategories(), getAdminBrands()])
-      .then(([cats, brs]) => { setCategories(cats); setBrands(brs); });
+      .then(([cats, brs]) => {
+        setCategories(cats);
+        setBrands(brs);
+        if (product?.category_id) {
+          const catId = Number(product.category_id);
+          const cat = cats.find(c => c.id === catId);
+          if (cat && !cat.parent_id) {
+            // Level 1 (top-level)
+            setParentCatId(String(catId));
+          } else if (cat?.parent_id) {
+            const parent = cats.find(c => c.id === Number(cat.parent_id));
+            if (!parent?.parent_id) {
+              // Level 2 — parent is top-level
+              setParentCatId(String(parent.id));
+              setSubCatId(String(catId));
+            } else {
+              // Level 3 — walk up two levels
+              const grandparent = cats.find(c => c.id === Number(parent.parent_id));
+              setParentCatId(String(grandparent?.id ?? parent.parent_id));
+              setSubCatId(String(parent.id));
+            }
+          }
+        }
+      });
     if (product?.id) {
       Promise.all([
         getProductVariants(product.id),
@@ -54,6 +96,21 @@ function ProductFormModal({ product, onClose, onSaved }) {
       ]).then(([v, imgs, attrs]) => { setVariants(v); setImages(imgs); setAttributes(attrs); });
     }
   }, [product?.id]);
+
+  const handleParentCatChange = (val) => {
+    setParentCatId(val);
+    setSubCatId('');
+    setForm(f => ({ ...f, category_id: val, sub_category_id: '' }));
+  };
+
+  const handleSubCatChange = (val) => {
+    setSubCatId(val);
+    setForm(f => ({ ...f, sub_category_id: val, category_id: val || parentCatId || f.category_id }));
+  };
+
+  const handleSub2CatChange = (val) => {
+    setForm(f => ({ ...f, category_id: val || subCatId || parentCatId || f.category_id }));
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -65,12 +122,15 @@ function ProductFormModal({ product, onClose, onSaved }) {
   };
 
   const handleBasicSave = async () => {
+    if (!form.title.trim()) { addToast('Product title is required', 'warning'); return; }
+    if (!form.base_price || parseFloat(form.base_price) <= 0) { addToast('Base price must be greater than ₹0', 'warning'); return; }
+    if (!form.stock || parseInt(form.stock) <= 0) { addToast('Stock must be greater than 0', 'warning'); return; }
     setSaving(true);
     try {
       const saved = product?.id
         ? await updateProduct(product.id, form)
         : await createProduct(form);
-      addToast(product?.id ? 'Product updated' : 'Product created', 'success');
+      addToast(product?.id ? 'Product updated successfully' : 'Product created successfully', 'success');
       onSaved(saved, !product?.id);
       if (!product?.id) onClose();
     } catch (err) {
@@ -103,9 +163,13 @@ function ProductFormModal({ product, onClose, onSaved }) {
     setConfirmAction({
       title: 'Delete variant?',
       onConfirm: async () => {
-        await deleteVariant(id);
-        setVariants(vs => vs.filter(v => v.id !== id));
-        addToast('Variant deleted', 'success');
+        try {
+          await deleteVariant(id);
+          setVariants(vs => vs.filter(v => v.id !== id));
+          addToast('Variant deleted', 'success');
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Delete failed', 'error');
+        }
       },
     });
   };
@@ -113,6 +177,9 @@ function ProductFormModal({ product, onClose, onSaved }) {
   const handleImageUpload = async (e) => {
     const files = e.target.files;
     if (!files?.length || !product?.id) { addToast('Save the product first', 'warning'); return; }
+    for (const f of files) {
+      if (f.size > 5 * 1024 * 1024) { addToast(`"${f.name}" exceeds 5 MB limit`, 'error'); return; }
+    }
     const fd = new FormData();
     for (const f of files) fd.append('images', f);
     setUploadingImages(true);
@@ -122,6 +189,22 @@ function ProductFormModal({ product, onClose, onSaved }) {
       addToast('Images uploaded', 'success');
     } catch (err) { addToast(err.response?.data?.message || 'Upload failed', 'error'); }
     finally { setUploadingImages(false); e.target.value = ''; }
+  };
+
+  const handleAddByUrl = async () => {
+    if (!urlInput.trim()) { addToast('Enter an image URL', 'warning'); return; }
+    if (!product?.id) { addToast('Save the product first', 'warning'); return; }
+    setAddingUrl(true);
+    try {
+      const img = await addImageByUrl(product.id, urlInput.trim());
+      setImages(imgs => [...imgs, img]);
+      setUrlInput('');
+      addToast('Image added', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to add image', 'error');
+    } finally {
+      setAddingUrl(false);
+    }
   };
 
   const handleDeleteImage = (id) => {
@@ -141,14 +224,19 @@ function ProductFormModal({ product, onClose, onSaved }) {
 
   const handleSetPrimary = async (id) => {
     if (!product?.id) return;
-    await setPrimaryImage(id, product.id);
-    setImages(imgs => imgs.map(i => ({ ...i, is_primary: i.id === id })));
+    try {
+      await setPrimaryImage(id, product.id);
+      setImages(imgs => imgs.map(i => ({ ...i, is_primary: i.id === id })));
+      addToast('Primary image updated', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    }
   };
 
   // ── Attribute handlers ────────────────────────────────────────────────
   const handleAddAttribute = async () => {
     if (!product?.id) { addToast('Save the product first', 'warning'); return; }
-    if (!attrForm?.label?.trim() || !attrForm?.value?.trim()) { addToast('Label and value are required', 'warning'); return; }
+    if (!attrForm?.label?.trim()) { addToast('Label is required', 'warning'); return; }
     try {
       const saved = await addProductAttribute(product.id, attrForm);
       setAttributes(a => [...a, saved]);
@@ -170,9 +258,13 @@ function ProductFormModal({ product, onClose, onSaved }) {
     setConfirmAction({
       title: 'Delete this attribute?',
       onConfirm: async () => {
-        await deleteProductAttribute(id);
-        setAttributes(a => a.filter(x => x.id !== id));
-        addToast('Attribute deleted', 'success');
+        try {
+          await deleteProductAttribute(id);
+          setAttributes(a => a.filter(x => x.id !== id));
+          addToast('Attribute deleted', 'success');
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Delete failed', 'error');
+        }
       },
     });
   };
@@ -211,52 +303,80 @@ function ProductFormModal({ product, onClose, onSaved }) {
           {tab === 'basic' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="label">Title</label>
-                <input name="title" value={form.title} onChange={handleChange} className="input" />
+                <label className="label">Title *</label>
+                <input name="title" value={form.title} onChange={handleChange} className="input" required maxLength={200} />
               </div>
               <div className="col-span-2">
                 <label className="label">Slug</label>
-                <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" />
+                <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" maxLength={200} />
               </div>
               <div>
                 <label className="label">Brand</label>
-                <div className="select-wrap">
-                  <select name="brand_id" value={form.brand_id || ''} onChange={handleChange}>
-                    <option value="">— Select Brand —</option>
-                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={form.brand_id || ''}
+                  onChange={val => setForm(f => ({ ...f, brand_id: val }))}
+                  options={brands.map(b => ({ value: b.id, label: b.name }))}
+                  placeholder="— Select Brand —"
+                />
               </div>
               <div>
                 <label className="label">Category</label>
-                <div className="select-wrap">
-                  <select name="category_id" value={form.category_id || ''} onChange={handleChange}>
-                    <option value="">— Select Category —</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={parentCatId || ''}
+                  onChange={handleParentCatChange}
+                  options={topCategories.map(c => ({ value: c.id, label: c.name }))}
+                  placeholder="— Select Category —"
+                />
               </div>
+              {subCategories.length > 0 && (
+                <div className="col-span-2">
+                  <label className="label">Subcategory</label>
+                  <SearchableSelect
+                    value={subCatId || ''}
+                    onChange={handleSubCatChange}
+                    options={[
+                      { value: '', label: '— None —' },
+                      ...subCategories.map(c => ({ value: c.id, label: c.name })),
+                    ]}
+                    placeholder="— Select Subcategory —"
+                  />
+                </div>
+              )}
+              {sub2Categories.length > 0 && (
+                <div className="col-span-2">
+                  <label className="label">Sub-subcategory</label>
+                  <SearchableSelect
+                    value={sub2Value || ''}
+                    onChange={handleSub2CatChange}
+                    options={[
+                      { value: '', label: '— None —' },
+                      ...sub2Categories.map(c => ({ value: c.id, label: c.name })),
+                    ]}
+                    placeholder="— Select Sub-subcategory —"
+                  />
+                </div>
+              )}
               <div>
                 <label className="label">Gender</label>
-                <div className="select-wrap">
-                  <select name="gender" value={form.gender || ''} onChange={handleChange}>
-                    <option value="">— None —</option>
-                    {['men','women','kids','unisex'].map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={form.gender || ''}
+                  onChange={val => setForm(f => ({ ...f, gender: val }))}
+                  options={['men','women','kids','unisex'].map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+                  placeholder="— None —"
+                />
               </div>
               <div>
                 <label className="label">Status</label>
-                <div className="select-wrap">
-                  <select name="status" value={form.status} onChange={handleChange}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  value={form.status}
+                  onChange={val => setForm(f => ({ ...f, status: val || 'active' }))}
+                  options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]}
+                  placeholder="— Select Status —"
+                />
               </div>
               <div>
-                <label className="label">Base Price (₹)</label>
-                <input type="number" name="base_price" value={form.base_price} onChange={handleChange} className="input" />
+                <label className="label">Base Price (₹) *</label>
+                <input type="number" name="base_price" value={form.base_price} onChange={handleChange} min="0" step="0.01" required className="input" />
               </div>
               <div>
                 <label className="label">Discount %</label>
@@ -268,7 +388,7 @@ function ProductFormModal({ product, onClose, onSaved }) {
               </div>
               <div className="col-span-2">
                 <label className="label">Description</label>
-                <textarea name="description" value={form.description || ''} onChange={handleChange} rows={4} className="input resize-none" />
+                <textarea name="description" value={form.description || ''} onChange={handleChange} rows={4} className="input resize-none" maxLength={2000} />
               </div>
 
               {/* Top Deals toggle */}
@@ -320,7 +440,6 @@ function ProductFormModal({ product, onClose, onSaved }) {
                     <th className="px-3 py-2 text-left">Color</th>
                     <th className="px-3 py-2 text-left">SKU</th>
                     <th className="px-3 py-2 text-right">Stock</th>
-                    <th className="px-3 py-2 text-right">+Price</th>
                     <th className="px-3 py-2" />
                   </tr>
                 </thead>
@@ -333,7 +452,6 @@ function ProductFormModal({ product, onClose, onSaved }) {
                           <td className="px-3 py-1"><input value={variantForm.color||''} onChange={e=>setVariantForm(f=>({...f,color:e.target.value}))} className="input py-1 text-xs w-full" /></td>
                           <td className="px-3 py-1"><input value={variantForm.sku||''} onChange={e=>setVariantForm(f=>({...f,sku:e.target.value}))} className="input py-1 text-xs w-full" /></td>
                           <td className="px-3 py-1"><input type="number" value={variantForm.stock||0} onChange={e=>setVariantForm(f=>({...f,stock:e.target.value}))} className="input py-1 text-xs w-20 text-right" /></td>
-                          <td className="px-3 py-1"><input type="number" value={variantForm.extra_price||0} onChange={e=>setVariantForm(f=>({...f,extra_price:e.target.value}))} className="input py-1 text-xs w-20 text-right" /></td>
                           <td className="px-3 py-1 flex gap-1">
                             <button onClick={() => handleUpdateVariant(v.id)} className="text-green-600 text-xs hover:underline">Save</button>
                             <button onClick={() => setVariantForm(null)} className="text-gray-400 text-xs hover:underline">Cancel</button>
@@ -345,7 +463,6 @@ function ProductFormModal({ product, onClose, onSaved }) {
                           <td className="px-3 py-2">{v.color || '—'}</td>
                           <td className="px-3 py-2 font-mono text-xs">{v.sku || '—'}</td>
                           <td className="px-3 py-2 text-right">{v.stock}</td>
-                          <td className="px-3 py-2 text-right">+₹{v.extra_price}</td>
                           <td className="px-3 py-2 flex gap-2">
                             <button onClick={() => setVariantForm({...v})} title="Edit" className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -364,7 +481,6 @@ function ProductFormModal({ product, onClose, onSaved }) {
                       <td className="px-3 py-1"><input value={variantForm.color||''} onChange={e=>setVariantForm(f=>({...f,color:e.target.value}))} placeholder="Color" className="input py-1 text-xs w-full" /></td>
                       <td className="px-3 py-1"><input value={variantForm.sku||''} onChange={e=>setVariantForm(f=>({...f,sku:e.target.value}))} placeholder="SKU" className="input py-1 text-xs w-full" /></td>
                       <td className="px-3 py-1"><input type="number" value={variantForm.stock||0} onChange={e=>setVariantForm(f=>({...f,stock:e.target.value}))} className="input py-1 text-xs w-20 text-right" /></td>
-                      <td className="px-3 py-1"><input type="number" value={variantForm.extra_price||0} onChange={e=>setVariantForm(f=>({...f,extra_price:e.target.value}))} className="input py-1 text-xs w-20 text-right" /></td>
                       <td className="px-3 py-1 flex gap-1">
                         <button onClick={handleAddVariant} className="text-green-600 text-xs hover:underline">Add</button>
                         <button onClick={() => setVariantForm(null)} className="text-gray-400 text-xs hover:underline">Cancel</button>
@@ -387,8 +503,9 @@ function ProductFormModal({ product, onClose, onSaved }) {
                 {images.map(img => (
                   <div key={img.id} className="relative w-24 h-24 group">
                     <img
-                      src={assetUrl(img.url)}
+                      src={assetUrl(img.url) || DEFAULT_PRODUCT_IMAGE}
                       alt=""
+                      onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
                       className="w-full h-full object-cover rounded-lg border border-gray-200"
                     />
                     {/* Primary badge */}
@@ -433,7 +550,30 @@ function ProductFormModal({ product, onClose, onSaved }) {
 
               <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-              <p className="text-xs text-gray-400">{images.length}/6 images · 5 MB each · ★ = primary</p>
+              <p className="text-xs text-gray-400 mb-3">{images.length}/6 images · 5 MB each · ★ = primary</p>
+
+              {/* Add by URL */}
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-medium text-gray-500 mb-2">Or add image by URL</p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={e => setUrlInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddByUrl()}
+                    placeholder="https://images.unsplash.com/…"
+                    className="flex-1 input text-xs py-1.5"
+                    disabled={images.length >= 6 || !product?.id}
+                  />
+                  <button
+                    onClick={handleAddByUrl}
+                    disabled={addingUrl || images.length >= 6 || !product?.id || !urlInput.trim()}
+                    className="px-3 py-1.5 bg-[#8B1A2F] text-white text-xs rounded-lg hover:bg-[#6d1424] disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  >
+                    {addingUrl ? '…' : 'Add'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -474,54 +614,35 @@ function ProductFormModal({ product, onClose, onSaved }) {
                     <div className="p-3 space-y-2">
                       {/* Existing rows */}
                       {sectionAttrs.length > 0 && (
-                        <table className="w-full text-xs">
-                          <tbody className="divide-y divide-gray-50">
-                            {sectionAttrs.map(attr => (
-                              <tr key={attr.id} className="group">
-                                {attrEditing === attr.id ? (
-                                  <>
-                                    <td className="py-1.5 pr-2 w-1/3">
-                                      <input value={attrForm.label} onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#8B1A2F]" />
-                                    </td>
-                                    <td className="py-1.5 pr-2">
-                                      <input value={attrForm.value} onChange={e => setAttrForm(f => ({ ...f, value: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#8B1A2F]" />
-                                    </td>
-                                    <td className="py-1.5 w-20">
-                                      <div className="flex gap-1">
-                                        <button onClick={handleUpdateAttribute} className="px-2 py-1 bg-[#8B1A2F] text-white rounded text-[10px] hover:bg-[#6d1424]">Save</button>
-                                        <button onClick={() => { setAttrEditing(null); setAttrForm(null); }} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px]">✕</button>
-                                      </div>
-                                    </td>
-                                  </>
-                                ) : (
-                                  <>
-                                    <td className="py-2 pr-3 font-medium text-gray-700 w-1/3">{attr.label}</td>
-                                    <td className="py-2 text-gray-500 capitalize">{attr.value}</td>
-                                    <td className="py-2 w-16 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <div className="flex gap-2">
-                                        <button onClick={() => { setAttrEditing(attr.id); setAttrForm({ label: attr.label, value: attr.value, sort_order: attr.sort_order, section: attr.section }); }} className="text-[#8B1A2F] hover:underline text-[10px]">Edit</button>
-                                        <button onClick={() => handleDeleteAttribute(attr.id)} className="text-red-400 hover:text-red-600 text-[10px]">Del</button>
-                                      </div>
-                                    </td>
-                                  </>
-                                )}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {sectionAttrs.map(attr => (
+                            attrEditing === attr.id ? (
+                              <div key={attr.id} className="flex items-center gap-1">
+                                <input
+                                  value={attrForm.label}
+                                  onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))}
+                                  className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#8B1A2F] w-28"
+                                />
+                                <button onClick={handleUpdateAttribute} className="px-2 py-1 bg-[#8B1A2F] text-white rounded text-[10px] hover:bg-[#6d1424]">Save</button>
+                                <button onClick={() => { setAttrEditing(null); setAttrForm(null); }} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px]">✕</button>
+                              </div>
+                            ) : (
+                              <span key={attr.id} className="group inline-flex items-center gap-1 text-[10px] px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full">
+                                {attr.label}
+                                <button onClick={() => { setAttrEditing(attr.id); setAttrForm({ label: attr.label, value: attr.value || '', sort_order: attr.sort_order, section: attr.section }); }} className="opacity-0 group-hover:opacity-100 text-[#8B1A2F] hover:text-[#6d1424] transition-opacity leading-none">✎</button>
+                                <button onClick={() => handleDeleteAttribute(attr.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity leading-none">✕</button>
+                              </span>
+                            )
+                          ))}
+                        </div>
                       )}
 
                       {/* Inline add form */}
                       {product?.id && isAddingHere && (
-                        <div className="flex gap-2 items-end pt-1">
-                          <div className="flex-1">
-                            <input placeholder="Label" value={attrForm.label} onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#8B1A2F] mb-1" />
-                            <input placeholder="Value" value={attrForm.value} onChange={e => setAttrForm(f => ({ ...f, value: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#8B1A2F]" />
-                          </div>
-                          <div className="flex flex-col gap-1 shrink-0">
-                            <button onClick={handleAddAttribute} className="px-3 py-1.5 bg-[#8B1A2F] text-white rounded text-xs hover:bg-[#6d1424]">Add</button>
-                            <button onClick={() => setAttrForm(null)} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-xs">✕</button>
-                          </div>
+                        <div className="flex gap-2 items-center pt-1">
+                          <input placeholder="Label" value={attrForm.label} onChange={e => setAttrForm(f => ({ ...f, label: e.target.value }))} className="flex-1 border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#8B1A2F]" />
+                          <button onClick={handleAddAttribute} className="px-3 py-1.5 bg-[#8B1A2F] text-white rounded text-xs hover:bg-[#6d1424]">Add</button>
+                          <button onClick={() => setAttrForm(null)} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-xs">✕</button>
                         </div>
                       )}
 
@@ -597,7 +718,21 @@ export default function AdminProducts() {
   const [modalProduct, setModalProduct] = useState(undefined);
   const [confirmId, setConfirmId] = useState(null);
 
+  const [fillingImages, setFillingImages] = useState(false);
   const limit = 20;
+
+  const handleFillMissingImages = async () => {
+    setFillingImages(true);
+    try {
+      const result = await fillMissingImages();
+      addToast(result.message || `Filled ${result.filled} products`, 'success');
+      if (result.filled > 0) load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to fill images', 'error');
+    } finally {
+      setFillingImages(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([getAdminBrands(), getAdminCategories()])
@@ -637,7 +772,7 @@ export default function AdminProducts() {
     try {
       await deleteProduct(confirmId);
       addToast('Product deactivated', 'success');
-      load();
+      setProducts(ps => ps.map(p => p.id === confirmId ? { ...p, status: 'inactive' } : p));
     } catch (err) {
       addToast(err.response?.data?.message || 'Delete failed', 'error');
     } finally { setConfirmId(null); }
@@ -655,7 +790,6 @@ export default function AdminProducts() {
   };
 
   const handleSaved = (saved, isNew) => {
-    addToast(isNew ? 'Product created' : 'Product updated', 'success');
     if (isNew) { load(); setModalProduct(undefined); }
     else { setProducts(ps => ps.map(p => p.id === saved.id ? { ...p, ...saved } : p)); setModalProduct(undefined); }
   };
@@ -743,6 +877,20 @@ export default function AdminProducts() {
           </button>
         )}
 
+        {/* Fill Missing Images button */}
+        <button
+          onClick={handleFillMissingImages}
+          disabled={fillingImages}
+          title="Auto-assign placeholder images to products with no images"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+        >
+          {fillingImages
+            ? <span className="animate-spin text-base leading-none">↻</span>
+            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          }
+          {fillingImages ? 'Filling…' : 'Fill Missing Images'}
+        </button>
+
         {/* Add button — right edge */}
         <button onClick={() => setModalProduct(null)} className="btn-primary px-4 py-2 text-sm whitespace-nowrap flex items-center gap-1.5 ml-auto">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -781,10 +929,12 @@ export default function AdminProducts() {
               ) : products.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    {p.image_url
-                      ? <img src={assetUrl(p.image_url)} alt="" className="w-10 h-10 object-cover rounded-lg" />
-                      : <div className="w-10 h-10 bg-gray-100 rounded-lg" />
-                    }
+                    <img
+                      src={p.image_url ? assetUrl(p.image_url) : getProductPlaceholder(p)}
+                      alt=""
+                      className="w-10 h-10 object-cover rounded-lg"
+                      onError={e => { e.target.src = getProductPlaceholder(p); }}
+                    />
                   </td>
                   <td className="px-4 py-3 font-medium max-w-[160px] truncate">{p.title}</td>
                   <td className="px-4 py-3 text-gray-500">{p.brand_name || '—'}</td>
@@ -827,7 +977,7 @@ export default function AdminProducts() {
                           : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         }
                       </button>
-                      <button onClick={() => handleDelete(p.id)} title="Delete" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                      <button onClick={() => handleDelete(p.id)} title="Deactivate" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>
@@ -866,8 +1016,8 @@ export default function AdminProducts() {
 
       {confirmId && (
         <ConfirmDialog
-          title="Deactivate this product?"
-          message="The product will be hidden from the store."
+          title="Deactivate product?"
+          message="The product will be hidden from the store. This can be reversed by editing its status."
           confirmLabel="Deactivate"
           onConfirm={doDelete}
           onCancel={() => setConfirmId(null)}

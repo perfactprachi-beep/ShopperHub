@@ -3,6 +3,20 @@ import { productsApi } from '../../api/productsApi.js';
 import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { getProductPlaceholder } from '../../utils/getProductPlaceholder.js';
+
+const NO_SIZE_KEYWORDS = [
+  'beauty','skincare','haircare','hair care','makeup','nail','fragrance',
+  'perfume','deodorant','lipstick','foundation','serum','lotion','moisturizer',
+  'sunscreen','toner','concealer','blush','eyeshadow','mascara','eyeliner',
+  'grooming','cologne','shampoo','conditioner','body wash','face wash',
+];
+
+function isSizeRelevant(product) {
+  const t = [product?.category_name, product?.category_slug, product?.title]
+    .filter(Boolean).join(' ').toLowerCase();
+  return !NO_SIZE_KEYWORDS.some(k => t.includes(k));
+}
 
 export default function SizeSelectDrawer({ product, onClose, onAddToBag }) {
   const [fullProduct, setFullProduct]       = useState(null);
@@ -21,8 +35,11 @@ export default function SizeSelectDrawer({ product, onClose, onAddToBag }) {
 
   if (!product) return null;
 
-  const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
-  const sizes      = [...new Set((fullProduct?.variants || []).map(v => v.size).filter(Boolean))];
+  const finalPrice    = calcFinalPrice(product.base_price, product.discount_pct);
+  const sizeRelevant  = isSizeRelevant(product);
+  const sizes         = sizeRelevant
+    ? [...new Set((fullProduct?.variants || []).map(v => v.size).filter(Boolean))]
+    : [];
   const hasSizes   = sizes.length > 0;
   const canAdd     = !loadingVariants && (!hasSizes || !!selectedSize);
 
@@ -49,7 +66,7 @@ export default function SizeSelectDrawer({ product, onClose, onAddToBag }) {
             <h2 className="text-base font-bold text-gray-900">
               {hasSizes ? 'Select Size' : 'Add To Bag'}
             </h2>
-            {hasSizes && !loadingVariants && (
+            {hasSizes && !loadingVariants && sizeRelevant && (
               <p className="text-xs text-gray-400 mt-0.5">{sizes.length} Size{sizes.length !== 1 ? 's' : ''}</p>
             )}
           </div>
@@ -65,13 +82,12 @@ export default function SizeSelectDrawer({ product, onClose, onAddToBag }) {
 
         {/* Product mini-card */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
-          {product.image_url && (
-            <img
-              src={assetUrl(product.image_url)}
-              alt={product.title}
-              className="w-16 h-20 object-cover rounded shrink-0"
-            />
-          )}
+          <img
+            src={product.image_url ? assetUrl(product.image_url) : getProductPlaceholder(product)}
+            alt={product.title}
+            onError={e => { const p = getProductPlaceholder(product); if (e.currentTarget.src !== p) e.currentTarget.src = p; }}
+            className="w-16 h-20 object-cover rounded shrink-0"
+          />
           <div className="min-w-0">
             {product.brand_name && (
               <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">

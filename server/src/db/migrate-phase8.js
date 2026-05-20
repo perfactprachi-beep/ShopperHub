@@ -8,7 +8,7 @@ const sql = `
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS search_vector tsvector
     GENERATED ALWAYS AS (
-      to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,''))
+      to_tsvector('english', coalesce(title,''))
     ) STORED;
 
 CREATE INDEX IF NOT EXISTS products_search_idx ON products USING GIN(search_vector);

@@ -12,6 +12,7 @@
     "migrate8": "node src/db/migrate-phase8.js",
     "migrate-address": "node src/db/migrate-address-soft-delete.js",
     "migrate-delivery": "node src/db/migrate-delivery.js",
+    "migrate-subcategory": "node src/db/migrate-subcategory.js",
     "seed": "node src/db/seed.js",
     "seed-products": "node src/db/seed-products.js",
     "scrape": "node scraper/index.js",

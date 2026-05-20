@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { useWishlistStore } from '../../store/wishlistStore.js';
+import { useCartStore } from '../../store/cartStore.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { getProductPlaceholder } from '../../utils/getProductPlaceholder.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import { toggleWishlist } from '../../api/wishlistApi.js';
@@ -19,18 +21,19 @@ function IconHeart({ filled }) {
 
 export default function ProductCard({ product, dark = false, showNew = false, onAddToBag, openInNewTab = false, withDrawer = false }) {
   const { title, slug, base_price, discount_pct, brand_name, image_url, stock, id } = product;
-  const [imgErr, setImgErr] = useState(false);
+  const [imgSrc, setImgSrc] = useState(image_url ? assetUrl(image_url) : getProductPlaceholder(product));
 
-  const imageAvailable = !!image_url && !imgErr;
-  const finalPrice     = imageAvailable ? calcFinalPrice(base_price, discount_pct) : base_price;
-  const hasDiscount    = discount_pct > 0 && imageAvailable;
+  const finalPrice  = calcFinalPrice(base_price, discount_pct);
+  const hasDiscount = discount_pct > 0;
 
   const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
   const { has, toggle } = useWishlistStore();
+  const cartItems      = useCartStore((s) => s.items);
   const { openLoginModal } = useUiStore();
   const navigate       = useNavigate();
   const wished         = has(id);
+  const inCart         = cartItems.some((i) => i.productId === id);
 
   const handleWishlist = async (e) => {
     e.preventDefault();
@@ -52,11 +55,15 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const handleAddToBag = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (inCart) {
+      navigate('/cart');
+      return;
+    }
     if (withDrawer) {
-      // Has variants — open the size selection drawer
       if (onAddToBag) onAddToBag(product);
+    } else if (onAddToBag) {
+      onAddToBag(product);
     } else {
-      // Navigate to product detail so the customer can pick size/variant and add from there
       navigate(`/product/${slug}`);
     }
   };
@@ -66,16 +73,12 @@ export default function ProductCard({ product, dark = false, showNew = false, on
       <Link to={`/product/${slug}`} className="block flex-1" target={openInNewTab ? '_blank' : undefined} rel={openInNewTab ? 'noopener noreferrer' : undefined}>
         {/* Image */}
         <div className={`relative overflow-hidden ${dark ? 'bg-[#222]' : 'bg-gray-50'}`} style={{ aspectRatio: '3/4' }}>
-          {image_url && !imgErr ? (
-            <img
-              src={assetUrl(image_url)}
-              alt={title}
-              onError={() => setImgErr(true)}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center text-sm ${dark ? 'text-gray-600' : 'text-gray-300'}`}>No image</div>
-          )}
+          <img
+            src={imgSrc}
+            alt={title}
+            onError={() => setImgSrc(getProductPlaceholder(product))}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
 
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {showNew && (
@@ -99,7 +102,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
             </button>
           )}
 
-          {stock === 0 && (
+          {Number(stock) <= 0 && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider border border-gray-400 px-3 py-1">Out of Stock</span>
             </div>
@@ -122,18 +125,23 @@ export default function ProductCard({ product, dark = false, showNew = false, on
       </Link>
 
       {/* CTA area */}
-      {onAddToBag && !isAdmin && (
-        <button
-          onClick={handleAddToBag}
-          disabled={stock === 0}
-          className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            dark
-              ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
-              : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
-          }`}
-        >
-          {stock === 0 ? 'Out of Stock' : 'Add To Bag'}
-        </button>
+      {!isAdmin && (
+        Number(stock) <= 0 ? (
+          <div className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest text-center ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Out of Stock
+          </div>
+        ) : onAddToBag && (
+          <button
+            onClick={handleAddToBag}
+            className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${
+              inCart
+                ? dark ? 'bg-[#C9A84C]/20 text-[#C9A84C]' : 'bg-[#8B1A2F]/10 text-[#8B1A2F]'
+                : dark ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]' : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+            }`}
+          >
+            {inCart ? 'Go to Bag' : 'Add To Bag'}
+          </button>
+        )
       )}
     </div>
   );

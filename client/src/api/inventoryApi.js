@@ -18,6 +18,7 @@ export const inventoryApi = {
   updateInventoryItem: (id, data) => api.put(`/inventory/inventory/${id}`, data),
   bulkUpdateInventory: (updates) => api.post('/inventory/inventory/bulk-update', { updates }),
   adjustStock: (id, data) => api.post(`/inventory/inventory/${id}/adjust`, data),
+  updateVariantStock: (variantId, data) => api.put(`/inventory/variants/${variantId}/stock`, data),
 
   // Low Stock
   getLowStockItems: (params) => api.get('/inventory/low-stock', { params }),

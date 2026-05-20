@@ -41,6 +41,12 @@ export const deleteImage = (id) =>
 export const setPrimaryImage = (id, productId) =>
   api.put(`/admin/products/images/${id}/primary`, { productId }).then(r => r.data.data);
 
+export const addImageByUrl = (productId, url) =>
+  api.post(`/admin/products/${productId}/images/url`, { url }).then(r => r.data.data);
+
+export const fillMissingImages = () =>
+  api.post('/admin/products/fill-missing-images').then(r => r.data);
+
 // ── Product Attributes ────────────────────────────────────────────────────────
 export const getProductAttributes = (productId) =>
   api.get(`/admin/products/${productId}/attributes`).then(r => r.data.data);

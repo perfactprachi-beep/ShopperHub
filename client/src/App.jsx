@@ -18,6 +18,16 @@ import { useUiStore } from './store/uiStore.js';
 const Home              = lazy(() => import('./pages/Home.jsx'));
 const RegisterPage      = lazy(() => import('./pages/RegisterPage.jsx'));
 const CategoryPage      = lazy(() => import('./pages/CategoryPage.jsx'));
+const LuxePage          = lazy(() => import('./pages/LuxePage.jsx'));
+const MenPage           = lazy(() => import('./pages/MenPage.jsx'));
+const WomenPage         = lazy(() => import('./pages/WomenPage.jsx'));
+const KidsPage          = lazy(() => import('./pages/KidsPage.jsx'));
+const WatchesPage       = lazy(() => import('./pages/WatchesPage.jsx'));
+const HomeCategoryPage    = lazy(() => import('./pages/HomeCategoryPage.jsx'));
+const BeautyCategoryPage  = lazy(() => import('./pages/BeautyCategoryPage.jsx'));
+const MakeupPage          = lazy(() => import('./pages/MakeupPage.jsx'));
+const GiftsPage           = lazy(() => import('./pages/GiftsPage.jsx'));
+const CmsPage           = lazy(() => import('./pages/CmsPage.jsx'));
 const BrandPage         = lazy(() => import('./pages/BrandPage.jsx'));
 const BrandsPage        = lazy(() => import('./pages/BrandsPage.jsx'));
 const ProductDetail     = lazy(() => import('./pages/ProductDetail.jsx'));
@@ -58,6 +68,7 @@ const Warehouses         = lazy(() => import('./pages/admin/Warehouses.jsx'));
 const InventoryLogs      = lazy(() => import('./pages/admin/InventoryLogs.jsx'));
 const AdminPaymentMethods = lazy(() => import('./pages/admin/AdminPaymentMethods.jsx'));
 const AdminDelivery       = lazy(() => import('./pages/admin/AdminDelivery.jsx'));
+const AdminPages          = lazy(() => import('./pages/admin/AdminPages.jsx'));
 
 const NotFoundPage       = lazy(() => import('./pages/NotFoundPage.jsx'));
 
@@ -101,6 +112,15 @@ function AppShell() {
             {/* Public */}
             <Route path="/"               element={<Home />} />
             <Route path="/register"       element={<RegisterPage />} />
+            <Route path="/luxe"            element={<LuxePage />} />
+            <Route path="/category/men"    element={<MenPage />} />
+            <Route path="/category/women" element={<WomenPage />} />
+            <Route path="/category/kids"     element={<KidsPage />} />
+            <Route path="/category/watches" element={<WatchesPage />} />
+            <Route path="/category/home"    element={<HomeCategoryPage />} />
+            <Route path="/category/beauty"  element={<BeautyCategoryPage />} />
+            <Route path="/category/makeup" element={<MakeupPage />} />
+            <Route path="/gifts"          element={<GiftsPage />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/brands"         element={<BrandsPage />} />
             <Route path="/brand/:slug"    element={<BrandPage />} />
@@ -113,6 +133,7 @@ function AppShell() {
             <Route path="/account/help"   element={<FaqsPage />} />
             <Route path="/returns"        element={<ReturnsPage />} />
             <Route path="/contact"        element={<ContactPage />} />
+            <Route path="/pages/:slug"    element={<CmsPage />} />
             <Route path="/bag-added"      element={<AddedToBagPage />} />
 
             {/* Protected */}
@@ -159,6 +180,7 @@ function AdminShell() {
             <Route path="users"             element={<AdminUsers />} />
             <Route path="payment-methods"   element={<AdminPaymentMethods />} />
             <Route path="delivery"          element={<AdminDelivery />} />
+            <Route path="pages"             element={<AdminPages />} />
           </Route>
         </Routes>
       </Suspense>

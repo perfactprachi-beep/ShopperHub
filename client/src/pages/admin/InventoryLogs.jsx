@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 
 export default function InventoryLogs() {
   const [logs, setLogs] = useState([]);
@@ -120,31 +121,20 @@ export default function InventoryLogs() {
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center gap-4">
-          <select
+          <SearchableSelect
             value={actionTypeFilter}
-            onChange={(e) => setActionTypeFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Actions</option>
-            <option value="stock_added">Stock Added</option>
-            <option value="stock_removed">Stock Removed</option>
-            <option value="order_deduction">Order Deduction</option>
-            <option value="return_restock">Return Restock</option>
-            <option value="manual_update">Manual Update</option>
-            <option value="transfer">Transfer</option>
-          </select>
-
-          {actionTypeFilter && (
-            <button
-              onClick={() => {
-                setActionTypeFilter('');
-                setPage(1);
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Clear Filter
-            </button>
-          )}
+            onChange={val => { setActionTypeFilter(val); setPage(1); }}
+            options={[
+              { value: 'stock_added',     label: 'Stock Added' },
+              { value: 'stock_removed',   label: 'Stock Removed' },
+              { value: 'order_deduction', label: 'Order Deduction' },
+              { value: 'return_restock',  label: 'Return Restock' },
+              { value: 'manual_update',   label: 'Manual Update' },
+              { value: 'transfer',        label: 'Transfer' },
+            ]}
+            placeholder="All Actions"
+            className="w-52"
+          />
 
           <div className="ml-auto text-sm text-gray-500">
             {total} total entries

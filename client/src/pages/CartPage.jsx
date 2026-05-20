@@ -6,6 +6,7 @@ import { useToastStore } from '../store/toastStore.js';
 import { updateCartItem, removeCartItem, fetchCart } from '../api/cartApi.js';
 import { fetchAddresses, createAddress } from '../api/addressApi.js';
 import { formatPrice } from '../utils/formatPrice.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../utils/getProductPlaceholder.js';
 import AddressForm from '../components/address/AddressForm.jsx';
 
 const FREE_SHIPPING = 999;
@@ -65,10 +66,12 @@ function CartItem({ item, onQty, onRemove }) {
         {/* Image */}
         <Link to={item.slug ? `/product/${item.slug}` : '#'} className="shrink-0">
           <div className="w-[90px] h-[115px] bg-gray-100 overflow-hidden">
-            {item.image
-              ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-xs text-gray-300">No image</div>
-            }
+            <img
+              src={item.image || DEFAULT_PRODUCT_IMAGE}
+              alt={item.title}
+              onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+              className="w-full h-full object-cover"
+            />
           </div>
         </Link>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getAdminCoupons, createCoupon, updateCoupon, deleteCoupon } from '../../api/adminApi.js';
 import { useToastStore } from '../../store/toastStore.js';
 import DeleteModal from '../../components/admin/DeleteModal.jsx';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 
 const EMPTY = {
   code: '', type: 'flat', value: '', min_order: 0,
@@ -22,11 +23,16 @@ function CouponModal({ coupon, onClose, onSaved }) {
   };
 
   const handleSave = async () => {
+    if (!form.code.trim()) { addToast('Coupon code is required', 'warning'); return; }
+    const val = parseFloat(form.value);
+    if (!form.value || isNaN(val) || val <= 0) { addToast('Value must be greater than 0', 'warning'); return; }
+    if (form.type === 'percent' && val > 100) { addToast('Percent discount cannot exceed 100%', 'warning'); return; }
     setSaving(true);
     try {
       const payload = {
         ...form,
-        value: parseFloat(form.value),
+        code: form.code.trim().toUpperCase(),
+        value: val,
         min_order: parseFloat(form.min_order) || 0,
         max_uses: form.max_uses ? parseInt(form.max_uses, 10) : null,
         expires_at: form.expires_at || null,
@@ -49,22 +55,22 @@ function CouponModal({ coupon, onClose, onSaved }) {
         </div>
         <div className="px-6 py-4 space-y-4">
           <div>
-            <label className="label">Code</label>
-            <input name="code" value={form.code} onChange={handleChange} placeholder="SAVE20" className="input uppercase" />
+            <label className="label">Code *</label>
+            <input name="code" value={form.code} onChange={handleChange} placeholder="SAVE20" className="input uppercase" required maxLength={50} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Type</label>
-              <div className="select-wrap">
-                <select name="type" value={form.type} onChange={handleChange}>
-                  <option value="flat">Flat (₹)</option>
-                  <option value="percent">Percent (%)</option>
-                </select>
-              </div>
+              <SearchableSelect
+                value={form.type}
+                onChange={val => setForm(f => ({ ...f, type: val || 'flat' }))}
+                options={[{ value: 'flat', label: 'Flat (₹)' }, { value: 'percent', label: 'Percent (%)' }]}
+                placeholder="— Select Type —"
+              />
             </div>
             <div>
-              <label className="label">Value</label>
-              <input type="number" name="value" value={form.value} onChange={handleChange} min="0" className="input" />
+              <label className="label">Value *</label>
+              <input type="number" name="value" value={form.value} onChange={handleChange} min="0.01" step="0.01" max={form.type === 'percent' ? 100 : undefined} required className="input" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -79,7 +85,7 @@ function CouponModal({ coupon, onClose, onSaved }) {
           </div>
           <div>
             <label className="label">Expires At</label>
-            <input type="date" name="expires_at" value={form.expires_at} onChange={handleChange} className="input" />
+            <input type="date" name="expires_at" value={form.expires_at} onChange={handleChange} min={new Date().toISOString().slice(0, 10)} className="input" />
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} className="w-4 h-4 accent-[#8B1A2F]" />
@@ -107,7 +113,7 @@ export default function AdminCoupons() {
   const load = async () => {
     setLoading(true);
     try { setCoupons(await getAdminCoupons()); }
-    catch { setCoupons([]); }
+    catch { setCoupons([]); addToast('Failed to load coupons', 'error'); }
     finally { setLoading(false); }
   };
 

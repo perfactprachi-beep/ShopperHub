@@ -15,11 +15,11 @@
 
 ### 3. **SMS Configuration**
 - **Indian Numbers (+91)**: Uses Fast2SMS API
-  - API Key: `REDACTED`
+  - API Key: Configured in `.env` (keep this secret!)
   - Already configured in `.env`
 
 - **International Numbers**: Uses Twilio
-  - Account: `REDACTED`
+  - Account: Configured in `.env` (keep this secret!)
   - Already configured in `.env`
 
 ### 4. **Debug Mode**

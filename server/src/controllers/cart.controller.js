@@ -6,6 +6,7 @@ import {
   clearCart,
   mergeCarts,
 } from '../db/queries/cart.js';
+import { pool } from '../db/pool.js';
 
 function buildResponse(items) {
   const subtotal = items.reduce((sum, i) => sum + Number(i.lineTotal), 0);
@@ -22,8 +23,40 @@ export async function getCart(req, res, next) {
 
 export async function addItem(req, res, next) {
   try {
-    const { variantId, quantity = 1 } = req.body;
-    if (!variantId) return res.status(400).json({ success: false, message: 'variantId required' });
+    let { variantId, productId, quantity = 1 } = req.body;
+
+    if (!variantId && !productId) {
+      return res.status(400).json({ success: false, message: 'variantId or productId required' });
+    }
+
+    // Product has no variants — find or create a default variant
+    if (!variantId && productId) {
+      const existing = await pool.query(
+        `SELECT id, stock FROM product_variants WHERE product_id = $1 AND size IS NULL AND color IS NULL LIMIT 1`,
+        [productId]
+      );
+      if (existing.rows.length > 0) {
+        variantId = existing.rows[0].id;
+      } else {
+        const prod = await pool.query('SELECT stock FROM products WHERE id = $1', [productId]);
+        if (!prod.rows[0]) return res.status(404).json({ success: false, message: 'Product not found' });
+        const created = await pool.query(
+          `INSERT INTO product_variants (product_id, stock, extra_price) VALUES ($1, $2, 0) RETURNING id`,
+          [productId, prod.rows[0].stock]
+        );
+        variantId = created.rows[0].id;
+      }
+    }
+
+    const { rows } = await pool.query(
+      'SELECT stock FROM product_variants WHERE id = $1',
+      [variantId]
+    );
+    const available = rows[0]?.stock ?? 0;
+    if (available <= 0) {
+      return res.status(409).json({ success: false, message: 'This item is out of stock' });
+    }
+
     await addOrUpdateItem(req.user.id, variantId, quantity);
     const items = await getCartByUser(req.user.id);
     res.json({ success: true, data: buildResponse(items), message: 'Item added to cart' });

@@ -1,16 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function FilterDropdown({ value, onChange, onClear, placeholder, options, disabled = false }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+export default function FilterDropdown({ value, onChange, onClear, placeholder, options, disabled = false, searchable = false }) {
+  const [open, setOpen]   = useState(false);
+  const [query, setQuery] = useState('');
+  const ref      = useRef(null);
+  const inputRef = useRef(null);
   const active = Boolean(value) && !disabled;
-  const label = active ? options.find(o => String(o.value) === String(value))?.label : null;
+  const label  = active ? options.find(o => String(o.value) === String(value))?.label : null;
+
+  const listOptions = options.slice(1); // skip the "All" placeholder option
+  const filtered = searchable && query.trim()
+    ? listOptions.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    : listOptions;
 
   useEffect(() => {
-    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const h = e => { if (!ref.current?.contains(e.target)) { setOpen(false); setQuery(''); } };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  useEffect(() => {
+    if (open && searchable) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!open) setQuery('');
+  }, [open, searchable]);
 
   if (disabled) {
     return (
@@ -56,13 +68,39 @@ export default function FilterDropdown({ value, onChange, onClear, placeholder, 
       )}
 
       {open && (
-        <div className="absolute top-full mt-1.5 left-0 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[180px] overflow-hidden">
-          <div className="max-h-72 overflow-y-auto overscroll-contain">
-            {options.slice(1).map(opt => (
+        <div className="absolute top-full mt-1.5 left-0 z-30 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] overflow-hidden">
+          {/* Search box — only when searchable */}
+          {searchable && (
+            <div className="p-2 border-b border-gray-100">
+              <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-lg border border-gray-200 focus-within:border-[#8B1A2F] focus-within:ring-1 focus-within:ring-[#8B1A2F]/20">
+                <svg className="w-3 h-3 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search…"
+                  className="flex-1 text-xs bg-transparent outline-none placeholder-gray-400"
+                />
+                {query && (
+                  <button type="button" onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="max-h-60 overflow-y-auto overscroll-contain py-1">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-gray-400 text-center">No results found</p>
+            ) : filtered.map(opt => (
               <button
                 key={opt.value ?? '__all__'}
                 type="button"
-                onClick={() => { onChange(opt.value); setOpen(false); }}
+                onClick={() => { onChange(opt.value); setOpen(false); setQuery(''); }}
                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                   String(value) === String(opt.value)
                     ? 'bg-[#8B1A2F]/8 text-[#8B1A2F] font-medium'
@@ -72,9 +110,6 @@ export default function FilterDropdown({ value, onChange, onClear, placeholder, 
                 {opt.label}
               </button>
             ))}
-            {options.slice(1).length === 0 && (
-              <p className="px-4 py-3 text-xs text-gray-400">No options</p>
-            )}
           </div>
         </div>
       )}

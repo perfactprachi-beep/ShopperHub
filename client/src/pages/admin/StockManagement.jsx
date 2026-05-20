@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
 import { getAdminCategories, getAdminBrands } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 import { useToastStore } from '../../store/toastStore.js';
 
@@ -18,7 +19,7 @@ function StockEditModal({ item, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await inventoryApi.updateInventoryItem(item.id, form);
+      const { data } = await inventoryApi.updateVariantStock(item.variant_id, form);
       if (data.success) {
         addToast('Stock updated successfully', 'success');
         onSaved(data.data);
@@ -106,18 +107,31 @@ function StockEditModal({ item, onClose, onSaved }) {
 function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
   const [updates, setUpdates] = useState(
     selectedItems.map(item => ({
-      id: item.id,
-      stock_quantity: item.stock_quantity,
-      product_title: item.product_title
+      id: item.variant_id,
+      stock_quantity: item.live_stock ?? item.stock_quantity ?? 0,
+      product_title: item.product_title,
+      size: item.size,
+      color: item.color,
+      image_url: item.image_url,
+      status: item.status,
     }))
   );
   const [saving, setSaving] = useState(false);
+  const [activeSetAll, setActiveSetAll] = useState(null);
   const { addToast } = useToastStore();
 
   const handleQuantityChange = (id, quantity) => {
-    setUpdates(prev => prev.map(item => 
+    setActiveSetAll(null);
+    setUpdates(prev => prev.map(item =>
       item.id === id ? { ...item, stock_quantity: parseInt(quantity) || 0 } : item
     ));
+  };
+
+  const setAll = (val) => {
+    const n = parseInt(val);
+    if (isNaN(n) || n < 0) return;
+    setActiveSetAll(n);
+    setUpdates(prev => prev.map(item => ({ ...item, stock_quantity: n })));
   };
 
   const handleSubmit = async (e) => {
@@ -126,7 +140,7 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
     try {
       const { data } = await inventoryApi.bulkUpdateInventory(updates);
       if (data.success) {
-        addToast(`${updates.length} item${updates.length > 1 ? 's' : ''} stock updated`, 'success');
+        addToast(`${updates.length} item${updates.length > 1 ? 's' : ''} updated`, 'success');
         onSaved(data.data);
         onClose();
       }
@@ -137,51 +151,122 @@ function BulkUpdateModal({ selectedItems, onClose, onSaved }) {
     }
   };
 
+  const STATUS_DOT = {
+    in_stock:     'bg-green-500',
+    low_stock:    'bg-amber-400',
+    out_of_stock: 'bg-red-500',
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] shadow-xl flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Bulk Update Stock</h2>
-          <p className="text-sm text-gray-500 mt-1">{selectedItems.length} items selected</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[88vh]">
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Bulk Update Stock</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Editing stock for <span className="font-semibold text-gray-700">{updates.length}</span> selected items
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 mt-0.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-3">
-              {updates.map((item) => (
-                <div key={item.id} className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.product_title}</p>
-                  </div>
-                  <div className="w-32">
-                    <input
-                      type="number"
-                      min="0"
-                      value={item.stock_quantity}
-                      onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-center"
-                    />
+
+        {/* Set-all shortcut */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
+          <span className="text-xs font-medium text-gray-500">Set all to:</span>
+          {[0, 5, 10, 25, 50, 100].map(n => (
+            <button key={n} type="button" onClick={() => setAll(n)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                activeSetAll === n
+                  ? 'bg-[#8B1A2F] border-[#8B1A2F] text-white shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-[#8B1A2F] hover:text-[#8B1A2F]'
+              }`}>
+              {n}
+            </button>
+          ))}
+        </div>
+
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_auto] gap-4 px-6 py-2 bg-gray-50 border-b border-gray-100">
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Product</span>
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-28 text-center">New Stock</span>
+        </div>
+
+        {/* Items list */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+            {updates.map((item, idx) => (
+              <div key={item.id} className="grid grid-cols-[1fr_auto] items-center gap-4 px-6 py-3 hover:bg-gray-50/60 transition-colors">
+                {/* Product info */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-[11px] text-gray-300 font-mono w-5 text-right flex-shrink-0">{idx + 1}</span>
+                  <img
+                    src={item.image_url ? assetUrl(item.image_url) : DEFAULT_PRODUCT_IMAGE}
+                    alt=""
+                    onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{item.product_title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {(item.size || item.color) && (
+                        <span className="text-xs text-gray-400">
+                          {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                      {item.status && (
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
+                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[item.status] || 'bg-gray-300'}`} />
+                          {item.status.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Stock input */}
+                <div className="w-28 flex items-center gap-1">
+                  <button type="button"
+                    onClick={() => handleQuantityChange(item.id, Math.max(0, item.stock_quantity - 1))}
+                    className="w-7 h-8 flex items-center justify-center rounded-l-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors text-lg leading-none">
+                    −
+                  </button>
+                  <input
+                    type="number" min="0"
+                    value={item.stock_quantity}
+                    onChange={e => handleQuantityChange(item.id, e.target.value)}
+                    className="w-12 h-8 border-y border-gray-200 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:border-[#8B1A2F] bg-white"
+                  />
+                  <button type="button"
+                    onClick={() => handleQuantityChange(item.id, item.stock_quantity + 1)}
+                    className="w-7 h-8 flex items-center justify-center rounded-r-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors text-lg leading-none">
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-          
-          <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? 'Updating...' : 'Update All'}
-            </button>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
+            <span className="text-xs text-gray-400">{updates.length} item{updates.length !== 1 ? 's' : ''} will be updated</span>
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose}
+                className="px-5 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className="px-6 py-2 text-sm font-semibold bg-[#8B1A2F] text-white rounded-xl hover:bg-[#6d1424] disabled:opacity-50 transition-colors flex items-center gap-2">
+                {saving ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70"/></svg>Updating…</>
+                ) : (
+                  <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Update {updates.length} Items</>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -246,24 +331,24 @@ export default function StockManagement() {
   };
 
   const handleItemUpdated = (updatedItem) => {
-    setInventory(prev => prev.map(item => 
-      item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+    setInventory(prev => prev.map(item =>
+      item.variant_id === updatedItem.variant_id ? { ...item, ...updatedItem } : item
     ));
   };
 
   const handleBulkUpdated = (updatedItems) => {
-    const updatedMap = new Map(updatedItems.map(item => [item.id, item]));
-    setInventory(prev => prev.map(item => 
-      updatedMap.has(item.id) ? { ...item, ...updatedMap.get(item.id) } : item
+    const updatedMap = new Map(updatedItems.map(item => [item.variant_id, item]));
+    setInventory(prev => prev.map(item =>
+      updatedMap.has(item.variant_id) ? { ...item, ...updatedMap.get(item.variant_id) } : item
     ));
     setSelectedItems([]);
   };
 
   const toggleSelectItem = (item) => {
     setSelectedItems(prev => {
-      const exists = prev.find(i => i.id === item.id);
+      const exists = prev.find(i => i.variant_id === item.variant_id);
       if (exists) {
-        return prev.filter(i => i.id !== item.id);
+        return prev.filter(i => i.variant_id !== item.variant_id);
       } else {
         return [...prev, item];
       }
@@ -344,7 +429,9 @@ export default function StockManagement() {
             value={brandFilter}
             onChange={v => { setBrandFilter(v); setPage(1); }}
             onClear={() => { setBrandFilter(''); setPage(1); }}
-            options={[{ value: '', label: 'All Brands' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
+            options={[{ value: '', label: 'All Brands' }, ...brands.map(b => ({ value: b.id, label: b.name }))]
+            }
+            searchable
           />
 
           <FilterDropdown
@@ -353,6 +440,7 @@ export default function StockManagement() {
             onChange={v => { setCategoryFilter(v); setSubCategoryFilter(''); setPage(1); }}
             onClear={() => { setCategoryFilter(''); setSubCategoryFilter(''); setPage(1); }}
             options={[{ value: '', label: 'All Categories' }, ...categories.filter(c => !c.parent_id).map(c => ({ value: c.id, label: c.name }))]}
+            searchable
           />
 
           <FilterDropdown
@@ -403,7 +491,7 @@ export default function StockManagement() {
                     type="checkbox"
                     checked={inventory.length > 0 && selectedItems.length === inventory.length}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 accent-[#8B1A2F] rounded"
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Product</th>
@@ -434,26 +522,23 @@ export default function StockManagement() {
                   </td>
                 </tr>
               ) : inventory.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+                <tr key={item.variant_id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
-                      checked={selectedItems.some(i => i.id === item.id)}
+                      checked={selectedItems.some(i => i.variant_id === item.variant_id)}
                       onChange={() => toggleSelectItem(item)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-4 h-4 accent-[#8B1A2F] rounded"
                     />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {item.image_url ? (
-                        <img
-                          src={assetUrl(item.image_url)}
-                          alt=""
-                          className="w-10 h-10 object-cover rounded-lg"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg" />
-                      )}
+                      <img
+                        src={item.image_url ? assetUrl(item.image_url) : DEFAULT_PRODUCT_IMAGE}
+                        alt=""
+                        onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                        className="w-10 h-10 object-cover rounded-lg"
+                      />
                       <div>
                         <p className="font-medium text-gray-900">{item.product_title}</p>
                         {(item.size || item.color) && (
@@ -476,7 +561,7 @@ export default function StockManagement() {
                     {item.warehouse_name}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="font-medium text-gray-900">{item.stock_quantity}</span>
+                    <span className="font-medium text-gray-900">{item.live_stock ?? item.stock_quantity}</span>
                     <span className="text-xs text-gray-400 ml-1">/ {item.low_stock_threshold}</span>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-600">
