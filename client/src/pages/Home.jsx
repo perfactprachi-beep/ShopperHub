@@ -779,7 +779,7 @@ export default function Home() {
       {/* 14 ── Fragrance & Beauty Brands */}
       {(loading || data?.brandStrips?.fragrances?.length > 0) && (
         <section className="max-w-7xl mx-auto px-4 py-8">
-          <SectionHead title="Fragrance & Beauty" subtitle="Luxury scents and skincare" viewAllTo="/category/skincare" />
+          <SectionHead title="Fragrance & Beauty" subtitle="Luxury scents and skincare" viewAllTo="/category/skin" />
           <BrandStrip brands={data?.brandStrips?.fragrances ?? []} />
         </section>
       )}

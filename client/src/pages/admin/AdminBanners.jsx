@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { getAdminBanners, createBanner, updateBanner, deleteBanner } from '../../api/adminApi.js';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 import { assetUrl } from '../../utils/assetUrl.js';
 import { useToastStore } from '../../store/toastStore.js';
 import DeleteModal from '../../components/admin/DeleteModal.jsx';
@@ -7,13 +10,48 @@ import DeleteModal from '../../components/admin/DeleteModal.jsx';
 const POSITIONS = ['hero', 'mid', 'bottom', 'men', 'women', 'kids', 'luxe'];
 const EMPTY = { title: '', eyebrow: '', subtitle: '', link: '', position: 'hero', align: 'left', sort_order: 0, is_active: true };
 
+const IDEAL_SIZES = {
+  hero:   { w: 1440, h: 560,  label: '1440 × 560 px' },
+  mid:    { w: 1440, h: 400,  label: '1440 × 400 px' },
+  bottom: { w: 1440, h: 300,  label: '1440 × 300 px' },
+  men:    { w: 1200, h: 500,  label: '1200 × 500 px' },
+  women:  { w: 1200, h: 500,  label: '1200 × 500 px' },
+  kids:   { w: 1200, h: 500,  label: '1200 × 500 px' },
+  luxe:   { w: 1440, h: 600,  label: '1440 × 600 px' },
+};
+
+function getCroppedBlob(image, crop) {
+  const canvas = document.createElement('canvas');
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+  canvas.width  = Math.round(crop.width  * scaleX);
+  canvas.height = Math.round(crop.height * scaleY);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(
+    image,
+    crop.x * scaleX, crop.y * scaleY,
+    crop.width * scaleX, crop.height * scaleY,
+    0, 0, canvas.width, canvas.height,
+  );
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+}
+
 function BannerModal({ banner, onClose, onSaved }) {
-  const [form, setForm] = useState(banner ? { ...banner } : { ...EMPTY });
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(banner?.image_url ? assetUrl(banner.image_url) : null);
-  const [saving, setSaving] = useState(false);
-  const fileRef = useRef();
+  const [form, setForm]           = useState(banner ? { ...banner } : { ...EMPTY });
+  const [rawSrc, setRawSrc]       = useState(null);       // original for cropper
+  const [crop, setCrop]           = useState();
+  const [completedCrop, setCompletedCrop] = useState();
+  const [cropping, setCropping]   = useState(false);      // show cropper panel
+  const [croppedBlob, setCroppedBlob] = useState(null);
+  const [preview, setPreview]     = useState(banner?.image_url ? assetUrl(banner.image_url) : null);
+  const [imgDims, setImgDims]     = useState(null);
+  const [saving, setSaving]       = useState(false);
+  const fileRef  = useRef();
+  const imgRef   = useRef();
   const { addToast } = useToastStore();
+
+  const ideal = IDEAL_SIZES[form.position];
+  const aspectRatio = ideal ? ideal.w / ideal.h : 16 / 9;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -23,17 +61,49 @@ function BannerModal({ banner, onClose, onSaved }) {
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    if (f.size > 5 * 1024 * 1024) { addToast('Image must be under 5 MB', 'error'); return; }
+    const url = URL.createObjectURL(f);
+    setRawSrc(url);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
+    setCroppedBlob(null);
+    setCropping(true);
+    e.target.value = '';
   };
 
+  const onImageLoad = useCallback((e) => {
+    const { width, height } = e.currentTarget;
+    const c = centerCrop(makeAspectCrop({ unit: '%', width: 90 }, aspectRatio, width, height), width, height);
+    setCrop(c);
+  }, [aspectRatio]);
+
+  const applyCrop = async () => {
+    if (!completedCrop || !imgRef.current) return;
+    const blob = await getCroppedBlob(imgRef.current, completedCrop);
+    const url  = URL.createObjectURL(blob);
+    setCroppedBlob(blob);
+    setPreview(url);
+    setImgDims({ w: Math.round(completedCrop.width * (imgRef.current.naturalWidth / imgRef.current.width)),
+                 h: Math.round(completedCrop.height * (imgRef.current.naturalHeight / imgRef.current.height)) });
+    setCropping(false);
+  };
+
+  const cancelCrop = () => { setCropping(false); setRawSrc(null); };
+
+  const sizeWarning = imgDims && ideal && (imgDims.w < ideal.w * 0.8 || imgDims.h < ideal.h * 0.8);
+
   const handleSave = async () => {
+    if (!form.position) { addToast('Position is required', 'warning'); return; }
+    if (form.link && !/^(\/|https?:\/\/)/.test(form.link)) {
+      addToast('Link URL must start with / or https://', 'warning'); return;
+    }
     setSaving(true);
     try {
       let saved;
-      if (file) {
+      const imageFile = croppedBlob ? new File([croppedBlob], 'banner.jpg', { type: 'image/jpeg' }) : null;
+      if (imageFile) {
         const fd = new FormData();
-        fd.append('image', file);
+        fd.append('image', imageFile);
         Object.entries(form).forEach(([k, v]) => fd.append(k, v));
         saved = banner?.id ? await updateBanner(banner.id, fd) : await createBanner(fd);
       } else {
@@ -47,31 +117,99 @@ function BannerModal({ banner, onClose, onSaved }) {
     } finally { setSaving(false); }
   };
 
+  /* ── Cropper overlay ─────────────────────────────────────────────────────── */
+  if (cropping && rawSrc) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl flex flex-col max-h-[92vh]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div>
+              <h2 className="text-base font-semibold">Crop Image</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Aspect ratio locked to <strong>{ideal?.label ?? 'free'}</strong> for <span className="capitalize">{form.position}</span> position
+              </p>
+            </div>
+            <button onClick={cancelCrop} className="text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+          <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-100 p-4">
+            <ReactCrop
+              crop={crop}
+              onChange={c => setCrop(c)}
+              onComplete={c => setCompletedCrop(c)}
+              aspect={aspectRatio}
+              minWidth={50}
+            >
+              <img ref={imgRef} src={rawSrc} alt="crop" onLoad={onImageLoad}
+                style={{ maxHeight: '60vh', maxWidth: '100%', objectFit: 'contain' }} />
+            </ReactCrop>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+            <button onClick={cancelCrop} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+            <button onClick={applyCrop} disabled={!completedCrop}
+              className="px-5 py-2 text-sm font-semibold bg-[#8B1A2F] text-white rounded-lg hover:bg-[#6d1424] disabled:opacity-50 transition-colors">
+              Apply Crop
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl my-auto flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-base font-semibold">{banner?.id ? 'Edit Banner' : 'Add Banner'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
-        <div className="px-6 py-4 space-y-4">
+        <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {/* Image */}
           <div>
-            <label className="label">Image</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="label mb-0">Image</label>
+              {ideal && (
+                <span className="text-[11px] text-gray-400">
+                  Ideal: <strong>{ideal.label}</strong> · JPG/WebP · max 5 MB
+                </span>
+              )}
+            </div>
             <div
               onClick={() => fileRef.current?.click()}
-              className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden cursor-pointer hover:border-[#8B1A2F] transition-colors relative"
+              className={`w-full h-80 border-2 border-dashed rounded-lg overflow-hidden cursor-pointer transition-colors relative ${sizeWarning ? 'border-amber-400 bg-amber-50/30' : 'border-gray-300 hover:border-[#8B1A2F]'}`}
             >
               {preview
                 ? <img src={preview} alt="" className="w-full h-full object-cover" />
-                : <div className="flex items-center justify-center h-full text-gray-400 text-sm">Click to upload image</div>
+                : (
+                  <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-400">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                    <span className="text-sm">Click to upload image</span>
+                    {ideal && <span className="text-xs">{ideal.label} recommended</span>}
+                  </div>
+                )
               }
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
+            <div className="flex items-center justify-between mt-1">
+              {imgDims ? (
+                <p className={`text-xs ${sizeWarning ? 'text-amber-600' : 'text-green-600'}`}>
+                  {sizeWarning
+                    ? `⚠ ${imgDims.w}×${imgDims.h}px — smaller than recommended ${ideal.label}. May appear blurry.`
+                    : `✓ ${imgDims.w}×${imgDims.h}px`}
+                </p>
+              ) : <span />}
+              {preview && (
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="text-xs text-[#8B1A2F] hover:underline font-medium">
+                  Change &amp; re-crop
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="label">Title</label>
-            <input name="title" value={form.title || ''} onChange={handleChange} className="input" />
+            <input name="title" value={form.title || ''} onChange={handleChange} className="input" maxLength={200} />
           </div>
           <div>
             <label className="label">Eyebrow <span className="text-gray-400 font-normal">(small text above title, e.g. "Luxe Watches")</span></label>
@@ -88,20 +226,21 @@ function BannerModal({ banner, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Position</label>
-              <div className="select-wrap">
-                <select name="position" value={form.position} onChange={handleChange}>
-                  {POSITIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                </select>
-              </div>
+              <SearchableSelect
+                value={form.position}
+                onChange={val => setForm(f => ({ ...f, position: val || 'hero' }))}
+                options={POSITIONS.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                placeholder="— Select Position —"
+              />
             </div>
             <div>
               <label className="label">Text Align <span className="text-gray-400 font-normal">(Luxe banner)</span></label>
-              <div className="select-wrap">
-                <select name="align" value={form.align || 'left'} onChange={handleChange}>
-                  <option value="left">Left</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
+              <SearchableSelect
+                value={form.align || 'left'}
+                onChange={val => setForm(f => ({ ...f, align: val || 'left' }))}
+                options={[{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }]}
+                placeholder="— Select Align —"
+              />
             </div>
           </div>
           <div>
@@ -113,7 +252,7 @@ function BannerModal({ banner, onClose, onSaved }) {
             <span className="text-sm">Active</span>
           </label>
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="btn-primary px-5 py-2 text-sm">
             {saving ? 'Saving…' : 'Save'}
@@ -134,6 +273,7 @@ export default function AdminBanners() {
   const load = async () => {
     setLoading(true);
     try { setBanners(await getAdminBanners()); }
+    catch { addToast('Failed to load banners', 'error'); }
     finally { setLoading(false); }
   };
 

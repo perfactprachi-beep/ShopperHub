@@ -22,7 +22,7 @@ const BEST_SELLING_CATEGORIES = [
   { label: 'Kids',   href: '/category/kids' },
   { label: 'Beauty', href: '/category/beauty' },
   { label: 'Home',   href: '/category/home' },
-  { label: 'Gifts',  href: '/search?q=gifts' },
+  { label: 'Gifts',  href: '/gifts' },
 ];
 
 const NAV_LINKS = [
@@ -33,7 +33,7 @@ const NAV_LINKS = [
   { label: 'Beauty',     slug: 'beauty' },
   { label: 'Watches',    href: '/category/watches' },
   { label: 'Home',       slug: 'home' },
-  { label: 'Gifts',      href: '/search?q=gifts' },
+  { label: 'Gifts',      href: '/gifts' },
   { label: 'Luxe',       slug: 'luxe', href: '/luxe',    accent: '#C9A84C' },
   { label: 'Brands',     href: '/brands' },
 ];
@@ -289,6 +289,9 @@ export default function Navbar() {
   );
 
   const isLuxe = location.pathname === '/luxe';
+
+  // Close mega menu on route change
+  useEffect(() => { setMegaSlug(null); }, [location.pathname]);
 
   const showMega = (slug) => {
     clearTimeout(megaTimer.current);
@@ -694,6 +697,7 @@ export default function Navbar() {
                 >
                   <Link
                     to={href}
+                    onClick={() => setMegaSlug(null)}
                     style={color ? { color, borderColor: active ? color : 'transparent' } : undefined}
                     className={`inline-flex h-[62px] items-center px-4 text-[14px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap border-b-2 xl:px-5 ${
                       color
@@ -760,51 +764,62 @@ export default function Navbar() {
               onMouseEnter={keepMega}
               onMouseLeave={hideMega}
             >
-              <div className="max-w-7xl mx-auto px-6 py-7">
-                {getChildren(megaSlug).length > 0 ? (
-                  <div className="columns-4 gap-8">
-                    {getChildren(megaSlug).map((sub) => (
-                      <div key={sub.id} className="break-inside-avoid mb-7">
-                        <Link
-                          to={`/category/${sub.slug}`}
-                          onClick={() => setMegaSlug(null)}
-                          className="flex items-center gap-1 text-[13px] font-bold text-gray-900 hover:text-[#8B1A2F] mb-1.5 uppercase tracking-wide group"
-                        >
-                          {sub.name}
-                          <span className="text-gray-400 group-hover:text-[#8B1A2F] transition-colors">
-                            <IconChevronRight size={12}/>
-                          </span>
-                        </Link>
-                        {sub.children && sub.children.length > 0 && (
-                          <div className="flex flex-col">
-                            {sub.children.map((child) => (
-                              <Link
-                                key={child.id}
-                                to={`/category/${child.slug}`}
-                                onClick={() => setMegaSlug(null)}
-                                className="text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors py-[3px] leading-snug"
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div>
-                    <Link
-                      to={`/category/${megaSlug}`}
-                      onClick={() => setMegaSlug(null)}
-                      className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3 uppercase tracking-wide"
+              <div className="max-w-[1920px] mx-auto px-6 xl:px-10 py-7">
+                {(() => {
+                  const kids = getChildren(megaSlug);
+                  if (kids.length === 0) return (
+                    <div>
+                      <Link
+                        to={`/category/${megaSlug}`}
+                        onClick={() => setMegaSlug(null)}
+                        className="flex items-center gap-1 text-sm font-bold text-gray-900 hover:text-[#8B1A2F] mb-3 uppercase tracking-wide"
+                      >
+                        {NAV_LINKS.find(l => l.slug === megaSlug)?.label}
+                        <IconChevronRight size={14}/>
+                      </Link>
+                      <p className="text-sm text-gray-400">No subcategories yet.</p>
+                    </div>
+                  );
+                  const cols = kids.length <= 7 ? kids.length : Math.ceil(kids.length / 2);
+                  const gapX = cols >= 8 ? 'gap-x-5' : 'gap-x-8';
+                  return (
+                    <div
+                      className={`grid gap-y-6 ${gapX}`}
+                      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
                     >
-                      {NAV_LINKS.find(l => l.slug === megaSlug)?.label}
-                      <IconChevronRight size={14}/>
-                    </Link>
-                    <p className="text-sm text-gray-400">No subcategories yet.</p>
-                  </div>
-                )}
+                      {kids.map((sub) => (
+                        <div key={sub.id} className="min-w-0">
+                          <Link
+                            to={`/category/${sub.slug}`}
+                            onClick={() => setMegaSlug(null)}
+                            className="flex items-center gap-1 text-[12px] font-bold text-gray-900 hover:text-[#8B1A2F] mb-2 uppercase tracking-wide group"
+                          >
+                            {sub.name}
+                            {sub.children?.length > 0 && (
+                              <span className="text-gray-400 group-hover:text-[#8B1A2F] transition-colors">
+                                <IconChevronRight size={11}/>
+                              </span>
+                            )}
+                          </Link>
+                          {sub.children && sub.children.length > 0 && (
+                            <div className="flex flex-col">
+                              {sub.children.map((child) => (
+                                <Link
+                                  key={child.id}
+                                  to={`/category/${child.slug}`}
+                                  onClick={() => setMegaSlug(null)}
+                                  className="text-[13px] text-gray-500 hover:text-[#8B1A2F] transition-colors py-[3px] leading-snug"
+                                >
+                                  {child.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )

@@ -15,7 +15,7 @@ const PLACEHOLDERS = [
     url: 'https://images.unsplash.com/photo-1548036161-63cfc6adcd6c?w=400&q=80',
   },
   {
-    keys: ['perfume', 'fragrance', 'deodorant', 'cologne', 'scent', 'eau de'],
+    keys: ['perfume', 'fragrance', 'deodorant', 'cologne', 'scent', 'eau de', 'aroma', 'candle'],
     url: 'https://images.unsplash.com/photo-1541643600914-78b084683702?w=400&q=80',
   },
   {
@@ -50,6 +50,44 @@ const PLACEHOLDERS = [
     keys: ['sunglass', 'eyewear', 'spectacle', 'goggle'],
     url: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&q=80',
   },
+  /* ── Home & Living ──────────────────────────────────────────── */
+  {
+    keys: ['bed sheet', 'bedding', 'quilt', 'comforter', 'pillow', 'cushion', 'blanket', 'duvet', 'diwan'],
+    url: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&q=80',
+  },
+  {
+    keys: ['curtain', 'floor cover', 'rug', 'mat', 'sofa cover', 'chair cover', 'throws'],
+    url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
+  },
+  {
+    keys: ['towel', 'bath rug', 'shower curtain', 'bathroom', 'laundry', 'basket'],
+    url: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=400&q=80',
+  },
+  {
+    keys: ['dinnerware', 'dinner set', 'plate', 'bowl', 'serveware', 'serving', 'table top', 'cutlery', 'fork', 'spoon', 'knife'],
+    url: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=80',
+  },
+  {
+    keys: ['drinkware', 'glass', 'mug', 'cup', 'tumbler', 'bottle', 'flask', 'tea', 'coffee'],
+    url: 'https://images.unsplash.com/photo-1534650075489-c2f8c5e85b74?w=400&q=80',
+  },
+  {
+    keys: ['cookware', 'pan', 'pot', 'wok', 'bakeware', 'tawa', 'kadai', 'pressure cooker'],
+    url: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?w=400&q=80',
+  },
+  {
+    keys: ['kitchen appliance', 'mixer', 'blender', 'toaster', 'kettle', 'microwave', 'air fryer', 'juicer'],
+    url: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&q=80',
+  },
+  {
+    keys: ['storage', 'container', 'jar', 'box', 'organiser', 'rack', 'shelf'],
+    url: 'https://images.unsplash.com/photo-1595351298020-038700609878?w=400&q=80',
+  },
+  {
+    keys: ['decor', 'figurine', 'vase', 'frame', 'candle holder', 'lamp', 'lantern', 'wall art', 'showpiece', 'home decor'],
+    url: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80',
+  },
+  /* ── Gender fallbacks (lower priority — keep last) ─────────── */
   {
     keys: ['women', 'woman', 'ladies', 'female'],
     url: 'https://images.unsplash.com/photo-1479064555552-3ef4d4a0aae2?w=400&q=80',
@@ -60,7 +98,8 @@ const PLACEHOLDERS = [
   },
 ];
 
-const DEFAULT = 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&q=80';
+export const DEFAULT_PRODUCT_IMAGE = 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&q=80';
+const DEFAULT = DEFAULT_PRODUCT_IMAGE;
 
 export function getProductPlaceholder(product = {}) {
   const haystack = [

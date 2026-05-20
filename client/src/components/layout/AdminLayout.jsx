@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToastStore } from '../../store/toastStore.js';
+import ToastContainer from '../ui/Toast.jsx';
 
 function IconDashboard() {
   return (
@@ -332,6 +333,7 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

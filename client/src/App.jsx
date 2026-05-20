@@ -22,6 +22,11 @@ const LuxePage          = lazy(() => import('./pages/LuxePage.jsx'));
 const MenPage           = lazy(() => import('./pages/MenPage.jsx'));
 const WomenPage         = lazy(() => import('./pages/WomenPage.jsx'));
 const KidsPage          = lazy(() => import('./pages/KidsPage.jsx'));
+const WatchesPage       = lazy(() => import('./pages/WatchesPage.jsx'));
+const HomeCategoryPage    = lazy(() => import('./pages/HomeCategoryPage.jsx'));
+const BeautyCategoryPage  = lazy(() => import('./pages/BeautyCategoryPage.jsx'));
+const MakeupPage          = lazy(() => import('./pages/MakeupPage.jsx'));
+const GiftsPage           = lazy(() => import('./pages/GiftsPage.jsx'));
 const CmsPage           = lazy(() => import('./pages/CmsPage.jsx'));
 const BrandPage         = lazy(() => import('./pages/BrandPage.jsx'));
 const BrandsPage        = lazy(() => import('./pages/BrandsPage.jsx'));
@@ -110,7 +115,12 @@ function AppShell() {
             <Route path="/luxe"            element={<LuxePage />} />
             <Route path="/category/men"    element={<MenPage />} />
             <Route path="/category/women" element={<WomenPage />} />
-            <Route path="/category/kids"  element={<KidsPage />} />
+            <Route path="/category/kids"     element={<KidsPage />} />
+            <Route path="/category/watches" element={<WatchesPage />} />
+            <Route path="/category/home"    element={<HomeCategoryPage />} />
+            <Route path="/category/beauty"  element={<BeautyCategoryPage />} />
+            <Route path="/category/makeup" element={<MakeupPage />} />
+            <Route path="/gifts"          element={<GiftsPage />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/brands"         element={<BrandsPage />} />
             <Route path="/brand/:slug"    element={<BrandPage />} />

@@ -5,6 +5,7 @@ const ITEM_SELECT = `
   ci.variant_id AS "variantId",
   ci.quantity,
   pv.size, pv.color, pv.sku,
+  pv.stock,
   p.id         AS "productId",
   p.title      AS "productTitle",
   p.slug,

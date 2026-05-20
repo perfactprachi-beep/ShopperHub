@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatPrice } from '../../utils/formatPrice.js';
 import { calcFinalPrice } from '../../utils/calcDiscount.js';
 import { useWishlistStore } from '../../store/wishlistStore.js';
+import { useCartStore } from '../../store/cartStore.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { assetUrl } from '../../utils/assetUrl.js';
 import { getProductPlaceholder } from '../../utils/getProductPlaceholder.js';
@@ -28,9 +29,11 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const { isLoggedIn, isAdmin } = useAuth();
   const { addToast }   = useToastStore();
   const { has, toggle } = useWishlistStore();
+  const cartItems      = useCartStore((s) => s.items);
   const { openLoginModal } = useUiStore();
   const navigate       = useNavigate();
   const wished         = has(id);
+  const inCart         = cartItems.some((i) => i.productId === id);
 
   const handleWishlist = async (e) => {
     e.preventDefault();
@@ -52,11 +55,15 @@ export default function ProductCard({ product, dark = false, showNew = false, on
   const handleAddToBag = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (inCart) {
+      navigate('/cart');
+      return;
+    }
     if (withDrawer) {
-      // Has variants — open the size selection drawer
       if (onAddToBag) onAddToBag(product);
+    } else if (onAddToBag) {
+      onAddToBag(product);
     } else {
-      // Navigate to product detail so the customer can pick size/variant and add from there
       navigate(`/product/${slug}`);
     }
   };
@@ -95,7 +102,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
             </button>
           )}
 
-          {stock === 0 && (
+          {Number(stock) <= 0 && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider border border-gray-400 px-3 py-1">Out of Stock</span>
             </div>
@@ -119,7 +126,7 @@ export default function ProductCard({ product, dark = false, showNew = false, on
 
       {/* CTA area */}
       {!isAdmin && (
-        stock === 0 ? (
+        Number(stock) <= 0 ? (
           <div className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest text-center ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
             Out of Stock
           </div>
@@ -127,12 +134,12 @@ export default function ProductCard({ product, dark = false, showNew = false, on
           <button
             onClick={handleAddToBag}
             className={`w-full py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-              dark
-                ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]'
-                : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
+              inCart
+                ? dark ? 'bg-[#C9A84C]/20 text-[#C9A84C]' : 'bg-[#8B1A2F]/10 text-[#8B1A2F]'
+                : dark ? 'bg-[#C9A84C] text-black hover:bg-[#b8943e]' : 'bg-[#8B1A2F] text-white hover:bg-[#6d1424]'
             }`}
           >
-            Add To Bag
+            {inCart ? 'Go to Bag' : 'Add To Bag'}
           </button>
         )
       )}

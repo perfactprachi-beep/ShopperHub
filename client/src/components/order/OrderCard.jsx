@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 
 const STATUS_COLORS = {
   pending:   'bg-yellow-100 text-yellow-700',
@@ -25,11 +26,12 @@ export default function OrderCard({ order }) {
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-4 flex gap-4 hover:shadow-md transition-shadow">
       {/* Image */}
       <div className="w-20 h-20 shrink-0 rounded-[var(--radius-sm)] overflow-hidden bg-[var(--color-bg)]">
-        {first?.image ? (
-          <img src={first.image} alt={first.title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-xs">No img</div>
-        )}
+        <img
+          src={first?.image || DEFAULT_PRODUCT_IMAGE}
+          alt={first?.title}
+          onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Info */}

@@ -188,7 +188,7 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3">
                     {u.role === 'admin' ? (
-                      <span className="text-xs text-gray-400 italic">Protected</span>
+                      null
                     ) : (
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Toggle active/inactive */}

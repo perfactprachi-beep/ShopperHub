@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import PromoOfferBar from '../components/home/PromoOfferBar.jsx';
@@ -61,56 +61,149 @@ const BUDGET_TIERS = [
 ];
 
 // ── HeroBanner ─────────────────────────────────────────────────────────────────
-function HeroBanner() {
-  const [slide, setSlide] = useState(0);
+const HERO_SLIDES = [
+  {
+    img: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?auto=format&w=1600&q=90',
+    eyebrow: 'Kids Fest',
+    title: 'Curated For\nFuture Fashion\nIcons',
+    sub: 'Boys · Girls · Infants · Accessories',
+    cta: 'Shop Kids',
+    link: '/category/kids',
+    align: 'left',
+    badge: { brand: 'U.S. Polo Assn.', label: 'Starting', value: '₹899' },
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&w=1600&q=90',
+    eyebrow: 'New Arrivals',
+    title: 'Fresh Styles\nFor Playful\nDays',
+    sub: 'Latest drops for every little one',
+    cta: 'Explore Now',
+    link: '/category/girls-clothing',
+    align: 'right',
+    badge: null,
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&w=1600&q=90',
+    eyebrow: 'Boys Collection',
+    title: 'Dress Them\nFor Every\nAdventure',
+    sub: 'T-Shirts · Shorts · Kurtas & more',
+    cta: 'Shop Boys',
+    link: '/category/boys-clothing',
+    align: 'left',
+    badge: null,
+  },
+];
 
-  const SLIDES = [
-    {
-      bg: '#EBF5FF',
-      img: 'https://images.unsplash.com/photo-1519089029353-5b78a2f58aef?w=1400',
-      card: (
-        <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl px-8 py-6 text-center w-[190px]">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">U.S. Polo Assn.</p>
-          <p className="text-[11px] text-gray-400 mb-3">Styles For Playful Days</p>
-          <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Starting</p>
-          <p className="text-6xl font-black text-[#C8102E] leading-none mt-0.5">899</p>
-          <Link to="/brand/u-s-polo-assn" className="mt-4 inline-flex items-center gap-1 text-xs border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors font-medium">
-            Shop Now
-          </Link>
-        </div>
-      ),
-    },
-    {
-      bg: '#FDF6EE',
-      img: 'https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=1400',
-      card: (
-        <div className="absolute right-10 top-1/2 -translate-y-1/2 text-right">
-          <p className="text-[64px] font-black italic text-[#92400E] leading-[1] tracking-tighter">NEW<br/>arrivals</p>
-          <p className="text-sm text-gray-500 mt-3 font-medium">For A Wardrobe As Playful As Them</p>
-          <Link to="/category/kids" className="mt-4 inline-block text-xs border-2 border-[#92400E] text-[#92400E] font-bold rounded-lg px-6 py-2 hover:bg-[#92400E] hover:text-white transition-colors">
-            Shop Now
-          </Link>
-        </div>
-      ),
-    },
-  ];
+function HeroBanner() {
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const timer = useRef(null);
+
+  const next = useCallback(() => setCurrent(c => (c + 1) % HERO_SLIDES.length), []);
+  const prev = () => setCurrent(c => (c - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
 
   useEffect(() => {
-    const t = setInterval(() => setSlide(s => (s + 1) % SLIDES.length), 4500);
-    return () => clearInterval(t);
-  }, []);
+    if (paused) return;
+    timer.current = setInterval(next, 5000);
+    return () => clearInterval(timer.current);
+  }, [paused, next]);
 
-  const s = SLIDES[slide];
+  const slide = HERO_SLIDES[current];
+  const isRight = slide.align === 'right';
+
   return (
-    <div className="relative h-[440px] overflow-hidden" style={{ background: s.bg }}>
-      <img src={s.img} alt="" className="w-full h-full object-cover object-top" />
-      {s.card}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-        {SLIDES.map((_, i) => (
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height: 'clamp(420px, 60vh, 620px)' }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Slides */}
+      {HERO_SLIDES.map((s, i) => (
+        <div
+          key={i}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === current ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+        >
+          <img
+            src={s.img}
+            alt={s.eyebrow}
+            className="w-full h-full object-cover object-center"
+            loading={i === 0 ? 'eager' : 'lazy'}
+          />
+          <div className={`absolute inset-0 ${isRight
+            ? 'bg-gradient-to-l from-black/75 via-black/35 to-black/5'
+            : 'bg-gradient-to-r from-black/75 via-black/35 to-black/5'}`}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
+        </div>
+      ))}
+
+      {/* Text content */}
+      <div className={`absolute inset-0 z-20 flex items-center ${isRight ? 'justify-end' : 'justify-start'}`}>
+        <div className={`px-10 sm:px-16 lg:px-24 max-w-xl ${isRight ? 'text-right' : 'text-left'}`}>
+          <p className="text-[#FFD700] text-[10px] uppercase tracking-[0.5em] font-bold mb-3">
+            {slide.eyebrow}
+          </p>
+          <h1
+            className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-4 whitespace-pre-line"
+            style={{ fontFamily: 'var(--font-heading, Georgia)' }}
+          >
+            {slide.title}
+          </h1>
+          <p className="text-white/60 text-sm mb-8 tracking-wide">{slide.sub}</p>
+          <Link
+            to={slide.link}
+            className="inline-block px-10 py-3.5 bg-[#8B1A2F] text-white text-[11px] font-bold uppercase tracking-[0.25em] hover:bg-[#6d1424] transition-colors"
+          >
+            {slide.cta}
+          </Link>
+        </div>
+      </div>
+
+      {/* Brand badge — slide 1 only */}
+      {slide.badge && (
+        <div className="absolute right-10 top-1/2 -translate-y-1/2 z-20 bg-white rounded-3xl shadow-2xl px-7 py-5 text-center w-[170px] hidden lg:block">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{slide.badge.brand}</p>
+          <p className="text-[10px] font-semibold text-gray-500 mb-2">Styles For Playful Days</p>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{slide.badge.label}</p>
+          <p className="text-5xl font-black text-[#C8102E] leading-none mt-0.5">{slide.badge.value}</p>
+          <Link
+            to="/brand/u-s-polo-assn"
+            className="mt-3 inline-flex items-center gap-1 text-[11px] border border-gray-300 rounded-lg px-4 py-1.5 hover:bg-gray-50 transition-colors font-medium"
+          >
+            Shop Now
+          </Link>
+        </div>
+      )}
+
+      {/* Prev / Next arrows */}
+      <button
+        onClick={prev}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center bg-white/15 hover:bg-white/30 text-white transition-colors rounded-full"
+        aria-label="Previous"
+      >
+        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center bg-white/15 hover:bg-white/30 text-white transition-colors rounded-full"
+        aria-label="Next"
+      >
+        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+
+      {/* Dot indicators */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+        {HERO_SLIDES.map((_, i) => (
           <button
             key={i}
-            onClick={() => setSlide(i)}
-            className={`rounded-full transition-all duration-300 ${i === slide ? 'w-7 h-2 bg-[#8B1A2F]' : 'w-2 h-2 bg-white/50'}`}
+            onClick={() => setCurrent(i)}
+            className={`transition-all duration-300 h-[3px] rounded-full ${i === current ? 'w-8 bg-[#8B1A2F]' : 'w-3 bg-white/40'}`}
+            aria-label={`Slide ${i + 1}`}
           />
         ))}
       </div>

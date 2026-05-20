@@ -6,10 +6,17 @@ import { searchProducts } from '../db/queries/products.js';
 const router = Router();
 
 const PRODUCT_FIELDS = `
-  p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock,
+  p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender,
+  COALESCE(
+    (SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id),
+    p.stock
+  ) AS stock,
   b.name AS brand_name, b.slug AS brand_slug,
   (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url
 `;
+
+// Reusable WHERE clause that excludes out-of-stock products
+const IN_STOCK = `COALESCE((SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id), p.stock) > 0`;
 
 router.get('/', async (_req, res, next) => {
   try {
@@ -78,7 +85,7 @@ router.get('/', async (_req, res, next) => {
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active'
+        WHERE p.status = 'active' AND ${IN_STOCK}
         ORDER BY p.created_at DESC
         LIMIT 12
       `),
@@ -88,7 +95,7 @@ router.get('/', async (_req, res, next) => {
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.is_deal = true
+        WHERE p.status = 'active' AND p.is_deal = true AND ${IN_STOCK}
         ORDER BY p.discount_pct DESC, p.created_at DESC
         LIMIT 12
       `),
@@ -99,6 +106,7 @@ router.get('/', async (_req, res, next) => {
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
         WHERE p.status = 'active'
+          AND ${IN_STOCK}
           AND (
             p.category_id IN (SELECT id FROM categories WHERE slug LIKE 'luxe%')
             OR p.base_price >= 2000
@@ -112,7 +120,7 @@ router.get('/', async (_req, res, next) => {
         SELECT ${PRODUCT_FIELDS}
         FROM products p
         LEFT JOIN brands b ON b.id = p.brand_id
-        WHERE p.status = 'active' AND p.discount_pct >= 10
+        WHERE p.status = 'active' AND p.discount_pct >= 10 AND ${IN_STOCK}
         ORDER BY p.discount_pct DESC, p.id % 17
         LIMIT 12
       `),

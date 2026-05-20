@@ -12,22 +12,22 @@ const WOMEN_SECTIONS = [
     sub: 'Tops · Shirts · Jeans · Co-Ord Sets',
   },
   {
-    id: 'ethnic-wear', slug: 'ethnic-wear', name: 'Ethnic Wear',
+    id: 'indian-fusion-wear', slug: 'indian-fusion-wear', name: 'Ethnic Wear',
     image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&w=800&q=80',
     sub: 'Kurtas · Sarees · Lehengas · Suits',
   },
   {
-    id: 'dresses-jumpsuits', slug: 'dresses-jumpsuits', name: 'Dresses',
+    id: 'dresses', slug: 'dresses', name: 'Dresses',
     image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&w=800&q=80',
     sub: 'Casual · Party · Maxi · Jumpsuits',
   },
   {
-    id: 'activewear', slug: 'activewear', name: 'Activewear',
+    id: 'womens-athleisure', slug: 'womens-athleisure', name: 'Athleisure',
     image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&w=800&q=80',
     sub: 'Sports Tops · Leggings · Sports Bras',
   },
   {
-    id: 'footwear', slug: 'footwear', name: 'Footwear',
+    id: 'womens-footwear', slug: 'womens-footwear', name: 'Footwear',
     image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&w=800&q=80',
     sub: 'Heels · Flats · Sneakers · Boots',
   },
@@ -37,7 +37,7 @@ const WOMEN_SECTIONS = [
     sub: 'Handbags · Clutches · Jewellery',
   },
   {
-    id: 'winterwear', slug: 'winterwear', name: 'Winterwear',
+    id: 'womens-winterwear', slug: 'womens-winterwear', name: 'Winterwear',
     image: 'https://images.unsplash.com/photo-1580651315530-69c8e0026377?auto=format&w=800&q=80',
     sub: 'Sweaters · Jackets · Shawls',
   },
@@ -64,7 +64,7 @@ const HERO_BANNERS = [
     title: 'Celebrate\nTradition',
     sub: 'Kurtas · Sarees · Lehengas · Suits',
     cta: 'Shop Ethnic',
-    link: '/category/ethnic-wear',
+    link: '/category/indian-fusion-wear',
     align: 'right',
   },
   {
@@ -73,7 +73,7 @@ const HERO_BANNERS = [
     title: 'Dress\nTo Impress',
     sub: 'Casual · Party · Maxi Dresses',
     cta: 'Shop Dresses',
-    link: '/category/dresses-jumpsuits',
+    link: '/category/dresses',
     align: 'left',
   },
 ];
@@ -270,7 +270,7 @@ function EthnicCarnivalBanner() {
           <p className="text-white/60 text-sm mb-2 tracking-wide">Kashmiri · BIBA · Stop & More</p>
           <p className="text-[#C9A84C] text-3xl font-bold mb-6">Up to 50% Off</p>
           <p className="text-white/50 text-xs mb-8">Use code <span className="text-[#C9A84C] font-bold tracking-widest">ETHNIC350</span> for ₹350 off on ₹2000+</p>
-          <Link to="/category/ethnic-wear" className="inline-block px-10 py-3.5 border border-[#C9A84C] text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-[#C9A84C] hover:text-black transition-all duration-200">
+          <Link to="/category/indian-fusion-wear" className="inline-block px-10 py-3.5 border border-[#C9A84C] text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-[#C9A84C] hover:text-black transition-all duration-200">
             Shop Now
           </Link>
         </div>

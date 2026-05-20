@@ -752,7 +752,7 @@ export default function ProductDetail() {
       discount_pct: product.discount_pct,
       brand_name: product.brand_name,
       image_url: product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '',
-      stock: product.variants?.some((v) => v.stock > 0) ? 1 : 0,
+      stock: product.variants?.length > 0 ? (product.variants.some((v) => v.stock > 0) ? 1 : 0) : (product.stock ?? 0),
     };
     try {
       const stored = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
@@ -769,7 +769,9 @@ export default function ProductDetail() {
   const finalPrice = calcFinalPrice(product.base_price, product.discount_pct);
   const hasDiscount = product.discount_pct > 0;
   const primaryImage = product.images?.find((i) => i.is_primary)?.url || product.images?.[0]?.url || '';
-  const sizes  = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))];
+  const showSize = isClothingCategory(product.category_name, product.category_slug);
+  const hasVariants = product.variants?.length > 0;
+  const sizes  = showSize ? [...new Set(product.variants?.map((v) => v.size).filter(Boolean))] : [];
   const selectedVariant = product.variants?.find((v) => {
     if (selected.size && selected.color) return v.size === selected.size && v.color === selected.color;
     if (selected.size)  return v.size === selected.size  && v.stock > 0;
@@ -783,23 +785,35 @@ export default function ProductDetail() {
   );
 
   const handleAddToBag = async () => {
-    if (sizes.length > 0 && !selected.size) {
-      addToast('Please select a size', 'error');
-      return;
+    if (hasVariants) {
+      if (sizes.length > 0 && !selected.size) {
+        addToast('Please select a size', 'error');
+        return;
+      }
+      if (!selectedVariant) {
+        addToast('No variant available', 'error');
+        return;
+      }
+      if ((selectedVariant.stock ?? 1) <= 0) {
+        addToast('This item is out of stock', 'error');
+        return;
+      }
+    } else {
+      if ((product.stock ?? 1) <= 0) {
+        addToast('This item is out of stock', 'error');
+        return;
+      }
     }
-    if (!selectedVariant) {
-      addToast('No variant available', 'error');
-      return;
-    }
+
     const cartItem = {
-      variantId:    selectedVariant.id,
+      variantId:    hasVariants ? selectedVariant.id : null,
       productId:    product.id,
       slug:         product.slug,
       title:        product.title,
       brand:        product.brand_name,
       image:        assetUrl(primaryImage),
-      size:         selectedVariant.size,
-      color:        selectedVariant.color,
+      size:         hasVariants ? selectedVariant.size : null,
+      color:        hasVariants ? selectedVariant.color : null,
       price:        finalPrice,
       mrp:          product.base_price,
       discount_pct: product.discount_pct,
@@ -807,9 +821,13 @@ export default function ProductDetail() {
     };
     if (isLoggedIn) {
       try {
-        await addCartItem({ variantId: selectedVariant.id, quantity: 1 });
-      } catch {
-        addToast('Could not save item to your bag. Please try again.', 'error');
+        if (hasVariants) {
+          await addCartItem({ variantId: selectedVariant.id, quantity: 1 });
+        } else {
+          await addCartItem({ productId: product.id, quantity: 1 });
+        }
+      } catch (err) {
+        addToast(err?.response?.data?.message || 'Could not save item to your bag. Please try again.', 'error');
         return;
       }
     }
@@ -947,14 +965,21 @@ export default function ProductDetail() {
                 variants={product.variants}
                 selected={selected}
                 onSelect={setSelected}
-                onSizeChart={isClothingCategory(product.category_name, product.category_slug) ? () => setSizeChartOpen(true) : undefined}
+                showSize={showSize}
+                onSizeChart={showSize ? () => setSizeChartOpen(true) : undefined}
               />
             )}
 
             {/* 5. Add To Bag / Go to Bag */}
-            {!isAdmin && (
-              product.stock === 0 && !inCart ? (
-                <div className="w-full py-4 text-center font-bold text-[15px] tracking-wide text-gray-400 uppercase">
+            {!isAdmin && (() => {
+              const isOutOfStock = hasVariants
+                ? (selectedVariant
+                    ? Number(selectedVariant.stock) <= 0
+                    : product.variants.every(v => Number(v.stock) <= 0))
+                : Number(product.stock) <= 0;
+
+              return isOutOfStock && !inCart ? (
+                <div className="w-full py-4 text-center font-bold text-[15px] tracking-wider text-gray-400 border border-gray-200 uppercase">
                   Out of Stock
                 </div>
               ) : (
@@ -964,8 +989,8 @@ export default function ProductDetail() {
                 >
                   {inCart ? 'Go to Bag' : 'Add To Bag'}
                 </button>
-              )
-            )}
+              );
+            })()}
 
             {/* 6. Delivery check */}
             <PincodeCheck />

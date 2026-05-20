@@ -134,6 +134,20 @@ export async function cancelOrder(orderId, userId) {
           'UPDATE product_variants SET stock = stock + $1 WHERE id = $2',
           [quantity, variant_id]
         );
+
+        // Keep inventory table in sync and write a return-restock log
+        const { rows: invRows } = await client.query(
+          `UPDATE inventory SET stock_quantity = stock_quantity + $1
+           WHERE variant_id = $2 RETURNING id`,
+          [quantity, variant_id]
+        );
+        if (invRows[0]) {
+          await client.query(
+            `INSERT INTO inventory_logs (inventory_id, action_type, quantity, notes)
+             VALUES ($1, 'return_restock', $2, $3)`,
+            [invRows[0].id, quantity, `Order #${orderId} cancelled`]
+          );
+        }
       }
     }
 
@@ -240,7 +254,7 @@ export async function hasPurchasedProduct(userId, productId) {
 // Wrap fulfilment in a single transaction
 export async function fulfillOrder({ userId, addressId, couponId, subtotal, discount,
   shipping, total, pointsEarned, paymentMethod, razorpayOrderId, deliveryType = 'standard',
-  deliveryMethod = 'express_delivery', storeId = null, items, paymentStatus }) {
+  deliveryMethod = 'standard_delivery', storeId = null, items, paymentStatus }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -292,6 +306,20 @@ export async function fulfillOrder({ userId, addressId, couponId, subtotal, disc
           'UPDATE product_variants SET stock = stock - $1 WHERE id = $2',
           [quantity, variantId]
         );
+
+        // Keep inventory table in sync and write an order-deduction log
+        const { rows: invRows } = await client.query(
+          `UPDATE inventory SET stock_quantity = GREATEST(stock_quantity - $1, 0)
+           WHERE variant_id = $2 RETURNING id`,
+          [quantity, variantId]
+        );
+        if (invRows[0]) {
+          await client.query(
+            `INSERT INTO inventory_logs (inventory_id, action_type, quantity, notes)
+             VALUES ($1, 'order_deduction', $2, $3)`,
+            [invRows[0].id, -quantity, `Order #${order.id}`]
+          );
+        }
       }
     }
 

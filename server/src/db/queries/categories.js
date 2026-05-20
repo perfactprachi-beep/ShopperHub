@@ -32,7 +32,7 @@ export async function getCategoryBySlug(slug) {
 
   const cat = rows[0];
   const { rows: children } = await pool.query(
-    'SELECT id, name, slug FROM categories WHERE parent_id = $1 ORDER BY sort_order, name',
+    'SELECT id, name, slug, image_url FROM categories WHERE parent_id = $1 ORDER BY sort_order, name',
     [cat.id]
   );
   return { ...cat, children };

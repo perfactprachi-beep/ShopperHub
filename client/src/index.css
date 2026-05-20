@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -20,11 +20,11 @@
   --radius-md: 8px;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --font-heading: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Lato', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 html {
-  font-size: 17px;
+  font-size: 16px;
 }
 
 body {
@@ -32,7 +32,7 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 /* ── Confetti animation (Order Success page) ── */

@@ -10,6 +10,8 @@ import {
   getProductVariants, getProductImages,
   getProductAttributes, addProductAttribute, updateProductAttribute, deleteProductAttribute,
 } from '../db/queries/products.js';
+import { getProductPlaceholder } from '../utils/productPlaceholder.js';
+import { pool } from '../db/pool.js';
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from '../db/queries/categories.js';
 import { getBrands, createBrand, updateBrand, deleteBrand } from '../db/queries/brands.js';
 import { getAllBanners, createBanner, updateBanner, deleteBanner } from '../db/queries/banners.js';
@@ -154,6 +156,44 @@ router.post('/products/:id/images', uploadImages, async (req, res, next) => {
       images.push(img);
     }
     res.status(201).json({ success: true, data: images });
+  } catch (err) { next(err); }
+});
+
+// Add image by URL (no file upload needed)
+router.post('/products/:id/images/url', async (req, res, next) => {
+  try {
+    const { url } = req.body;
+    if (!url?.trim()) return res.status(400).json({ success: false, message: 'URL is required' });
+    const existing = await getProductImages(req.params.id);
+    const hasPrimary = existing.some(i => i.is_primary);
+    const img = await addImage(req.params.id, url.trim(), !hasPrimary);
+    res.status(201).json({ success: true, data: img });
+  } catch (err) { next(err); }
+});
+
+// Bulk auto-fill placeholder images for all products that have no images
+router.post('/products/fill-missing-images', async (req, res, next) => {
+  try {
+    const { rows: products } = await pool.query(`
+      SELECT p.id, p.title, p.slug, p.gender,
+             b.name AS brand_name, c.name AS category_name
+      FROM products p
+      LEFT JOIN brands b ON b.id = p.brand_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.status = 'active'
+        AND NOT EXISTS (
+          SELECT 1 FROM product_images pi WHERE pi.product_id = p.id
+        )
+    `);
+
+    let filled = 0;
+    for (const p of products) {
+      const url = getProductPlaceholder(p);
+      await addImage(p.id, url, true);
+      filled++;
+    }
+
+    res.json({ success: true, filled, message: `Added placeholder images for ${filled} product${filled === 1 ? '' : 's'}` });
   } catch (err) { next(err); }
 });
 

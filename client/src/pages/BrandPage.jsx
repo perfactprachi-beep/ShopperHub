@@ -18,7 +18,7 @@ export default function BrandPage() {
   const { slug } = useParams();
 
   const [filters, setFilters] = useState({
-    gender: '', minPrice: '', maxPrice: '', brand: '', minDiscount: '',
+    genders: [], minPrice: '', maxPrice: '', brands: [], minDiscount: '',
   });
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
@@ -26,8 +26,16 @@ export default function BrandPage() {
   // Reset page when slug, filters, or sort change
   useEffect(() => { setPage(1); }, [slug, filters, sort]);
 
+  const apiParams = {
+    gender:      filters.genders.length > 0 ? filters.genders.join(',') : '',
+    minPrice:    filters.minPrice,
+    maxPrice:    filters.maxPrice,
+    minDiscount: filters.minDiscount,
+    sort, page, limit: LIMIT,
+  };
+
   const { data, loading } = useFetch(
-    () => productsApi.brandProducts(slug, { ...filters, sort, page, limit: LIMIT }),
+    () => productsApi.brandProducts(slug, apiParams),
     [slug, filters, sort, page]
   );
 

@@ -18,7 +18,7 @@ const HOME_TREE = {
           'Single Bedsheet Sets', 'Double Bedsheet Sets', 'Fitted Bedsheets',
           'Bed In A Bag', 'Pillow Covers',
         ]},
-        { name: 'Quilts Comforters & Dohars', children: [
+        { name: 'Quilts Comforters & Dohars', slug: 'quilts-comforters', children: [
           'Comforters', 'Dohars', 'Blankets & Quilts',
           'Bed Covers', 'Duvet Covers',
         ]},
@@ -54,7 +54,7 @@ const HOME_TREE = {
         'Sofa Covers & Throws',
         'Chair Pads',
         'Chair Covers',
-        { name: 'Home Décor', children: [
+        { name: 'Home Décor', slug: 'home-decor', children: [
           'Vases & Planters', 'Candles & Holders', 'Wall Art & Frames', 'Clocks',
         ]},
       ],

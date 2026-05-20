@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 
 export default function ImageGallery({ images = [], fallbackUrl = '' }) {
+  const fallback = fallbackUrl || DEFAULT_PRODUCT_IMAGE;
   const [active, setActive] = useState(0);
 
   if (!images.length) {
@@ -27,7 +29,7 @@ export default function ImageGallery({ images = [], fallbackUrl = '' }) {
               active === i ? 'border-[#8B1A2F]' : 'border-gray-200 hover:border-gray-400'
             }`}
           >
-            <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" onError={(e) => { if (fallbackUrl) e.currentTarget.src = fallbackUrl; }} />
+            <img src={assetUrl(img.url)} alt="" className="w-full h-full object-cover" onError={(e) => { if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback; }} />
           </button>
         ))}
       </div>
@@ -39,7 +41,7 @@ export default function ImageGallery({ images = [], fallbackUrl = '' }) {
             src={assetUrl(images[active].url)}
             alt=""
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 cursor-zoom-in"
-            onError={(e) => { if (fallbackUrl) e.currentTarget.src = fallbackUrl; }}
+            onError={(e) => { if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback; }}
           />
         </div>
 

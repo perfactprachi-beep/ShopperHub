@@ -7,6 +7,7 @@ import { useToastStore } from '../../store/toastStore.js';
 import { updateCartItem, removeCartItem } from '../../api/cartApi.js';
 import { toggleWishlist } from '../../api/wishlistApi.js';
 import { formatPrice } from '../../utils/formatPrice.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 
 function IconX({ size = 20 }) {
   return (
@@ -127,11 +128,12 @@ export default function CartDrawer({ isOpen, onClose }) {
                 <div key={item.variantId} className="flex gap-3 pb-4 border-b border-[var(--color-border)] last:border-b-0">
                   {/* Image */}
                   <div className="w-20 h-24 bg-gray-100 rounded-[var(--radius-sm)] overflow-hidden shrink-0">
-                    {item.image ? (
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-xs">No img</div>
-                    )}
+                    <img
+                      src={item.image || DEFAULT_PRODUCT_IMAGE}
+                      alt={item.title}
+                      onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   {/* Details */}

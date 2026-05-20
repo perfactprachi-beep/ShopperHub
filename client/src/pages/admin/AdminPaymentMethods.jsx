@@ -5,6 +5,7 @@ import {
 } from '../../api/adminApi.js';
 import { useToastStore } from '../../store/toastStore.js';
 import DeleteModal from '../../components/admin/DeleteModal.jsx';
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx';
 
 const ICON_OPTIONS = [
   { value: 'card',   label: 'Card / Online' },
@@ -64,16 +65,16 @@ function MethodModal({ method, onClose, onSaved }) {
           {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
 
           <div>
-            <label className="label">Display Name</label>
+            <label className="label">Display Name *</label>
             <input name="name" value={form.name} onChange={handleChange}
-              placeholder="e.g. Cash on Delivery" className="input" />
+              placeholder="e.g. Cash on Delivery" className="input" required maxLength={100} />
           </div>
 
           <div>
-            <label className="label">Code (unique key)</label>
+            <label className="label">Code (unique key) *</label>
             <input name="code" value={form.code} onChange={handleChange}
               placeholder="e.g. cod" className="input lowercase"
-              disabled={!!method?.id} />
+              disabled={!!method?.id} required maxLength={50} />
             {!method?.id && (
               <p className="text-[11px] text-gray-400 mt-1">
                 Use <strong>razorpay</strong> to trigger the Razorpay gateway, <strong>cod</strong> for cash on delivery. Cannot be changed after creation.
@@ -84,19 +85,18 @@ function MethodModal({ method, onClose, onSaved }) {
           <div>
             <label className="label">Description</label>
             <input name="description" value={form.description} onChange={handleChange}
-              placeholder="Short description shown to customers" className="input" />
+              placeholder="Short description shown to customers" className="input" maxLength={300} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Icon Type</label>
-              <div className="select-wrap">
-                <select name="icon_type" value={form.icon_type} onChange={handleChange}>
-                  {ICON_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                value={form.icon_type}
+                onChange={val => setForm(f => ({ ...f, icon_type: val || 'card' }))}
+                options={ICON_OPTIONS}
+                placeholder="— Select Icon —"
+              />
             </div>
             <div>
               <label className="label">Sort Order</label>
@@ -169,8 +169,8 @@ export default function AdminPaymentMethods() {
 
   useEffect(() => {
     getAdminPaymentMethods()
-      .then(setMethods)
-      .catch(() => alert('Failed to load payment methods'))
+      .then(res => setMethods(res))
+      .catch(() => addToast('Failed to load payment methods', 'error'))
       .finally(() => setLoading(false));
   }, []);
 

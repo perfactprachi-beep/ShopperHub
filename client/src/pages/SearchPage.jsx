@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { productsApi } from '../api/productsApi.js';
 import { useFetch } from '../hooks/useFetch.js';
@@ -11,16 +11,34 @@ export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get('q') || '';
   const debounced = useDebounce(q, 400);
-  const [filters, setFilters] = useState({ gender: '', minPrice: '', maxPrice: '', brand: '' });
+  const [filters, setFilters] = useState({ genders: [], minPrice: '', maxPrice: '', brands: [], minDiscount: '' });
   const [sort, setSort] = useState('newest');
 
+  // Reset filters when the search query changes
+  useEffect(() => {
+    setFilters({ genders: [], minPrice: '', maxPrice: '', brands: [], minDiscount: '' });
+    setSort('newest');
+  }, [debounced]);
+
+  const apiParams = {
+    gender:      filters.genders.length > 0 ? filters.genders.join(',') : '',
+    brand:       filters.brands.length  > 0 ? filters.brands.join(',')  : '',
+    minPrice:    filters.minPrice,
+    maxPrice:    filters.maxPrice,
+    minDiscount: filters.minDiscount,
+    sort,
+  };
+
   const { data, loading } = useFetch(
-    () => productsApi.search(debounced),
-    [debounced]
+    () => productsApi.search(debounced, apiParams),
+    [debounced, filters, sort]
   );
 
   const { data: brandsData } = useFetch(() => productsApi.brands(), []);
   const brands = brandsData?.data ?? [];
+
+  const products = data?.data ?? [];
+  const total = data?.total ?? products.length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -31,12 +49,12 @@ export default function SearchPage() {
             <SortBar
               value={sort}
               onChange={setSort}
-              total={data?.data?.length}
-              categoryName={`Results for "${debounced}"`}
+              total={total}
+              title={`Results for "${debounced}"`}
               filters={filters}
               onFilterChange={setFilters}
             />
-            <ProductGrid products={data?.data} loading={loading} />
+            <ProductGrid products={products} loading={loading} />
           </div>
         </div>
       )}

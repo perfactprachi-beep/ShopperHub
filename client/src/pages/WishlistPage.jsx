@@ -4,6 +4,7 @@ import { useWishlistStore } from '../store/wishlistStore.js';
 import { useCartStore } from '../store/cartStore.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { assetUrl } from '../utils/assetUrl.js';
+import { getProductPlaceholder } from '../utils/getProductPlaceholder.js';
 import { useToastStore } from '../store/toastStore.js';
 import { fetchWishlist, removeFromWishlist } from '../api/wishlistApi.js';
 import { addCartItem, fetchCart } from '../api/cartApi.js';
@@ -29,7 +30,12 @@ function WishlistCard({ product, onRemove, onMoveToCart }) {
       <div className="relative overflow-hidden h-56 bg-gray-50">
         <Link to={`/product/${product.slug}`} className="block w-full h-full">
           {product.image_url ? (
-            <img src={assetUrl(product.image_url)} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <img
+              src={product.image_url ? assetUrl(product.image_url) : getProductPlaceholder(product)}
+              alt={product.title}
+              onError={e => { const p = getProductPlaceholder(product); if (e.currentTarget.src !== p) e.currentTarget.src = p; }}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[var(--color-muted)] text-sm">No image</div>
           )}

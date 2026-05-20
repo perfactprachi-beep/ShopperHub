@@ -229,31 +229,42 @@ export async function bulkUpdateInventoryStock(updates, admin_id) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const results = [];
     for (const update of updates) {
-      const { id, stock_quantity } = update;
-      
-      // Get current inventory
-      const { rows: currentRows } = await client.query('SELECT * FROM inventory WHERE id = $1', [id]);
+      // `id` is variant_id (sent by the frontend)
+      const { id: variant_id, stock_quantity } = update;
+
+      // Look up by variant_id (not inventory PK)
+      const { rows: currentRows } = await client.query(
+        'SELECT * FROM inventory WHERE variant_id = $1',
+        [variant_id]
+      );
       const current = currentRows[0];
-      if (!current) continue;
-      
-      // Update inventory
+
+      if (!current) {
+        // No inventory row — update product_variants.stock directly and continue
+        await client.query(
+          'UPDATE product_variants SET stock = $1 WHERE id = $2',
+          [stock_quantity, variant_id]
+        );
+        results.push({ variant_id, live_stock: stock_quantity, stock_quantity });
+        continue;
+      }
+
+      // Update inventory row
       const { rows } = await client.query(`
         UPDATE inventory
         SET stock_quantity = $2
         WHERE id = $1
         RETURNING *
-      `, [id, stock_quantity]);
+      `, [current.id, stock_quantity]);
 
       // Sync live stock to product_variants
-      if (current.variant_id) {
-        await client.query(
-          'UPDATE product_variants SET stock = $1 WHERE id = $2',
-          [stock_quantity, current.variant_id]
-        );
-      }
+      await client.query(
+        'UPDATE product_variants SET stock = $1 WHERE id = $2',
+        [stock_quantity, variant_id]
+      );
 
       // Log the change
       const quantityDiff = stock_quantity - current.stock_quantity;
@@ -261,12 +272,12 @@ export async function bulkUpdateInventoryStock(updates, admin_id) {
         await client.query(`
           INSERT INTO inventory_logs (inventory_id, action_type, quantity, admin_id, notes)
           VALUES ($1, $2, $3, $4, $5)
-        `, [id, 'manual_update', quantityDiff, admin_id, 'Bulk stock update']);
+        `, [current.id, 'manual_update', quantityDiff, admin_id, 'Bulk stock update']);
       }
 
       results.push({ ...rows[0], live_stock: stock_quantity });
     }
-    
+
     await client.query('COMMIT');
     return results;
   } catch (err) {
@@ -434,26 +445,64 @@ export async function createInventoryLog({ inventory_id, action_type, quantity, 
 }
 
 // Update stock directly by variant_id — works whether or not an inventory record exists
-export async function setVariantStock(variantId, newStock, lowStockThreshold) {
+export async function setVariantStock(variantId, newStock, lowStockThreshold, adminId, notes) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Read current stock for diff calculation
+    const { rows: current } = await client.query(
+      'SELECT stock FROM product_variants WHERE id = $1',
+      [variantId]
+    );
+    const oldStock = current[0]?.stock ?? 0;
 
     await client.query(
       'UPDATE product_variants SET stock = $1 WHERE id = $2',
       [newStock, variantId]
     );
 
-    // Sync inventory record if one exists
-    await client.query(
-      'UPDATE inventory SET stock_quantity = $1 WHERE variant_id = $2',
+    // Sync inventory record; create one if it doesn't exist so we can log
+    let { rows: invRows } = await client.query(
+      'UPDATE inventory SET stock_quantity = $1 WHERE variant_id = $2 RETURNING id',
       [newStock, variantId]
     );
 
-    if (lowStockThreshold != null) {
+    if (!invRows[0]) {
+      // No inventory row — look up the first active warehouse and auto-create one
+      const { rows: wh } = await client.query(
+        'SELECT id FROM warehouses WHERE is_active = true ORDER BY id LIMIT 1'
+      );
+      if (wh[0]) {
+        const { rows: pRow } = await client.query(
+          'SELECT product_id FROM product_variants WHERE id = $1', [variantId]
+        );
+        if (pRow[0]) {
+          const created = await client.query(
+            `INSERT INTO inventory (product_id, variant_id, warehouse_id, stock_quantity, low_stock_threshold)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [pRow[0].product_id, variantId, wh[0].id, newStock, lowStockThreshold ?? 5]
+          );
+          invRows = created.rows;
+        }
+      }
+    }
+
+    if (lowStockThreshold != null && invRows[0]) {
       await client.query(
         'UPDATE inventory SET low_stock_threshold = $1 WHERE variant_id = $2',
         [lowStockThreshold, variantId]
+      );
+    }
+
+    // Write inventory log if stock changed and an inventory record exists
+    const inventoryId = invRows[0]?.id;
+    const diff = newStock - oldStock;
+    if (inventoryId && diff !== 0) {
+      await client.query(
+        `INSERT INTO inventory_logs (inventory_id, action_type, quantity, admin_id, notes)
+         VALUES ($1, 'manual_update', $2, $3, $4)`,
+        [inventoryId, diff, adminId || null, notes || null]
       );
     }
 

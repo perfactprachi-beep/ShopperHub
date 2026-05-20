@@ -29,7 +29,7 @@ export async function getProducts({ category, brand, gender, minPrice, maxPrice,
       SELECT c.id FROM categories c JOIN cat_tree ct ON c.parent_id = ct.id
     )
   ` : '';
-  if (category) { conditions.push(`p.category_id IN (SELECT id FROM cat_tree)`); values.push(category); idx++; }
+  if (category) { conditions.push(`(p.category_id IN (SELECT id FROM cat_tree) OR (p.sub_category_id IS NOT NULL AND p.sub_category_id IN (SELECT id FROM cat_tree)))`); values.push(category); idx++; }
 
   if (brand)       { conditions.push(`b.slug = $${idx++}`); values.push(brand); }
   if (gender)      { conditions.push(`p.gender = $${idx++}`); values.push(gender); }
@@ -51,7 +51,11 @@ export async function getProducts({ category, brand, gender, minPrice, maxPrice,
   const sql = `
     ${categoryWith}
     SELECT
-      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock,
+      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender,
+      COALESCE(
+        (SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id),
+        p.stock
+      ) AS stock,
       b.name AS brand_name, b.slug AS brand_slug,
       c.name AS category_name, c.slug AS category_slug,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
@@ -125,21 +129,32 @@ export async function deleteProductAttribute(id) {
 }
 
 export async function searchProducts(q, limit = 20) {
+  const tsq = `plainto_tsquery('english', $1)`;
+  const titleVec = `to_tsvector('english', p.title)`;
+  const like = `%${q}%`;
   const { rows } = await pool.query(`
     SELECT
       p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender,
+      COALESCE(
+        (SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id),
+        p.stock
+      ) AS stock,
       b.name AS brand_name,
       c.name AS category_name,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
-      ts_rank(p.search_vector, plainto_tsquery('english', $1)) AS rank
+      ts_rank(${titleVec}, ${tsq}) AS rank
     FROM products p
     LEFT JOIN brands b ON b.id = p.brand_id
     LEFT JOIN categories c ON c.id = p.category_id
-    WHERE p.search_vector @@ plainto_tsquery('english', $1)
-      AND p.status = 'active'
+    WHERE p.status = 'active'
+      AND (
+        ${titleVec} @@ ${tsq}
+        OR b.name ILIKE $3
+        OR c.name ILIKE $3
+      )
     ORDER BY rank DESC
     LIMIT $2
-  `, [q, limit]);
+  `, [q, limit, like]);
   return rows;
 }
 
@@ -165,15 +180,21 @@ export async function adminListProducts({ page = 1, limit = 20, search, status, 
 
   const sql = `
     SELECT
-      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender, p.stock, p.status,
-      p.is_deal, p.is_returnable, p.created_at,
+      p.id, p.title, p.slug, p.base_price, p.discount_pct, p.gender,
+      COALESCE(
+        (SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = p.id),
+        p.stock
+      ) AS stock,
+      p.status, p.is_deal, p.is_returnable, p.created_at,
       b.name AS brand_name, b.id AS brand_id,
       c.name AS category_name, c.id AS category_id,
+      p.sub_category_id, sc.name AS sub_category_name,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url,
       COUNT(*) OVER() AS total_count
     FROM products p
     LEFT JOIN brands b ON b.id = p.brand_id
     LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN categories sc ON sc.id = p.sub_category_id
     ${where}
     ORDER BY p.created_at DESC
     LIMIT $${idx++} OFFSET $${idx++}
@@ -184,12 +205,13 @@ export async function adminListProducts({ page = 1, limit = 20, search, status, 
   return rows;
 }
 
-export async function createProduct({ title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
+export async function createProduct({ title, slug, brand_id, category_id, sub_category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
   const { rows } = await pool.query(
-    `INSERT INTO products (title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    `INSERT INTO products (title, slug, brand_id, category_id, sub_category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
-    [title, slug, brand_id || null, category_id || null, description || null, gender || null,
+    [title, slug, brand_id || null, category_id || null, sub_category_id || null,
+     description || null, gender || null,
      base_price, discount_pct || 0, stock || 0, status || 'active',
      is_deal === true || is_deal === 'true',
      is_returnable !== false && is_returnable !== 'false']
@@ -197,14 +219,15 @@ export async function createProduct({ title, slug, brand_id, category_id, descri
   return rows[0];
 }
 
-export async function updateProduct(id, { title, slug, brand_id, category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
+export async function updateProduct(id, { title, slug, brand_id, category_id, sub_category_id, description, gender, base_price, discount_pct, stock, status, is_deal, is_returnable }) {
   const { rows } = await pool.query(
     `UPDATE products
-     SET title=$2, slug=$3, brand_id=$4, category_id=$5, description=$6,
-         gender=$7, base_price=$8, discount_pct=$9, stock=$10, status=$11, is_deal=$12, is_returnable=$13
+     SET title=$2, slug=$3, brand_id=$4, category_id=$5, sub_category_id=$6, description=$7,
+         gender=$8, base_price=$9, discount_pct=$10, stock=$11, status=$12, is_deal=$13, is_returnable=$14
      WHERE id=$1 RETURNING *`,
-    [id, title, slug, brand_id || null, category_id || null, description || null,
-     gender || null, base_price, discount_pct || 0, stock || 0, status || 'active',
+    [id, title, slug, brand_id || null, category_id || null, sub_category_id || null,
+     description || null, gender || null, base_price, discount_pct || 0, stock || 0,
+     status || 'active',
      is_deal === true || is_deal === 'true',
      is_returnable !== false && is_returnable !== 'false']
   );

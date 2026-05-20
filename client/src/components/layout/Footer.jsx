@@ -78,7 +78,7 @@ const COLUMNS = [
     links: [
       { label: 'First Citizen',   to: '/register' },
       { label: 'Luxe Collection', to: '/luxe' },
-      { label: 'Gift Cards',      to: '/search?q=gift' },
+      { label: 'Gifts & Gift Cards', to: '/gifts' },
       { label: 'All Brands',      to: '/brands' },
       { label: 'Offers & Deals',  to: '/offers' },
       { label: 'Mobile App',      to: '/' },
@@ -93,6 +93,7 @@ const COLUMNS = [
       { label: 'Beauty',   to: '/category/beauty' },
       { label: 'Watches',  to: '/category/watches' },
       { label: 'Home',     to: '/category/home' },
+      { label: 'Gifts',    to: '/gifts' },
     ],
   },
   {
@@ -166,32 +167,6 @@ export default function Footer() {
 
       {/* ── Luxury brand strip ── */}
       <FooterBrandStrip />
-
-      {/* ── Newsletter bar ── */}
-      <div className="bg-[#111] border-b border-white/8">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <p className="text-white font-semibold text-sm tracking-wide">Stay in the loop</p>
-            <p className="text-gray-500 text-xs mt-0.5">Get exclusive offers, new arrivals & style tips delivered to you.</p>
-          </div>
-          <form
-            className="flex w-full sm:w-auto gap-0"
-            onSubmit={(e) => e.preventDefault()}
-          >
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 sm:w-64 bg-white/5 border border-white/15 border-r-0 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none focus:border-[#8B1A2F] transition-colors"
-            />
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-[#8B1A2F] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#6d1424] transition-colors shrink-0"
-            >
-              Subscribe
-            </button>
-          </form>
-        </div>
-      </div>
 
       {/* ── Main link grid ── */}
       <div className="max-w-7xl mx-auto px-4 py-12">

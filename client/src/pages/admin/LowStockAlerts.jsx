@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { inventoryApi } from '../../api/inventoryApi.js';
 import { getAdminCategories, getAdminBrands, deleteProduct } from '../../api/adminApi.js';
 import { assetUrl } from '../../utils/assetUrl.js';
+import { DEFAULT_PRODUCT_IMAGE } from '../../utils/getProductPlaceholder.js';
 import FilterDropdown from '../../components/ui/FilterDropdown.jsx';
 
 function RestockModal({ item, onClose, onRestocked }) {
@@ -17,7 +18,8 @@ function RestockModal({ item, onClose, onRestocked }) {
       const newStock = currentStock + quantity;
       const { data } = await inventoryApi.updateVariantStock(item.variant_id, {
         stock_quantity: newStock,
-        low_stock_threshold: item.low_stock_threshold
+        low_stock_threshold: item.low_stock_threshold,
+        notes: notes.trim() || undefined,
       });
       if (data.success) {
         onRestocked(data.data);
@@ -331,15 +333,12 @@ export default function LowStockAlerts() {
                     {/* Product */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {item.image_url ? (
-                          <img src={assetUrl(item.image_url)} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-                              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/>
-                            </svg>
-                          </div>
-                        )}
+                        <img
+                          src={item.image_url ? assetUrl(item.image_url) : DEFAULT_PRODUCT_IMAGE}
+                          alt=""
+                          onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                          className="w-10 h-10 object-cover rounded-lg shrink-0"
+                        />
                         <span className="font-medium text-gray-900 max-w-[180px] truncate">{item.product_title}</span>
                       </div>
                     </td>

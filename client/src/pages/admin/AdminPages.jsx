@@ -21,6 +21,7 @@ const EMPTY = {
 function PageModal({ page, onClose, onSaved }) {
   const [form, setForm] = useState(page ? { ...page } : { ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [formErr, setFormErr] = useState('');
   const [slugManual, setSlugManual] = useState(!!page);
   const titleRef = useRef(null);
   const { addToast } = useToastStore();
@@ -35,7 +36,9 @@ function PageModal({ page, onClose, onSaved }) {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.slug.trim()) return;
+    setFormErr('');
+    if (!form.title.trim()) { setFormErr('Title is required'); return; }
+    if (!form.slug.trim())  { setFormErr('Slug is required'); return; }
     setSaving(true);
     try {
       const { data } = page?.id
@@ -60,6 +63,9 @@ function PageModal({ page, onClose, onSaved }) {
 
         {/* Body */}
         <div className="px-6 py-4 space-y-4">
+          {formErr && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formErr}</p>
+          )}
           {/* Title + Slug */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -137,21 +143,29 @@ function PageModal({ page, onClose, onSaved }) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">SEO</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Meta Title</label>
+                <label className="label">
+                  Meta Title
+                  <span className="text-gray-400 font-normal ml-1">({(form.meta_title || '').length}/60)</span>
+                </label>
                 <input
                   value={form.meta_title || ''}
                   onChange={e => set('meta_title', e.target.value)}
                   className="input"
                   placeholder="About Us | ShoppersHub"
+                  maxLength={60}
                 />
               </div>
               <div>
-                <label className="label">Meta Description</label>
+                <label className="label">
+                  Meta Description
+                  <span className="text-gray-400 font-normal ml-1">({(form.meta_description || '').length}/160)</span>
+                </label>
                 <input
                   value={form.meta_description || ''}
                   onChange={e => set('meta_description', e.target.value)}
                   className="input"
                   placeholder="Short description for search engines…"
+                  maxLength={160}
                 />
               </div>
             </div>
@@ -163,7 +177,7 @@ function PageModal({ page, onClose, onSaved }) {
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
           <button
             onClick={handleSave}
-            disabled={saving || !form.title.trim() || !form.slug.trim()}
+            disabled={saving}
             className="btn-primary px-5 py-2 text-sm"
           >
             {saving ? 'Saving…' : page?.id ? 'Save Changes' : 'Create Page'}

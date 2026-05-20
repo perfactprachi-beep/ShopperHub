@@ -35,6 +35,7 @@ function BrandModal({ brand, onClose, onSaved }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(brand?.logo_url ? (assetUrl(brand.logo_url) || brand.logo_url) : null);
   const [saving, setSaving] = useState(false);
+  const [formErr, setFormErr] = useState('');
   const fileRef = useRef();
   const { addToast } = useToastStore();
 
@@ -50,12 +51,16 @@ function BrandModal({ brand, onClose, onSaved }) {
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { addToast('Image must be under 5 MB', 'error'); return; }
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setForm(prev => ({ ...prev, logo_url: '' }));
   };
 
   const handleSave = async () => {
+    setFormErr('');
+    if (!form.name.trim()) { setFormErr('Brand name is required'); return; }
+    if (!form.slug.trim()) { setFormErr('Slug is required'); return; }
     setSaving(true);
     try {
       let saved;
@@ -83,6 +88,9 @@ function BrandModal({ brand, onClose, onSaved }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <div className="px-6 py-4 space-y-4">
+          {formErr && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formErr}</p>
+          )}
           {/* Logo upload */}
           <div>
             <label className="label">Logo</label>
@@ -113,16 +121,16 @@ function BrandModal({ brand, onClose, onSaved }) {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           </div>
           <div>
-            <label className="label">Name</label>
-            <input name="name" value={form.name} onChange={handleChange} className="input" />
+            <label className="label">Name *</label>
+            <input name="name" value={form.name} onChange={handleChange} className="input" required maxLength={100} />
           </div>
           <div>
-            <label className="label">Slug</label>
-            <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" />
+            <label className="label">Slug *</label>
+            <input name="slug" value={form.slug} onChange={handleChange} className="input font-mono text-sm" required maxLength={100} />
           </div>
           <div>
             <label className="label">Description</label>
-            <textarea name="description" value={form.description || ''} onChange={handleChange} rows={3} className="input resize-none" />
+            <textarea name="description" value={form.description || ''} onChange={handleChange} rows={3} className="input resize-none" maxLength={500} />
           </div>
         </div>
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
@@ -146,6 +154,7 @@ export default function AdminBrands() {
   const load = async () => {
     setLoading(true);
     try { setBrands(await getAdminBrands()); }
+    catch { addToast('Failed to load brands', 'error'); }
     finally { setLoading(false); }
   };
 

@@ -11,6 +11,7 @@ import AddressForm from '../components/address/AddressForm.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
 import { PincodeChecker } from '../components/checkout/PincodeChecker.jsx';
 import { StorePicker } from '../components/checkout/StorePicker.jsx';
+import { DEFAULT_PRODUCT_IMAGE } from '../utils/getProductPlaceholder.js';
 
 const FREE_SHIPPING_THRESHOLD = 999;
 
@@ -102,7 +103,7 @@ function PriceSidebar({ items, couponData, step, selectedAddressId, selectedDeli
         <div className="border-b border-gray-100 divide-y divide-gray-50 max-h-60 overflow-y-auto">
           {items.map((item) => (
             <div key={item.variantId} className="flex gap-3 px-5 py-3">
-              <img src={item.image} alt={item.title} className="w-10 h-14 object-cover shrink-0 bg-gray-50" />
+              <img src={item.image || DEFAULT_PRODUCT_IMAGE} alt={item.title} onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }} className="w-10 h-14 object-cover shrink-0 bg-gray-50" />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-medium text-gray-700 line-clamp-2">{item.title}</p>
                 {(item.size || item.color) && (
@@ -588,8 +589,9 @@ function DeliveryEstimates({ items, deliveryType }) {
         {items.map((item) => (
           <div key={item.variantId} className="flex items-center gap-3 px-4 py-3">
             <img
-              src={item.image}
+              src={item.image || DEFAULT_PRODUCT_IMAGE}
               alt={item.title}
+              onError={e => { if (e.currentTarget.src !== DEFAULT_PRODUCT_IMAGE) e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
               className="w-14 h-14 object-cover shrink-0 bg-gray-50"
             />
             <div className="flex-1 min-w-0">
