@@ -46,12 +46,18 @@ export async function createOrder(req, res, next) {
     const subtotal = cartItems.reduce((sum, i) => sum + Number(i.lineTotal), 0);
 
     // Stock pre-check before creating Razorpay order (prevents paying for OOS items)
-    for (const item of cartItems) {
-      if (!item.variantId) continue;
-      const { rows } = await pool.query('SELECT stock FROM product_variants WHERE id = $1', [item.variantId]);
-      const available = rows[0]?.stock ?? 0;
-      if (available < item.quantity) {
-        return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+    const variantIds = cartItems.map(i => i.variantId).filter(Boolean);
+    if (variantIds.length) {
+      const { rows: stockRows } = await pool.query(
+        'SELECT id, stock FROM product_variants WHERE id = ANY($1)',
+        [variantIds]
+      );
+      const stockMap = Object.fromEntries(stockRows.map(r => [r.id, r.stock]));
+      for (const item of cartItems) {
+        if (!item.variantId) continue;
+        if ((stockMap[item.variantId] ?? 0) < item.quantity) {
+          return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+        }
       }
     }
 
@@ -222,12 +228,18 @@ export async function createCodOrder(req, res, next) {
     }
 
     // Stock pre-check before placing COD order
-    for (const item of cartItems) {
-      if (!item.variantId) continue;
-      const { rows } = await pool.query('SELECT stock FROM product_variants WHERE id = $1', [item.variantId]);
-      const available = rows[0]?.stock ?? 0;
-      if (available < item.quantity) {
-        return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+    const variantIds = cartItems.map(i => i.variantId).filter(Boolean);
+    if (variantIds.length) {
+      const { rows: stockRows } = await pool.query(
+        'SELECT id, stock FROM product_variants WHERE id = ANY($1)',
+        [variantIds]
+      );
+      const stockMap = Object.fromEntries(stockRows.map(r => [r.id, r.stock]));
+      for (const item of cartItems) {
+        if (!item.variantId) continue;
+        if ((stockMap[item.variantId] ?? 0) < item.quantity) {
+          return res.status(409).json({ success: false, message: `"${item.productTitle}" is out of stock or has insufficient quantity` });
+        }
       }
     }
 

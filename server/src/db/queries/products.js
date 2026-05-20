@@ -1,21 +1,5 @@
 import { pool } from '../pool.js';
 
-pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_deal BOOLEAN DEFAULT false`).catch(console.error);
-pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_returnable BOOLEAN DEFAULT true`).catch(console.error);
-
-pool.query(`
-  CREATE TABLE IF NOT EXISTS product_attributes (
-    id         SERIAL PRIMARY KEY,
-    product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    label      VARCHAR(100) NOT NULL,
-    value      VARCHAR(255) NOT NULL,
-    sort_order INT DEFAULT 0,
-    section    VARCHAR(20) DEFAULT 'highlights'
-  )
-`).then(() => pool.query(`
-  ALTER TABLE product_attributes ADD COLUMN IF NOT EXISTS section VARCHAR(20) DEFAULT 'highlights'
-`)).catch(console.error);
-
 export async function getProducts({ category, brand, gender, minPrice, maxPrice, minDiscount, sort, page, limit }) {
   const conditions = ['p.status = $1'];
   const values = ['active'];
